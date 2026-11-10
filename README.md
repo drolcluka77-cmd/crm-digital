@@ -58,7 +58,30 @@ editions, Arrive, and anything you add later) through a team of sellers.
 
 **Pipeline stages:** New lead → Contacted → Demo scheduled → Demo done → Quote sent → Negotiating → Won / Lost.
 
-## 1. Run it on Replit
+## 1. Run it on Railway (recommended)
+
+`railway.json` sets the build and start commands. Each deploy pushes the database
+schema, creates the admin if it's missing and starts the app. Every push to `main`
+deploys automatically.
+
+1. railway.app → **New Project → Deploy from GitHub repo** → `crm-digital`.
+2. In the project, **+ New → Database → PostgreSQL**.
+3. CRM service → **Variables**:
+   - `DATABASE_URL` = `${{Postgres.DATABASE_URL}}`
+   - `SESSION_SECRET` = a long random string
+   - `STORAGE_DRIVER` = `local`
+   - `CRON_SECRET`, `BOOKING_WEBHOOK_SECRET` = random strings
+   - `APP_URL` = the domain from step 5
+4. CRM service → **Settings → Volumes → Add volume**, mount path `/app/storage`
+   (uploaded PDFs and images live here).
+5. CRM service → **Settings → Networking → Generate Domain**, or add your own
+   domain with the CNAME record Railway shows. Put that address in `APP_URL`.
+6. Open the domain and log in with `admin@example.com` / `ChangeMe123!` (or your
+   `SEED_ADMIN_*` values). **Change the password** right away.
+7. Daily digest: a Railway **Cron** service, or any cron website, calling
+   `https://<domain>/api/cron/daily?secret=<CRON_SECRET>` every morning.
+
+## 1b. Run it on Replit (alternative)
 
 The repository includes `.replit` and `replit.md`, so Replit runs the app as is.
 `replit.md` tells Replit's agent **not** to port or restructure the project.
