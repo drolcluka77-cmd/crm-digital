@@ -1,0 +1,427 @@
+// Digital Products Distribution CRM — database schema
+//
+// SQLite (one file, zero setup) works well on Replit. To move to Postgres
+// later, change the provider to "postgresql" and point DATABASE_URL at it.
+//
+// Note: "enum-like" fields (role, status, billing, type …) are plain
+// strings, because Prisma 5 doesn't support enums on SQLite. The allowed
+// values live in lib/constants.ts and are validated in the server actions.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── People ──────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         String   @default("SALES") // ADMIN | MANAGER | SALES
+  phone        String?
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  // A seller can belong to a manager's team. Managers only see and
+  // control the sellers on their own team; admins see everyone.
+  managerId String?
+  manager   User?   @relation("Team", fields: [managerId], references: [id], onDelete: SetNull)
+  team      User[]  @relation("Team")
+
+  // Seller's own booking page (Calendly, Cal.com, Google booking …).
+  bookingUrl         String?
+  // Overrides the product commission % on this seller's new quote lines.
+  commissionRate     Float?
+  emailNotifications Boolean @default(true)
+
+  productAccess  ProductAccess[]    @relation("AccessUser")
+  accessGranted  ProductAccess[]    @relation("AccessGrantedBy")
+  customers      Customer[]
+  quotes         Quote[]            @relation("QuoteSeller")
+  approvedQuotes Quote[]            @relation("QuoteApprover")
+  activities     Activity[]
+  shares         MaterialShare[]
+  notifications  Notification[]
+  payouts        CommissionPayout[] @relation("PayoutSeller")
+  payoutsMade    CommissionPayout[] @relation("PayoutCreatedBy")
+  certifications Certification[]
+  subscriptions  Subscription[]
+  leadPools      LeadPool[]
+}
+
+// ─── Catalog ─────────────────────────────────────────────────────────────
+
+// One sellable product or product edition, e.g. "Unbusyness for Building
+// Managers". Editions of the same product share a `family` ("Unbusyness"),
+// which is how the catalog groups them.
+model Product {
+  id             String   @id @default(cuid())
+  name           String
+  family         String?
+  tagline        String?
+  targetSegment  String? // who it's for: "Property managers, HOAs"
+  description    String?
+  pitch          String? // 30-second elevator pitch for sellers
+  keyBenefits    String? // one per line
+  idealCustomer  String? // qualification: who is a good fit, questions to ask
+  objections     String? // "Objection — answer", one block per line
+  websiteUrl     String?
+  demoUrl        String? // live demo / sandbox / booking link
+  imageUrl       String?
+  color          String? // accent colour for cards, e.g. #4f46e5
+  commissionRate Float    @default(0) // % of first-year net value
+  // % of the yearly value paid to the seller each time a subscription renews.
+  renewalCommissionRate Float   @default(0)
+  // Highest total discount (%) off list price a seller may give without
+  // manager approval. null = use the company default in Settings.
+  maxDiscount           Float?
+  // Sellers must pass this product's quiz before they can quote or send it.
+  requireCertification  Boolean @default(false)
+  passScore             Int     @default(80) // % correct needed to pass
+  active         Boolean  @default(true)
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  plans      ProductPlan[]
+  materials  SalesMaterial[]
+  access     ProductAccess[]
+  quoteItems     QuoteItem[]
+  interests      CustomerProduct[]
+  templates      EmailTemplate[]
+  questions      QuizQuestion[]
+  certifications Certification[]
+}
+
+// Price points for a product: "Starter €29 / month per building".
+model ProductPlan {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name        String
+  price       Float
+  billing     String   @default("MONTHLY") // ONE_TIME | MONTHLY | YEARLY
+  unitLabel   String? // "per building", "per user", "per bed"
+  description String?
+  active      Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  quoteItems QuoteItem[]
+}
+
+// Which seller may see & sell which product. No row = no access.
+model ProductAccess {
+  userId      String
+  user        User     @relation("AccessUser", fields: [userId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  grantedById String?
+  grantedBy   User?    @relation("AccessGrantedBy", fields: [grantedById], references: [id], onDelete: SetNull)
+  grantedAt   DateTime @default(now())
+
+  @@id([userId, productId])
+}
+
+// Sales enablement: decks, one-pagers, demo videos, scripts …
+// productId = null means "general" (visible to every seller).
+model SalesMaterial {
+  id           String   @id @default(cuid())
+  title        String
+  description  String?
+  type         String   @default("OTHER") // see MATERIAL_TYPES
+  productId    String?
+  product      Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+  storagePath  String? // private file on disk (storage/…), served via /api/materials/[id]
+  fileName     String?
+  fileType     String?
+  fileSize     Int?
+  linkUrl      String? // external link (YouTube, Loom, Google Slides, live demo)
+  internalOnly Boolean  @default(false) // true = for sellers only, can't be sent to clients
+  sortOrder    Int      @default(0)
+  uploadedAt   DateTime @default(now())
+
+  shares MaterialShare[]
+}
+
+// A tracked link a seller sent to a client (/s/<token>). Lets the seller
+// see whether — and how often — the client opened the material.
+model MaterialShare {
+  id            String        @id @default(cuid())
+  token         String        @unique
+  materialId    String
+  material      SalesMaterial @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  customerId    String
+  customer      Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  userId        String?
+  user          User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  views         Int           @default(0)
+  firstViewedAt DateTime?
+  lastViewedAt  DateTime?
+  expiresAt     DateTime?
+  createdAt     DateTime      @default(now())
+}
+
+// ─── CRM ─────────────────────────────────────────────────────────────────
+
+model Customer {
+  id             String    @id @default(cuid())
+  name           String // contact person
+  jobTitle       String?
+  company        String?
+  segment        String? // Building management, Trades, Hotel, Hospital …
+  email          String? // stored lower-case (used for duplicate-lead checks)
+  phone          String?
+  website        String?
+  city           String?
+  country        String?
+  size           String? // "120 apartments", "4 buildings", "300 beds"
+  source         String? // Referral, Cold call, LinkedIn …
+  note           String?
+  status         String    @default("NEW") // see LEAD_STATUSES
+  estimatedValue Float? // expected first-year value, EUR excl. VAT
+  nextFollowUpAt DateTime?
+  lastContactAt  DateTime?
+  demoAt         DateTime? // next scheduled demo
+  bookingToken   String?   @unique // tracked booking link /b/<token>
+  // null owner = unassigned lead sitting in a lead pool
+  ownerId        String?
+  owner          User?     @relation(fields: [ownerId], references: [id])
+  poolId         String?
+  pool           LeadPool? @relation(fields: [poolId], references: [id], onDelete: SetNull)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  quotes     Quote[]
+  activities Activity[]
+  interests     CustomerProduct[]
+  shares        MaterialShare[]
+  subscriptions Subscription[]
+}
+
+// Which products a lead is interested in.
+model CustomerProduct {
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([customerId, productId])
+}
+
+// Timeline entry on a customer: calls, meetings, demos, emails, and
+// automatic events (quote sent, material opened …).
+model Activity {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  type       String // see ACTIVITY_TYPES
+  body       String?
+  createdAt  DateTime @default(now())
+}
+
+model Quote {
+  id         String      @id @default(cuid())
+  number     String      @unique
+  customerId String
+  customer   Customer    @relation(fields: [customerId], references: [id])
+  userId     String
+  user       User        @relation("QuoteSeller", fields: [userId], references: [id])
+  status     String      @default("DRAFT") // DRAFT | SENT | ACCEPTED | REJECTED
+  items      QuoteItem[]
+  discount   Float       @default(0)
+  vatRate    Float       @default(22)
+  notes      String?
+  validUntil DateTime?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  sentAt     DateTime?
+  decidedAt  DateTime?
+
+  // Online acceptance (/q/<publicToken>)
+  publicToken     String?   @unique
+  viewedAt        DateTime?
+  acceptedByName  String?
+  acceptedByTitle String?
+  acceptedIp      String?
+  declineReason   String?
+
+  // Price guardrails: NONE | PENDING | APPROVED | REJECTED
+  approvalStatus      String    @default("NONE")
+  approvalReason      String? // why approval is needed
+  approvalNote        String? // manager's comment
+  approvalRequestedAt DateTime?
+  approvedById        String?
+  approvedBy          User?     @relation("QuoteApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  approvedAt          DateTime?
+
+  subscription Subscription?
+}
+
+model QuoteItem {
+  id             String       @id @default(cuid())
+  quoteId        String
+  quote          Quote        @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  productId      String?
+  product        Product?     @relation(fields: [productId], references: [id])
+  planId         String?
+  plan           ProductPlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
+  name           String
+  quantity       Int          @default(1)
+  unitPrice      Float
+  billing        String       @default("ONE_TIME") // ONE_TIME | MONTHLY | YEARLY
+  unitLabel      String?
+  // Snapshot of the product's commission % when the line was added, so
+  // later rate changes don't rewrite history.
+  commissionRate        Float   @default(0)
+  renewalCommissionRate Float   @default(0)
+  listPrice             Float? // the plan's price when added (for discount checks)
+}
+
+// Single-row table (id = 1): company info, defaults and SMTP settings.
+model Settings {
+  id                Int     @id @default(1)
+  companyName       String  @default("Distribution Hub")
+  companyAddress    String?
+  companyEmail      String?
+  companyPhone      String?
+  vatRate           Float   @default(22)
+  quoteValidityDays Int     @default(30)
+  // Default max discount (%) without approval; null = no limit.
+  defaultMaxDiscount Float?
+  // Monthly bonus tiers: "10000:2, 25000:4" = +2 % of the month's won value
+  // once a seller wins ≥ €10,000 in a month, +4 % from €25,000.
+  commissionTiers    String?
+  renewalTermMonths  Int     @default(12)
+  logoUrl           String?
+  smtpHost          String?
+  smtpPort          Int?
+  smtpUser          String?
+  smtpPass          String?
+  smtpFrom          String?
+}
+
+// ─── Commission ──────────────────────────────────────────────────────────
+
+// A payment made to a seller for a statement period ("2026-11").
+model CommissionPayout {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation("PayoutSeller", fields: [userId], references: [id], onDelete: Cascade)
+  period      String // YYYY-MM
+  amount      Float
+  note        String?
+  paidAt      DateTime @default(now())
+  createdById String?
+  createdBy   User?    @relation("PayoutCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+}
+
+// ─── Recurring revenue ───────────────────────────────────────────────────
+
+// Created when a quote with monthly/yearly lines is accepted.
+model Subscription {
+  id                String    @id @default(cuid())
+  quoteId           String    @unique
+  quote             Quote     @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  customerId        String
+  customer          Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  userId            String? // seller credited with renewals
+  user              User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  status            String    @default("ACTIVE") // ACTIVE | CANCELLED
+  startDate         DateTime
+  renewalDate       DateTime
+  termMonths        Int       @default(12)
+  monthlyValue      Float // net recurring value per month (MRR)
+  annualValue       Float // net recurring value per term year
+  renewalCommission Float     @default(0) // paid on each renewal
+  cancelledAt       DateTime?
+  cancelReason      String?
+  createdAt         DateTime  @default(now())
+
+  renewals SubscriptionRenewal[]
+}
+
+model SubscriptionRenewal {
+  id             String       @id @default(cuid())
+  subscriptionId String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  userId         String? // seller credited
+  renewedAt      DateTime     @default(now())
+  annualValue    Float
+  commission     Float
+}
+
+// ─── Templates, pools, training, notifications ──────────────────────────
+
+// Ready-made emails. productId null = general (all sellers).
+// Placeholders: {{firstName}} {{name}} {{company}} {{product}}
+// {{sellerName}} {{sellerPhone}} {{bookingLink}} {{demoLink}}
+model EmailTemplate {
+  id        String   @id @default(cuid())
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name      String
+  purpose   String   @default("OTHER") // FIRST_CONTACT | FOLLOW_UP | AFTER_DEMO | PROPOSAL | OTHER
+  subject   String
+  body      String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+// A list of unassigned leads. managerId null = company-wide pool (admin).
+model LeadPool {
+  id          String     @id @default(cuid())
+  name        String
+  description String?
+  managerId   String?
+  manager     User?      @relation(fields: [managerId], references: [id], onDelete: SetNull)
+  claimable   Boolean    @default(false) // sellers may claim leads themselves
+  claimLimit  Int? // max open claimed leads per seller from this pool
+  createdAt   DateTime   @default(now())
+  leads       Customer[]
+}
+
+model QuizQuestion {
+  id           String  @id @default(cuid())
+  productId    String
+  product      Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  question     String
+  options      String // JSON array of answer strings
+  correctIndex Int
+  explanation  String?
+  sortOrder    Int     @default(0)
+}
+
+model Certification {
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  bestScore Int       @default(0)
+  lastScore Int       @default(0)
+  attempts  Int       @default(0)
+  passedAt  DateTime?
+  updatedAt DateTime  @updatedAt
+
+  @@id([userId, productId])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  body      String?
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+}

@@ -1,0 +1,18 @@
+node_modules
+.next
+out
+dist
+.env
+*.log
+prisma/dev.db
+prisma/dev.db-journal
+public/uploads/*
+!public/uploads/.gitkeep
+.DS_Store
+
+# Private sales-material uploads (served only through access-checked routes)
+/storage/*
+!/storage/.gitkeep
+
+*.db
+*.db-journal

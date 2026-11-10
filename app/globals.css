@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  background-color: #f6f7fb;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-2xl shadow-card border border-black/5;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  .btn-primary {
+    @apply btn bg-brand-500 text-white hover:bg-brand-600;
+  }
+
+  .btn-secondary {
+    @apply btn bg-white text-ink-900 border border-black/10 hover:bg-sand-50;
+  }
+
+  .btn-ghost {
+    @apply btn text-ink-700 hover:bg-black/5;
+  }
+
+  .btn-danger {
+    @apply btn bg-white text-red-600 border border-red-200 hover:bg-red-50;
+  }
+
+  .input {
+    @apply w-full rounded-xl border border-black/10 bg-white px-3.5 py-2.5 text-sm text-ink-900 placeholder:text-black/35 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent;
+  }
+
+  .label {
+    @apply block text-xs font-medium uppercase tracking-wide text-black/50 mb-1.5;
+  }
+
+  .error-box {
+    @apply rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3;
+  }
+
+  .success-box {
+    @apply rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm px-4 py-3;
+  }
+
+  .chip {
+    @apply px-3 py-1.5 rounded-full text-sm border transition-colors bg-white text-black/60 border-black/10 hover:bg-sand-50;
+  }
+
+  .chip-active {
+    @apply px-3 py-1.5 rounded-full text-sm border transition-colors bg-ink-900 text-white border-ink-900;
+  }
+
+  .section-title {
+    @apply text-[11px] font-semibold uppercase tracking-wider text-black/40;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium;
+  }
+}
