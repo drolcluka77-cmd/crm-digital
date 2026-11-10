@@ -22,7 +22,7 @@ export async function GET(_req: NextRequest, { params }: { params: { key: string
   try {
     const bytes = await readStoredFile(key);
     const ext = key.split(".").pop()?.toLowerCase() || "";
-    return new NextResponse(bytes, {
+    return new NextResponse(new Uint8Array(bytes), {
       headers: {
         "Content-Type": TYPES[ext] || "application/octet-stream",
         "Cache-Control": "public, max-age=31536000, immutable",

@@ -34,7 +34,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   const download = req.nextUrl.searchParams.get("download") === "1";
   const filename = (material.fileName || "file").replace(/"/g, "");
-  return new NextResponse(bytes, {
+  return new NextResponse(new Uint8Array(bytes), {
     headers: {
       "Content-Type": material.fileType || "application/octet-stream",
       "Content-Disposition": `${download ? "attachment" : "inline"}; filename="${filename}"`,

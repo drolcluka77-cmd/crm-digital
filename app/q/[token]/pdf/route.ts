@@ -12,7 +12,7 @@ export async function GET(_req: NextRequest, { params }: { params: { token: stri
   });
   if (!quote) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const bytes = await renderQuotePdf(quote);
-  return new NextResponse(Buffer.from(bytes), {
+  return new NextResponse(new Uint8Array(bytes), {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `inline; filename="${quote.number}.pdf"`,

@@ -30,7 +30,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   }
 
   const pdfBytes = await renderQuotePdf(quote);
-  return new NextResponse(Buffer.from(pdfBytes), {
+  return new NextResponse(new Uint8Array(pdfBytes), {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `inline; filename="${quote.number}.pdf"`,

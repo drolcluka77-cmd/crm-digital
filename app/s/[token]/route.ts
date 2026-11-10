@@ -47,7 +47,7 @@ export async function GET(_req: NextRequest, { params }: { params: { token: stri
   if (m.storagePath) {
     try {
       const bytes = await readPrivateFile(m.storagePath);
-      return new NextResponse(bytes, {
+      return new NextResponse(new Uint8Array(bytes), {
         headers: {
           "Content-Type": m.fileType || "application/octet-stream",
           "Content-Disposition": `inline; filename="${(m.fileName || "file").replace(/"/g, "")}"`,
