@@ -108,11 +108,18 @@ async function main() {
   }
 
   const settings = await prisma.settings.findUnique({ where: { id: 1 } });
+  if (settings && settings.companyName === "Distribution Hub") {
+    await prisma.settings.update({
+      where: { id: 1 },
+      data: { companyName: process.env.SEED_COMPANY_NAME || "AURELIA DISTRIBUCIJA d.o.o." },
+    });
+    console.log("Updated company name to AURELIA DISTRIBUCIJA d.o.o.");
+  }
   if (!settings) {
     await prisma.settings.create({
       data: {
         id: 1,
-        companyName: process.env.SEED_COMPANY_NAME || "Distribution Hub",
+        companyName: process.env.SEED_COMPANY_NAME || "AURELIA DISTRIBUCIJA d.o.o.",
         companyEmail: email,
         vatRate: 22,
         smtpHost: process.env.SMTP_HOST || null,

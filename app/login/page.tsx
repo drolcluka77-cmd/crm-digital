@@ -21,7 +21,7 @@ export default async function LoginPage() {
             </span>
             <span className="text-xl font-semibold tracking-tight">{settings.companyName}</span>
           </div>
-          <p className="text-brand-100/80 text-sm mt-2">Sales &amp; distribution CRM</p>
+          <p className="text-brand-100/80 text-sm mt-2">Distribution Hub</p>
         </div>
         <div className="card p-7">
           <h1 className="text-lg font-semibold mb-5">Sign in</h1>

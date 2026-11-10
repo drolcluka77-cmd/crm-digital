@@ -55,7 +55,7 @@ export default async function CrmLayout({ children }: { children: React.ReactNod
       <Sidebar
         sections={sections}
         brand={settings.companyName}
-        subtitle="Seller CRM"
+        subtitle="Distribution Hub"
         user={{ name: user.name, email: user.email }}
         notificationsHref="/crm/notifications"
         unread={unread}

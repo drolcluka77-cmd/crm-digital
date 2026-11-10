@@ -12,7 +12,7 @@ export async function getSettings() {
   return prisma.settings.create({
     data: {
       id: 1,
-      companyName: "Distribution Hub",
+      companyName: "AURELIA DISTRIBUCIJA d.o.o.",
       vatRate: 22,
     },
   });

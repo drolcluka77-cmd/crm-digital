@@ -56,7 +56,7 @@ export default function Sidebar({
         <LayersIcon className="h-5 w-5" strokeWidth={2} />
       </span>
       <div className="min-w-0">
-        <div className="font-semibold text-white leading-tight truncate max-w-[150px]">{brand}</div>
+        <div className="font-semibold text-white text-sm leading-tight max-w-[170px]">{brand}</div>
         <div className="text-[11px] text-white/40 tracking-wide uppercase">{subtitle}</div>
       </div>
     </div>

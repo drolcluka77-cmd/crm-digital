@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Sales CRM — digital products distribution",
+  title: "Distribution Hub — AURELIA DISTRIBUCIJA d.o.o.",
   description: "Sales CRM for distributing digital products: catalog, sellers, materials, leads and quotes.",
 };
 

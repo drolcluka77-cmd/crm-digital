@@ -289,7 +289,7 @@ model QuoteItem {
 // Single-row table (id = 1): company info, defaults and SMTP settings.
 model Settings {
   id                Int     @id @default(1)
-  companyName       String  @default("Distribution Hub")
+  companyName       String  @default("AURELIA DISTRIBUCIJA d.o.o.")
   companyAddress    String?
   companyEmail      String?
   companyPhone      String?

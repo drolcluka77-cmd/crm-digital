@@ -77,7 +77,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <Sidebar
         sections={sections}
         brand={settings.companyName}
-        subtitle={isAdmin ? "Admin console" : "Manager console"}
+        subtitle={isAdmin ? "Distribution Hub · Admin" : "Distribution Hub · Manager"}
         user={{ name: user.name, email: user.email, roleLabel: ROLE_LABEL[user.role] }}
         notificationsHref="/admin/notifications"
         unread={unread}
