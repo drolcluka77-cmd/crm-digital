@@ -1,0 +1,17 @@
+# Runs this Next.js app directly. Do not convert it into a monorepo /
+# artifacts layout — see replit.md.
+modules = ["nodejs-20", "postgresql-16"]
+run = "npx prisma db push --skip-generate && npm run dev"
+entrypoint = "app/page.tsx"
+
+[nix]
+channel = "stable-24_05"
+
+[deployment]
+deploymentTarget = "autoscale"
+build = ["sh", "-c", "npm install && npm run build"]
+run = ["sh", "-c", "npm run start:prod"]
+
+[[ports]]
+localPort = 3000
+externalPort = 80

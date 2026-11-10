@@ -4,6 +4,7 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   experimental: {
+    serverComponentsExternalPackages: ["@replit/object-storage"],
     serverActions: {
       bodySizeLimit: "50mb",
     },

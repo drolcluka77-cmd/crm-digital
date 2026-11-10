@@ -1,18 +1,18 @@
 // Digital Products Distribution CRM — database schema
 //
-// SQLite (one file, zero setup) works well on Replit. To move to Postgres
-// later, change the provider to "postgresql" and point DATABASE_URL at it.
+// PostgreSQL. On Replit, add a database with the "Database" tool and
+// DATABASE_URL is set automatically (also for published deployments).
 //
 // Note: "enum-like" fields (role, status, billing, type …) are plain
-// strings, because Prisma 5 doesn't support enums on SQLite. The allowed
-// values live in lib/constants.ts and are validated in the server actions.
+// strings; the allowed values live in lib/constants.ts and are validated
+// in the server actions.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 

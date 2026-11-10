@@ -75,21 +75,31 @@ export async function updateMaterial(formData: FormData): Promise<ActionResult> 
 
   const file = formData.get("file") as File | null;
   const removeFile = formData.get("removeFile") === "on";
-  let fileData: Record<string, unknown> = {};
-  if (file && file.size > 0) {
-    fileData = await savePrivateFile(file, "materials");
-    await deletePrivateFile(existing.storagePath);
-  } else if (removeFile) {
-    fileData = { storagePath: null, fileName: null, fileType: null, fileSize: null };
-    await deletePrivateFile(existing.storagePath);
-  }
+  const hasNewFile = !!file && file.size > 0;
 
-  const willHaveFile = file && file.size > 0 ? true : removeFile ? false : !!existing.storagePath;
+  // Validate first: nothing on disk changes if the save is rejected.
+  const willHaveFile = hasNewFile ? true : removeFile ? false : !!existing.storagePath;
   if (!willHaveFile && !common.data.linkUrl) {
     return { error: "A material needs a file or a link." };
   }
 
-  await prisma.salesMaterial.update({ where: { id }, data: { ...common.data, ...fileData } });
+  let fileData: Record<string, unknown> = {};
+  if (hasNewFile) {
+    fileData = await savePrivateFile(file!, "materials");
+  } else if (removeFile) {
+    fileData = { storagePath: null, fileName: null, fileType: null, fileSize: null };
+  }
+
+  try {
+    await prisma.salesMaterial.update({ where: { id }, data: { ...common.data, ...fileData } });
+  } catch (e) {
+    // Roll back a freshly uploaded file if the database update failed.
+    if (hasNewFile) await deletePrivateFile(fileData.storagePath as string);
+    throw e;
+  }
+  // Only now remove the old file, once the record no longer points to it.
+  if ((hasNewFile || removeFile) && existing.storagePath) await deletePrivateFile(existing.storagePath);
+
   revalidateMaterials(existing.productId);
   if (existing.productId !== common.data.productId) revalidateMaterials(common.data.productId);
   return { success: "Material saved." };

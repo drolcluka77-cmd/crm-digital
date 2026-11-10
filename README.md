@@ -60,34 +60,27 @@ editions, Arrive, and anything you add later) through a team of sellers.
 
 ## 1. Run it on Replit
 
-1. Create a **Node.js** Repl and upload this folder (or import it from GitHub).
-2. In the Shell, run `npm install`.
-3. Set **Secrets** (or copy `.env.example` to `.env`):
-   - `SESSION_SECRET`: a long random string (`openssl rand -base64 48`)
-   - `DATABASE_URL`: `file:./dev.db`
-   - `APP_URL`: your public URL, e.g. `https://crm.yourcompany.com`, used in links emailed to clients
-   - `CRON_SECRET` and `BOOKING_WEBHOOK_SECRET`: random strings for the daily digest and booking webhook (section 4)
-   - optionally `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`, `SEED_COMPANY_NAME`
-4. Create the database, the first admin and the starter catalog:
-   ```
-   npx prisma db push
-   npm run db:seed
-   ```
-   The starter catalog has *Unbusyness*, *Unbusyness for Building Managers*,
-   *Unbusyness for Tradespeople* and *Arrive*. Their plans are priced at 0 € as
-   placeholders, so **set real prices** under Console → Products. Arrive's description
-   is also a placeholder for you to fill in.
-5. Run `npm run dev`, log in as admin and **change the password** (Settings).
-6. Suggested first steps: fill in each product's playbook and plans → upload materials →
-   add a manager → add sellers → tick their products under **Product access**.
+The repository includes `.replit` and `replit.md`, so Replit runs the app as is.
+`replit.md` tells Replit's agent **not** to port or restructure the project.
 
-**Upgrading from an earlier version of this CRM:** the schema has new tables and columns.
-Run `npx prisma db push`. If it warns about data loss (e.g. on a test database), back up
-`prisma/dev.db` first.
+1. Replit → **Create App → Import from GitHub** → `drolcluka77-cmd/crm-digital`.
+   If the agent offers to "port", "migrate" or "convert" the app, say no: *"Run it as
+   configured in .replit and replit.md, don't restructure."*
+2. Open the **Database** tool and create a PostgreSQL database. `DATABASE_URL` is set for you.
+3. Open the **Object Storage** tool and create a bucket. Uploaded PDFs and images are stored there.
+4. **Secrets**: `SESSION_SECRET` (long random string), `APP_URL` (e.g.
+   `https://crm-digital.replit.app`), `CRON_SECRET`, `BOOKING_WEBHOOK_SECRET`,
+   optionally `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` and SMTP values.
+5. Press **Run**. The first run creates the tables. Then, in the Shell, run
+   `npm run db:seed` once to create the admin, the starter catalog and the templates.
+6. **Publish** (Autoscale). Each start pushes the schema and creates the admin if
+   it's missing. The published app uses its own production database, so log in there
+   with the seed admin and **change the password**.
+7. Updates: Git tab → **Pull/Sync**, then **Republish**.
 
-**Upgrading from the old Aqua Veritas CRM:** the database schema changed completely.
-Start with a fresh database. Delete `prisma/dev.db`, or run
-`npx prisma db push --force-reset`, which **erases all data**.
+Running somewhere else: any Node 20 host with PostgreSQL. Set `DATABASE_URL`, run
+`npm install && npx prisma db push && npm run db:seed && npm run build && npm start`.
+Use `STORAGE_DRIVER=local` to keep files in `./storage`, which needs a persistent disk.
 
 ## 2. Email (SMTP)
 
@@ -98,18 +91,15 @@ materials are all sent from this account, with the seller's address as *Reply-To
 
 ## 3. Notes on how it's built
 
-- Next.js 14 (App Router), Prisma + SQLite, nodemailer, pdf-lib. No other services needed.
-- "Enum" columns (role, status, billing…) are strings, because Prisma 5 doesn't
-  support enums on SQLite. The allowed values are in `lib/constants.ts`.
+- Next.js 14 (App Router), Prisma + PostgreSQL, nodemailer, pdf-lib, Replit Object Storage for files.
+- "Enum" columns (role, status, billing…) are strings. The allowed values are in `lib/constants.ts`.
 - Visibility rules are all in `lib/access.ts`.
-- Product images and the logo go to `public/uploads/`. Sales materials go to
-  `storage/` and are served only through `/api/materials/[id]` (which checks access)
-  or a client's tracked link `/s/[token]`.
+- Files are kept in Replit Object Storage, or in `./storage` locally. Product images
+  and the logo are public (`/api/files/public/…`). Sales materials are served only
+  through `/api/materials/[id]` (which checks access) or a client's tracked link `/s/[token]`.
 - The upload limit is 50 MB per request (`next.config.js`). For demo videos, a YouTube or Loom link works better than an upload.
 - Quote PDFs use the built-in PDF fonts. Letters those fonts can't show, like
   "č", are printed without the accent ("c") instead of crashing.
-- To move to Postgres later, change the datasource provider in `prisma/schema.prisma`
-  to `postgresql` and point `DATABASE_URL` at it.
 
 ## 4. Seller-success features
 
