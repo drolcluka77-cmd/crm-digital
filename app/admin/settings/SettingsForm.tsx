@@ -24,6 +24,7 @@ type Settings = {
   smtpUser: string | null;
   smtpFrom: string | null;
   hasSmtpPassword: boolean;
+  usesBrevo: boolean;
 };
 
 function Banner({ error, success }: { error: string | null; success: string | null }) {
@@ -229,6 +230,13 @@ export default function SettingsForm({ settings }: { settings: Settings }) {
           <div className="pt-2 border-t border-black/5" />
 
           <h3 className="font-medium text-sm">Email sending (SMTP)</h3>
+          {settings.usesBrevo && (
+            <div className="rounded-lg bg-emerald-50 text-emerald-800 text-xs px-3 py-2 -mt-1">
+              Emails are sent through <strong>Brevo</strong> (BREVO_API_KEY is set on the server).
+              Only the &quot;From&quot; address below is used — its domain must be verified in Brevo.
+              The SMTP fields are ignored while Brevo is on.
+            </div>
+          )}
           <p className="text-xs text-black/45 -mt-2">
             For Gmail: use smtp.gmail.com, port 587, your Gmail address as the
             user, and a 16-character{" "}

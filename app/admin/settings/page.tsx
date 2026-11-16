@@ -63,6 +63,7 @@ export default async function SettingsPage() {
           smtpUser: settings.smtpUser,
           smtpFrom: settings.smtpFrom,
           hasSmtpPassword: !!settings.smtpPass,
+          usesBrevo: !!process.env.BREVO_API_KEY,
         }}
       />
     </div>
