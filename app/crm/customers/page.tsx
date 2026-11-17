@@ -48,7 +48,7 @@ export default async function CustomersPage({
       products={products.map((p) => ({ id: p.id, name: p.name }))}
       initialStage={searchParams.stage}
       initialProduct={searchParams.product}
-      initialDue={searchParams.due === "1"}
+      initialDue={searchParams.due === "1" ? "DUE" : searchParams.due === "week" ? "WEEK" : searchParams.due === "all" ? "SCHEDULED" : undefined}
     />
   );
 }

@@ -29,6 +29,15 @@ type Row = {
   products: { id: string; name: string; color: string | null }[];
 };
 
+export type FollowUpFilter = "ANY" | "DUE" | "WEEK" | "SCHEDULED";
+
+/** Whole days from today to the date (negative = overdue, 0 = today). */
+function daysFromToday(date: string) {
+  const d = new Date(date);
+  const startOf = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  return Math.round((startOf(d) - startOf(new Date())) / 86_400_000);
+}
+
 export default function CustomersManager({
   customers,
   products,
@@ -40,12 +49,12 @@ export default function CustomersManager({
   products: { id: string; name: string }[];
   initialStage?: string;
   initialProduct?: string;
-  initialDue?: boolean;
+  initialDue?: FollowUpFilter;
 }) {
   const [query, setQuery] = useState("");
   const [stage, setStage] = useState(initialStage || "OPEN");
   const [product, setProduct] = useState(initialProduct || "ALL");
-  const [dueOnly, setDueOnly] = useState(!!initialDue);
+  const [followUp, setFollowUp] = useState<FollowUpFilter>(initialDue || "ANY");
   const [addOpen, setAddOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,21 +71,27 @@ export default function CustomersManager({
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return customers.filter((c) => {
+    const rows = customers.filter((c) => {
       if (stage === "OPEN" && (c.status === "WON" || c.status === "LOST")) return false;
       if (stage !== "OPEN" && stage !== "ALL" && c.status !== stage) return false;
       if (product !== "ALL" && !c.products.some((p) => p.id === product)) return false;
-      if (dueOnly) {
+      if (followUp !== "ANY") {
         if (!c.nextFollowUpAt) return false;
-        const f = followUpLabel(c.nextFollowUpAt);
-        if (!f.overdue && !f.today) return false;
+        const days = daysFromToday(c.nextFollowUpAt);
+        if (followUp === "DUE" && days > 0) return false;
+        if (followUp === "WEEK" && days > 7) return false;
       }
       if (!q) return true;
       return [c.name, c.company, c.email, c.segment, c.city, c.phone]
         .filter(Boolean)
         .some((v) => v!.toLowerCase().includes(q));
     });
-  }, [customers, query, stage, product, dueOnly]);
+    // With a follow-up filter on, show the soonest follow-up first.
+    if (followUp !== "ANY") {
+      rows.sort((a, b) => new Date(a.nextFollowUpAt!).getTime() - new Date(b.nextFollowUpAt!).getTime());
+    }
+    return rows;
+  }, [customers, query, stage, product, followUp]);
 
   async function handleCreate(fd: FormData) {
     setBusy(true);
@@ -142,10 +157,17 @@ export default function CustomersManager({
             ))}
           </select>
         )}
-        <label className="flex items-center gap-2 text-sm text-black/60">
-          <input type="checkbox" checked={dueOnly} onChange={(e) => setDueOnly(e.target.checked)} />
-          Follow-up due
-        </label>
+        <select
+          value={followUp}
+          onChange={(e) => setFollowUp(e.target.value as FollowUpFilter)}
+          className="input w-auto"
+          aria-label="Follow-up"
+        >
+          <option value="ANY">Any follow-up</option>
+          <option value="DUE">Follow-up due (today or overdue)</option>
+          <option value="WEEK">Follow-ups in the next 7 days</option>
+          <option value="SCHEDULED">All scheduled follow-ups</option>
+        </select>
       </div>
 
       <div className="card overflow-x-auto">
