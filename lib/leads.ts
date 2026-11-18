@@ -20,7 +20,7 @@ const clip = (v: unknown, n = 200) => {
  */
 export async function insertLeads(
   rows: LeadRow[],
-  target: { ownerId: string | null; poolId: string | null; actorId: string }
+  target: { ownerId: string | null; poolId: string | null; actorId: string; leadType?: string }
 ): Promise<{ created: number; skipped: string[] }> {
   const emails = rows.map((r) => (r.email || "").trim().toLowerCase()).filter(Boolean);
   const existing = await prisma.customer.findMany({
@@ -66,6 +66,7 @@ export async function insertLeads(
         status: "NEW",
         ownerId: target.ownerId,
         poolId: target.poolId,
+        leadType: target.leadType || "OTHER",
       },
     });
     await prisma.activity.create({

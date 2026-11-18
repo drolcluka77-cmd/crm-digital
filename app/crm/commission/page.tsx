@@ -21,14 +21,16 @@ export default async function MyCommissionPage({ searchParams }: { searchParams:
     prisma.user.findUnique({ where: { id: user.id }, select: { commissionRate: true } }),
   ]);
   const tiers = parseTiers(settings.commissionTiers);
-  const nextTier = tiers.find((t) => t.min > s.wonValue);
+  const nextTier = tiers.find((t) => t.min > s.paidValue);
 
   return (
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-semibold tracking-tight">My commission</h1>
         <p className="text-black/50 text-sm mt-1">
-          Monthly statement: deals accepted that month, subscription renewals and any bonus.
+          You earn commission on what your customers actually pay, every month, for the first{" "}
+          {settings.commissionMonths} months after they accept a quote (own leads: at least {settings.ownLeadCommissionRate}%).
+          UGC video pay is added here too.
           {me?.commissionRate !== null && me?.commissionRate !== undefined
             ? ` Your personal rate is ${me.commissionRate}% on all products.`
             : ""}
@@ -47,7 +49,7 @@ export default async function MyCommissionPage({ searchParams }: { searchParams:
         <StatCard tone="dark" label="Earned" value={formatMoney(s.earned)} sublabel={periodLabel(period)} icon={<CoinsIcon className="h-5 w-5" />} />
         <StatCard label="Paid out" value={formatMoney(s.paid)} sublabel={s.payouts.length ? `${s.payouts.length} payment(s)` : "nothing yet"} icon={<CheckCircleIcon className="h-5 w-5" />} />
         <StatCard tone="accent" label="Open balance" value={formatMoney(s.balance)} sublabel="still to be paid" icon={<CoinsIcon className="h-5 w-5" />} />
-        <StatCard label="Won this month" value={formatMoney(s.wonValue)} sublabel="first-year value" icon={<ChartIcon className="h-5 w-5" />} />
+        <StatCard label="Paid by customers" value={formatMoney(s.paidValue)} sublabel={`${s.wonCount} new deal${s.wonCount === 1 ? "" : "s"} · ${formatMoney(s.wonValue)} won`} icon={<ChartIcon className="h-5 w-5" />} />
       </div>
 
       {tiers.length > 0 && (
@@ -59,13 +61,13 @@ export default async function MyCommissionPage({ searchParams }: { searchParams:
             </span>
             {nextTier && (
               <span className="text-black/55">
-                {formatMoney(nextTier.min - s.wonValue)} more won this month → {nextTier.rate}% bonus
+                {formatMoney(nextTier.min - s.paidValue)} more paid this month → {nextTier.rate}% bonus
               </span>
             )}
           </div>
           {nextTier && (
             <div className="h-2 rounded-full bg-black/5 mt-3 overflow-hidden">
-              <div className="h-full bg-brand-500" style={{ width: `${Math.min(100, (s.wonValue / nextTier.min) * 100)}%` }} />
+              <div className="h-full bg-brand-500" style={{ width: `${Math.min(100, (s.paidValue / nextTier.min) * 100)}%` }} />
             </div>
           )}
         </div>
@@ -73,17 +75,17 @@ export default async function MyCommissionPage({ searchParams }: { searchParams:
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
         <div className="card lg:col-span-2">
-          <div className="px-5 py-4 border-b border-black/5 font-semibold">Deals ({s.deals.length})</div>
-          {s.deals.length === 0 ? (
-            <div className="px-5 py-8 text-center text-sm text-black/40">No quotes accepted in {periodLabel(period)}.</div>
+          <div className="px-5 py-4 border-b border-black/5 font-semibold">Customer payments ({s.payments.length})</div>
+          {s.payments.length === 0 ? (
+            <div className="px-5 py-8 text-center text-sm text-black/40">No customer payments in {periodLabel(period)}.</div>
           ) : (
             <div className="divide-y divide-black/5">
-              {s.deals.map((d) => (
-                <Link key={d.quoteId} href={`/crm/quotes/${d.quoteId}`} className="px-5 py-3 flex justify-between gap-3 hover:bg-sand-50 text-sm">
+              {s.payments.map((d) => (
+                <Link key={d.id} href={`/crm/quotes/${d.quoteId}`} className="px-5 py-3 flex justify-between gap-3 hover:bg-sand-50 text-sm">
                   <span>
                     <span className="font-medium">{d.customer}</span>
                     <span className="block text-xs text-black/40">
-                      {d.number} · {formatDate(d.decidedAt)} · {formatMoney(d.annualNet)}
+                      {d.number} · paid {formatDate(d.paidAt)} · {formatMoney(d.amount)} × {d.rate}%
                     </span>
                   </span>
                   <span className="font-semibold text-emerald-700">{formatMoney(d.commission)}</span>
@@ -91,19 +93,19 @@ export default async function MyCommissionPage({ searchParams }: { searchParams:
               ))}
             </div>
           )}
-          {s.renewals.length > 0 && (
+          {s.ugc.length > 0 && (
             <>
-              <div className="px-5 py-3 border-y border-black/5 section-title">Renewals</div>
+              <div className="px-5 py-3 border-y border-black/5 section-title">UGC videos</div>
               <div className="divide-y divide-black/5">
-                {s.renewals.map((r) => (
-                  <div key={r.id} className="px-5 py-3 flex justify-between text-sm">
+                {s.ugc.map((u) => (
+                  <div key={u.id} className="px-5 py-3 flex justify-between text-sm">
                     <span>
-                      {r.customer}
+                      {u.title}
                       <span className="block text-xs text-black/40">
-                        {formatDate(r.renewedAt)} · {formatMoney(r.annualValue)} / year
+                        {u.kind === "VIDEO" ? "Published" : `View bonus · ${(u.views || 0).toLocaleString("sl-SI")} views`} · {formatDate(u.date)}
                       </span>
                     </span>
-                    <span className="font-semibold text-emerald-700">{formatMoney(r.commission)}</span>
+                    <span className="font-semibold text-emerald-700">{formatMoney(u.amount)}</span>
                   </div>
                 ))}
               </div>

@@ -116,6 +116,8 @@ export const ACTIVITY_TYPE_LABEL: Record<string, string> = {
   QUOTE_VIEWED: "Client viewed quote",
   SUBSCRIPTION: "Subscription",
   LEAD_ASSIGNED: "Lead assigned",
+  WEBSITE_SIGNUP: "Signed up on the website",
+  PAYMENT: "Payment received",
 };
 
 // Suggestions shown in free-text fields (users can type anything).
@@ -198,5 +200,29 @@ export const NOTIFICATION_TYPE_LABEL: Record<string, string> = {
   CERTIFIED: "Certification",
   RENEWAL_DUE: "Renewal due",
   NEW_CANDIDATE: "New job application",
+  WARM_LEAD: "Warm lead",
+  UGC_SUBMITTED: "UGC video submitted",
+  UGC_REVIEWED: "UGC video reviewed",
+  UGC_BONUS: "UGC bonus",
+  PAYMENT: "Customer payment",
   CANDIDATE_BOOKED: "Candidate booked a meeting",
 };
+
+// Lead types (Customer.leadType): where a lead came from.
+export const LEAD_TYPES = ["WARM_UGC", "WARM_WEB", "OWN", "COLD", "OTHER"] as const;
+export const LEAD_TYPE_LABEL: Record<string, string> = {
+  WARM_UGC: "Warm · UGC",
+  WARM_WEB: "Warm · website",
+  OWN: "Own lead",
+  COLD: "Cold",
+  OTHER: "Other",
+};
+/** Badge variant for each lead type. */
+export const LEAD_TYPE_BADGE: Record<string, string> = {
+  WARM_UGC: "WARM",
+  WARM_WEB: "WARM",
+  OWN: "INFO",
+  COLD: "COLD",
+  OTHER: "MUTED",
+};
+export const isWarm = (t: string | null | undefined) => t === "WARM_UGC" || t === "WARM_WEB";

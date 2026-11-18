@@ -7,6 +7,9 @@ import { escapeHtml, formatMoney, computeQuoteBreakdown } from "@/lib/format";
 import { OPEN_LEAD_STATUSES } from "@/lib/constants";
 import { expireRecommendations, importFromAjpes } from "@/lib/prospects";
 import { recruitingDailyJob } from "@/lib/recruiting";
+import { expireWarmLeads } from "@/lib/warm-leads";
+import { generateWeeklyIdeas, mondayOf } from "@/lib/ugc-ai";
+import { deletePrivateFile } from "@/lib/upload";
 
 export const dynamic = "force-dynamic";
 
@@ -186,5 +189,60 @@ export async function GET(req: NextRequest) {
     errors.push(`Recruiting: ${e?.message || e}`);
   }
 
-  return NextResponse.json({ ok: true, sellerDigests: sent, weeklySummaries: weeklySent, leadFinder, recruiting, errors });
+  // Warm leads nobody accepted in time → next seller.
+  let warmMoved = 0;
+  try {
+    warmMoved = await expireWarmLeads();
+  } catch (e: any) {
+    errors.push(`warm leads: ${e?.message || "failed"}`);
+  }
+
+  // UGC: draft video ideas every Monday (if AI is set up and none exist for this week yet).
+  let ugcIdeas = 0;
+  if (now.getDay() === 1 && process.env.ANTHROPIC_API_KEY) {
+    const week = mondayOf(now);
+    const existing = await prisma.ugcTask.count({ where: { ai: true, weekOf: { gte: week } } });
+    if (!existing) {
+      try {
+        ugcIdeas = (await generateWeeklyIdeas()).created;
+        if (ugcIdeas) {
+          const staff = await prisma.user.findMany({ where: { role: { in: ["MANAGER", "ADMIN"] }, active: true }, select: { id: true } });
+          await prisma.notification.createMany({
+            data: staff.map((u) => ({
+              userId: u.id,
+              type: "UGC_SUBMITTED",
+              title: `✨ ${ugcIdeas} new draft video ideas for this week`,
+              body: "Edit and publish the ones you like.",
+              link: "/admin/ugc?tab=ideas",
+            })),
+          });
+        }
+      } catch (e: any) {
+        errors.push(`ugc ideas: ${e?.message || "failed"}`);
+      }
+    }
+  }
+
+  // UGC: free up storage — remove uploaded files 30 days after publishing.
+  const old = await prisma.ugcVideo.findMany({
+    where: { fileKey: { not: null }, status: "PUBLISHED", publishedAt: { lt: new Date(now.getTime() - 30 * 86_400_000) } },
+    select: { id: true, fileKey: true },
+    take: 100,
+  });
+  for (const v of old) {
+    await deletePrivateFile(v.fileKey);
+    await prisma.ugcVideo.update({ where: { id: v.id }, data: { fileKey: null } });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    sellerDigests: sent,
+    weeklySummaries: weeklySent,
+    leadFinder,
+    recruiting,
+    warmMoved,
+    ugcIdeas,
+    ugcFilesRemoved: old.length,
+    errors,
+  });
 }

@@ -54,32 +54,38 @@ export function bonusRateFor(tiers: Tier[], wonValue: number): number {
 export type Statement = {
   userId: string;
   period: string;
+  /** First-year value of quotes accepted this month (for information). */
   wonValue: number;
-  quoteCommission: number;
-  renewalValue: number;
-  renewalCommission: number;
+  wonCount: number;
+  /** Money customers actually paid this month (net) and the commission on it. */
+  paidValue: number;
+  paymentCommission: number;
+  /** UGC: pay for videos published this month + view bonuses entered this month. */
+  ugcPay: number;
   bonusRate: number;
   bonus: number;
   earned: number;
   paid: number;
   balance: number;
-  deals: {
+  payments: {
+    id: string;
     quoteId: string;
     number: string;
     customer: string;
-    decidedAt: Date;
-    annualNet: number;
+    paidAt: Date;
+    amount: number;
+    rate: number;
     commission: number;
   }[];
-  renewals: { id: string; customer: string; renewedAt: Date; annualValue: number; commission: number }[];
+  ugc: { id: string; title: string; kind: "VIDEO" | "BONUS"; date: Date; amount: number; views: number | null }[];
   payouts: { id: string; amount: number; paidAt: Date; note: string | null }[];
 };
 
 /**
- * Monthly commission statement for several sellers:
- *   commission on quotes accepted that month (first-year value × line rate)
- * + commission on subscription renewals that month
- * + tier bonus on the month's won first-year value (Settings → tiers)
+ * Monthly statement for several sellers:
+ *   commission on customer payments received that month (lib/payments.ts)
+ * + UGC pay (videos published that month, view bonuses entered that month)
+ * + tier bonus on the month's paid value (Settings → tiers)
  * − payouts recorded for that period.
  */
 export async function computeStatements(userIds: string[], period: string): Promise<Statement[]> {
@@ -87,16 +93,23 @@ export async function computeStatements(userIds: string[], period: string): Prom
   const settings = await getSettings();
   const tiers = parseTiers(settings.commissionTiers);
 
-  const [quotes, renewals, payouts] = await Promise.all([
+  const [quotes, payments, videos, bonuses, payouts] = await Promise.all([
     prisma.quote.findMany({
       where: { userId: { in: userIds }, status: "ACCEPTED", decidedAt: { gte: start, lt: end } },
-      include: { items: true, customer: { select: { name: true, company: true } } },
-      orderBy: { decidedAt: "asc" },
+      include: { items: true },
     }),
-    prisma.subscriptionRenewal.findMany({
-      where: { userId: { in: userIds }, renewedAt: { gte: start, lt: end } },
-      include: { subscription: { include: { customer: { select: { name: true, company: true } } } } },
-      orderBy: { renewedAt: "asc" },
+    prisma.payment.findMany({
+      where: { userId: { in: userIds }, paidAt: { gte: start, lt: end } },
+      include: { quote: { select: { number: true } }, customer: { select: { name: true, company: true } } },
+      orderBy: { paidAt: "asc" },
+    }),
+    prisma.ugcVideo.findMany({
+      where: { creatorId: { in: userIds }, status: "PUBLISHED", publishedAt: { gte: start, lt: end }, basePay: { not: 0 } },
+      select: { id: true, creatorId: true, title: true, publishedAt: true, basePay: true },
+    }),
+    prisma.ugcVideo.findMany({
+      where: { creatorId: { in: userIds }, viewsAt: { gte: start, lt: end }, bonus: { not: 0 } },
+      select: { id: true, creatorId: true, title: true, viewsAt: true, bonus: true, views: true },
     }),
     prisma.commissionPayout.findMany({
       where: { userId: { in: userIds }, period },
@@ -105,55 +118,55 @@ export async function computeStatements(userIds: string[], period: string): Prom
   ]);
 
   return userIds.map((userId) => {
-    const deals = quotes
-      .filter((q) => q.userId === userId)
-      .map((q) => {
-        const b = computeQuoteBreakdown(q.items, q.discount, q.vatRate);
-        return {
-          quoteId: q.id,
-          number: q.number,
-          customer: q.customer.company || q.customer.name,
-          decidedAt: q.decidedAt!,
-          annualNet: b.annualNet,
-          commission: b.commission,
-        };
-      });
-    const rens = renewals
-      .filter((r) => r.userId === userId)
-      .map((r) => ({
-        id: r.id,
-        customer: r.subscription.customer.company || r.subscription.customer.name,
-        renewedAt: r.renewedAt,
-        annualValue: r.annualValue,
-        commission: r.commission,
+    const won = quotes.filter((q) => q.userId === userId);
+    const wonValue = won.reduce((s, q) => s + computeQuoteBreakdown(q.items, q.discount, q.vatRate).annualNet, 0);
+    const pays = payments
+      .filter((p) => p.userId === userId)
+      .map((p) => ({
+        id: p.id,
+        quoteId: p.quoteId,
+        number: p.quote.number,
+        customer: p.customer.company || p.customer.name,
+        paidAt: p.paidAt,
+        amount: p.amount,
+        rate: p.rate,
+        commission: p.commission,
       }));
-    const pays = payouts
+    const ugc = [
+      ...videos
+        .filter((v) => v.creatorId === userId)
+        .map((v) => ({ id: `v-${v.id}`, title: v.title, kind: "VIDEO" as const, date: v.publishedAt!, amount: v.basePay, views: null })),
+      ...bonuses
+        .filter((v) => v.creatorId === userId)
+        .map((v) => ({ id: `b-${v.id}`, title: v.title, kind: "BONUS" as const, date: v.viewsAt!, amount: v.bonus, views: v.views })),
+    ].sort((a, b) => a.date.getTime() - b.date.getTime());
+    const outs = payouts
       .filter((p) => p.userId === userId)
       .map((p) => ({ id: p.id, amount: p.amount, paidAt: p.paidAt, note: p.note }));
 
-    const wonValue = deals.reduce((s, d) => s + d.annualNet, 0);
-    const quoteCommission = deals.reduce((s, d) => s + d.commission, 0);
-    const renewalValue = rens.reduce((s, r) => s + r.annualValue, 0);
-    const renewalCommission = rens.reduce((s, r) => s + r.commission, 0);
-    const bonusRate = bonusRateFor(tiers, wonValue);
-    const bonus = wonValue * (bonusRate / 100);
-    const earned = quoteCommission + renewalCommission + bonus;
-    const paid = pays.reduce((s, p) => s + p.amount, 0);
+    const paidValue = pays.reduce((s, p) => s + p.amount, 0);
+    const paymentCommission = pays.reduce((s, p) => s + p.commission, 0);
+    const ugcPay = ugc.reduce((s, u) => s + u.amount, 0);
+    const bonusRate = bonusRateFor(tiers, paidValue);
+    const bonus = paidValue * (bonusRate / 100);
+    const earned = paymentCommission + ugcPay + bonus;
+    const paid = outs.reduce((s, p) => s + p.amount, 0);
     return {
       userId,
       period,
       wonValue,
-      quoteCommission,
-      renewalValue,
-      renewalCommission,
+      wonCount: won.length,
+      paidValue,
+      paymentCommission,
+      ugcPay,
       bonusRate,
       bonus,
       earned,
       paid,
       balance: earned - paid,
-      deals,
-      renewals: rens,
-      payouts: pays,
+      payments: pays,
+      ugc,
+      payouts: outs,
     };
   });
 }

@@ -11,6 +11,7 @@ import { getAccessibleProductIds, getSellableProductIds, canAccessMaterial } fro
 import { fillTemplate } from "@/lib/templates";
 import { insertLeads, type LeadRow } from "@/lib/leads";
 import { logActivity } from "@/lib/activity";
+import { acceptWarmLead, passWarmLead } from "@/lib/warm-leads";
 import { readPrivateFile } from "@/lib/upload";
 import { getBaseUrl } from "@/lib/url";
 import { escapeHtml, normalizeUrl } from "@/lib/format";
@@ -56,6 +57,21 @@ async function duplicateOwner(email: string | null, excludeId?: string) {
   });
   if (!clash) return null;
   return clash.owner ?? { id: "__pool__", name: "a lead pool (unassigned)" };
+}
+
+/** True if a customer or lead-finder entry with this company name already exists. */
+async function isKnownCompany(name: string | null): Promise<boolean> {
+  const n = (name || "").trim();
+  if (n.length < 2) return false;
+  const [c, p] = await Promise.all([
+    prisma.customer.findFirst({ where: { company: { equals: n, mode: "insensitive" } }, select: { id: true } }),
+    // Register names carry the legal form ("Hotel Lipa d.o.o."), so match the start.
+    prisma.prospect.findFirst({
+      where: n.length >= 4 ? { name: { startsWith: n, mode: "insensitive" } } : { name: { equals: n, mode: "insensitive" } },
+      select: { id: true },
+    }),
+  ]);
+  return !!(c || p);
 }
 
 async function readCustomerFields(user: CurrentUser, fd: FormData) {
@@ -110,18 +126,34 @@ export async function createCustomer(formData: FormData): Promise<ActionResult> 
     };
   }
 
+  // Own lead (higher commission) only if the company isn't already known to the CRM:
+  // not an existing customer and not in the lead finder's list.
+  const leadType = (await isKnownCompany(parsed.data.company || parsed.data.name)) ? "OTHER" : "OWN";
+
   const customer = await prisma.customer.create({
     data: {
       ...parsed.data,
+      leadType,
       ownerId: user.id,
       interests: { create: parsed.productIds.map((productId) => ({ productId })) },
     },
   });
-  await logActivity(customer.id, user.id, "NOTE", "Lead created");
+  await logActivity(
+    customer.id,
+    user.id,
+    "NOTE",
+    leadType === "OWN" ? "Lead created — own lead (higher commission)" : "Lead created — company already known to the CRM, standard commission"
+  );
 
   revalidateCustomer();
   if (formData.get("open") === "1") redirect(`/crm/customers/${customer.id}`);
-  return { success: "Customer added.", id: customer.id };
+  return {
+    success:
+      leadType === "OWN"
+        ? "Customer added as your own lead."
+        : "Customer added. This company was already in the CRM or the lead finder, so it counts as a standard lead.",
+    id: customer.id,
+  };
 }
 
 export async function updateCustomer(formData: FormData): Promise<ActionResult> {
@@ -465,4 +497,20 @@ export async function importMyLeads(rows: LeadRow[]): Promise<{ error?: string; 
   const result = await insertLeads(rows, { ownerId: user.id, poolId: null, actorId: user.id });
   revalidateCustomer();
   return result;
+}
+
+// ─── Warm leads (website / UGC) ─────────────────────────────────────────
+
+export async function acceptWarm(id: string): Promise<ActionResult> {
+  const user = await requireSales();
+  const ok = await acceptWarmLead(id, user.id);
+  revalidateCustomer(id);
+  return ok ? { success: "Accepted — it's yours. Call them soon, warm leads cool down fast." } : { error: "This lead is no longer waiting for you." };
+}
+
+export async function passWarm(id: string): Promise<ActionResult> {
+  const user = await requireSales();
+  const ok = await passWarmLead(id, user.id);
+  revalidateCustomer();
+  return ok ? { success: "Passed on to another seller." } : { error: "This lead is no longer waiting for you." };
 }

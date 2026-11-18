@@ -11,7 +11,9 @@ import {
   formatDate,
   timeAgo,
 } from "@/lib/format";
-import { LEAD_STATUS_LABEL, QUOTE_STATUS_LABEL } from "@/lib/constants";
+import { LEAD_STATUS_LABEL, LEAD_TYPE_BADGE, LEAD_TYPE_LABEL, QUOTE_STATUS_LABEL } from "@/lib/constants";
+import { getSettings } from "@/lib/settings";
+import WarmLeads from "../../WarmLeads";
 import CustomerDetailActions from "./CustomerDetailActions";
 import ActivityPanel from "./ActivityPanel";
 import StagePanel from "./StagePanel";
@@ -28,10 +30,12 @@ export default async function CustomerDetailPage({ params }: { params: { id: str
       interests: { include: { product: { select: { id: true, name: true, color: true } } } },
       activities: { include: { user: { select: { name: true } } }, orderBy: { createdAt: "desc" }, take: 100 },
       shares: { include: { material: { select: { title: true } } }, orderBy: { createdAt: "desc" } },
+      ugcCreator: { select: { name: true } },
     },
   });
   if (!customer || customer.ownerId !== user.id) notFound();
 
+  const settings = await getSettings();
   const [products, materials, templates, me] = await Promise.all([
     getSellerProducts(user),
     getSellerMaterials(user, { sendableOnly: true }),
@@ -68,6 +72,9 @@ export default async function CustomerDetailPage({ params }: { params: { id: str
     ["Size", customer.size],
     ["Location", [customer.city, customer.country].filter(Boolean).join(", ") || null],
     ["Lead source", customer.source],
+    ["Lead type", LEAD_TYPE_LABEL[customer.leadType] || null],
+    ["UGC creator", customer.ugcCreator ? `${customer.ugcCreator.name}${customer.refCode ? ` (${customer.refCode})` : ""}` : null],
+    ["Offer", customer.freeMonth ? "Used a creator code — first month free" : null],
     ["Est. value", customer.estimatedValue ? `${formatMoney(customer.estimatedValue)} / yr` : null],
     ["Added", formatDate(customer.createdAt)],
   ];
@@ -83,7 +90,29 @@ export default async function CustomerDetailPage({ params }: { params: { id: str
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-2xl font-semibold tracking-tight">{customer.company || customer.name}</h1>
             <Badge variant={customer.status}>{LEAD_STATUS_LABEL[customer.status]}</Badge>
+            {customer.leadType !== "OTHER" && (
+              <Badge variant={LEAD_TYPE_BADGE[customer.leadType] || "MUTED"}>{LEAD_TYPE_LABEL[customer.leadType]}</Badge>
+            )}
+            {customer.freeMonth && <Badge variant="WARN">1st month free</Badge>}
           </div>
+          {customer.warmAssignedAt && !customer.warmAcceptedAt && (
+            <div className="mt-3 max-w-xl">
+              <WarmLeads
+                leads={[
+                  {
+                    id: customer.id,
+                    name: customer.name,
+                    company: customer.company,
+                    phone: customer.phone,
+                    product: customer.interests[0]?.product.name || null,
+                    ugc: customer.leadType === "WARM_UGC",
+                    freeMonth: customer.freeMonth,
+                    deadline: new Date(customer.warmAssignedAt.getTime() + settings.warmClaimHours * 3_600_000).toISOString(),
+                  },
+                ]}
+              />
+            </div>
+          )}
           <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1.5 text-sm text-black/55">
             {customer.company && (
               <span className="flex items-center gap-1.5">

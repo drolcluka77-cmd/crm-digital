@@ -25,7 +25,7 @@ export default async function CommissionsPage({ searchParams }: { searchParams: 
   const byId = new Map(statements.map((s) => [s.userId, s]));
   const tiers = parseTiers(settings.commissionTiers);
   const totals = statements.reduce(
-    (t, s) => ({ earned: t.earned + s.earned, paid: t.paid + s.paid, won: t.won + s.wonValue }),
+    (t, s) => ({ earned: t.earned + s.earned, paid: t.paid + s.paid, won: t.won + s.paidValue }),
     { earned: 0, paid: 0, won: 0 }
   );
 
@@ -35,7 +35,9 @@ export default async function CommissionsPage({ searchParams }: { searchParams: 
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Commission statements</h1>
           <p className="text-black/50 text-sm mt-1">
-            Earned = commission on quotes accepted in the month + renewal commission + tier bonus.
+            Earned = commission on customer payments received in the month (first {settings.commissionMonths} months of each deal;
+            own leads at least {settings.ownLeadCommissionRate}%) + UGC video pay + tier bonus. Record customer payments under{" "}
+            <Link href="/admin/payments" className="text-brand-700 hover:underline">Payments</Link>.
             {tiers.length > 0
               ? ` Bonus tiers: ${tiers.map((t) => `${t.rate}% from ${formatMoney(t.min)}`).join(", ")}.`
               : " No bonus tiers set (Settings)."}
@@ -56,9 +58,9 @@ export default async function CommissionsPage({ searchParams }: { searchParams: 
           <thead>
             <tr className="text-left text-xs text-black/40 border-b border-black/5">
               <th className="px-5 py-3 font-medium">Seller</th>
-              <th className="px-3 py-3 font-medium text-right">Won (1st-yr)</th>
-              <th className="px-3 py-3 font-medium text-right">Deals</th>
-              <th className="px-3 py-3 font-medium text-right">Renewals</th>
+              <th className="px-3 py-3 font-medium text-right">Paid by customers</th>
+              <th className="px-3 py-3 font-medium text-right">Commission</th>
+              <th className="px-3 py-3 font-medium text-right">UGC</th>
               <th className="px-3 py-3 font-medium text-right">Bonus</th>
               <th className="px-3 py-3 font-medium text-right">Earned</th>
               <th className="px-3 py-3 font-medium text-right">Paid</th>
@@ -74,13 +76,13 @@ export default async function CommissionsPage({ searchParams }: { searchParams: 
                   <td className="px-5 py-3">
                     <div className="font-medium">{u.name}</div>
                     <div className="text-xs text-black/40">
-                      {s.deals.length} deal{s.deals.length === 1 ? "" : "s"}
+                      {s.payments.length} payment{s.payments.length === 1 ? "" : "s"} · {s.wonCount} new deal{s.wonCount === 1 ? "" : "s"}
                       {u.commissionRate !== null ? ` · personal rate ${u.commissionRate}%` : ""}
                     </div>
                   </td>
-                  <td className="px-3 py-3 text-right">{formatMoney(s.wonValue)}</td>
-                  <td className="px-3 py-3 text-right">{formatMoney(s.quoteCommission)}</td>
-                  <td className="px-3 py-3 text-right">{formatMoney(s.renewalCommission)}</td>
+                  <td className="px-3 py-3 text-right">{formatMoney(s.paidValue)}</td>
+                  <td className="px-3 py-3 text-right">{formatMoney(s.paymentCommission)}</td>
+                  <td className="px-3 py-3 text-right">{formatMoney(s.ugcPay)}</td>
                   <td className="px-3 py-3 text-right">
                     {formatMoney(s.bonus)}
                     {s.bonusRate > 0 && <span className="block text-[11px] text-black/40">{s.bonusRate}%</span>}

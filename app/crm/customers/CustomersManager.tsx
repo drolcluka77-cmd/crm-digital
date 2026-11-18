@@ -8,7 +8,7 @@ import { PlusIcon, SearchIcon, CalendarIcon } from "@/components/icons";
 import { createCustomer, importMyLeads } from "./actions";
 import CsvImport from "@/components/CsvImport";
 import CustomerForm from "./CustomerForm";
-import { LEAD_STATUSES, LEAD_STATUS_LABEL } from "@/lib/constants";
+import { LEAD_STATUSES, LEAD_STATUS_LABEL, LEAD_TYPE_BADGE, LEAD_TYPE_LABEL } from "@/lib/constants";
 import { followUpLabel, formatMoney, timeAgo } from "@/lib/format";
 
 type Row = {
@@ -26,6 +26,8 @@ type Row = {
   lastContactAt: string | null;
   updatedAt: string;
   quoteCount: number;
+  leadType: string;
+  warmPending: boolean;
   products: { id: string; name: string; color: string | null }[];
 };
 
@@ -189,7 +191,14 @@ export default function CustomersManager({
                 <tr key={c.id} className="hover:bg-sand-50">
                   <td className="px-5 py-3">
                     <Link href={`/crm/customers/${c.id}`} className="block">
-                      <div className="font-medium hover:text-brand-600">{c.company || c.name}</div>
+                      <div className="font-medium hover:text-brand-600 flex flex-wrap items-center gap-1.5">
+                        {c.company || c.name}
+                        {c.leadType !== "OTHER" && (
+                          <Badge variant={LEAD_TYPE_BADGE[c.leadType] || "MUTED"} className="!text-[10px] !py-0">
+                            {c.warmPending ? "🔥 accept" : LEAD_TYPE_LABEL[c.leadType]}
+                          </Badge>
+                        )}
+                      </div>
                       <div className="text-xs text-black/45">
                         {c.company ? c.name : ""}
                         {c.company && c.jobTitle ? `, ${c.jobTitle}` : ""}

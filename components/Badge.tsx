@@ -17,6 +17,8 @@ const STYLES: Record<string, string> = {
   INFO: "bg-brand-50 text-brand-700",
   MUTED: "bg-black/5 text-black/50",
   WARN: "bg-amber-100 text-amber-700",
+  WARM: "bg-orange-100 text-orange-700",
+  COLD: "bg-sky-50 text-sky-700",
 };
 
 export default function Badge({

@@ -18,6 +18,7 @@ import {
   ChartIcon,
   CoinsIcon,
   FileIcon,
+  PlayIcon,
 } from "@/components/icons";
 
 const ic = "h-[18px] w-[18px]";
@@ -30,9 +31,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     unreadCount(user.id),
     getManagedSellerIds(user),
   ]);
-  const pendingApprovals = await prisma.quote.count({
-    where: { userId: { in: sellerIds }, approvalStatus: "PENDING" },
-  });
+  const [pendingApprovals, pendingUgc] = await Promise.all([
+    prisma.quote.count({ where: { userId: { in: sellerIds }, approvalStatus: "PENDING" } }),
+    prisma.ugcVideo.count({ where: { creatorId: { in: sellerIds }, status: "SUBMITTED" } }),
+  ]);
 
   const sections: NavSection[] = [
     {
@@ -57,7 +59,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       items: [
         { href: "/admin/lead-finder", label: "Lead finder", icon: <SparkIcon className={ic} /> },
         { href: "/admin/leads", label: "Lead pools", icon: <SparkIcon className={ic} /> },
+        { href: "/admin/ugc", label: "UGC creators", icon: <PlayIcon className={ic} />, badge: pendingUgc },
         { href: "/admin/subscriptions", label: "Subscriptions", icon: <ChartIcon className={ic} /> },
+        { href: "/admin/payments", label: "Payments", icon: <CoinsIcon className={ic} /> },
         { href: "/admin/commissions", label: "Commissions", icon: <CoinsIcon className={ic} /> },
       ],
     },

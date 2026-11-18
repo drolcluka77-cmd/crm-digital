@@ -42,7 +42,7 @@ model User {
 
   productAccess  ProductAccess[]    @relation("AccessUser")
   accessGranted  ProductAccess[]    @relation("AccessGrantedBy")
-  customers      Customer[]
+  customers      Customer[]         @relation("CustomerOwner")
   quotes         Quote[]            @relation("QuoteSeller")
   approvedQuotes Quote[]            @relation("QuoteApprover")
   activities     Activity[]
@@ -62,6 +62,18 @@ model User {
   prospectsRecommended Prospect[] @relation("ProspectRecommended")
   prospectsClaimed     Prospect[] @relation("ProspectClaimed")
   candidatesHired      Candidate[] @relation("CandidateHiredAs")
+
+  // UGC creator programme (seller switches it on and accepts the terms).
+  ugcCreator      Boolean    @default(false)
+  ugcTermsAt      DateTime?
+  ugcCode         String?    @unique // e.g. "ANA" — link /r/ana and the customer code
+  ugcVideos       UgcVideo[] @relation("UgcCreator")
+  ugcReviewed     UgcVideo[] @relation("UgcReviewer")
+  ugcTasksCreated UgcTask[]  @relation("UgcTaskAuthor")
+  ugcLeads        Customer[] @relation("UgcCreatorLeads")
+  ugcClicks       UgcClick[]
+  payments         Payment[] @relation("PaymentSeller")
+  paymentsRecorded Payment[] @relation("PaymentRecordedBy")
 }
 
 // ─── Catalog ─────────────────────────────────────────────────────────────
@@ -108,6 +120,8 @@ model Product {
   certifications Certification[]
   prospectRules  ProspectRule[]
   prospects      Prospect[]
+  ugcTasks       UgcTask[]
+  ugcVideos      UgcVideo[]
 }
 
 // Price points for a product: "Starter €29 / month per building".
@@ -203,12 +217,26 @@ model Customer {
   bookingToken   String?   @unique // tracked booking link /b/<token>
   // null owner = unassigned lead sitting in a lead pool
   ownerId        String?
-  owner          User?     @relation(fields: [ownerId], references: [id])
+  owner          User?     @relation("CustomerOwner", fields: [ownerId], references: [id])
   poolId         String?
   pool           LeadPool? @relation(fields: [poolId], references: [id], onDelete: SetNull)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
+  // Where the lead came from: COLD (lead finder / imported list) | WARM_WEB (signed up
+  // on the website) | WARM_UGC (via a UGC creator's link or code) | OWN (found by the
+  // seller — higher commission) | OTHER. See LEAD_TYPE_LABEL.
+  leadType       String    @default("OTHER")
+  ugcCreatorId   String?
+  ugcCreator     User?     @relation("UgcCreatorLeads", fields: [ugcCreatorId], references: [id], onDelete: SetNull)
+  refCode        String? // creator code the lead came with (link or typed code)
+  freeMonth      Boolean   @default(false) // used a creator code: first month free
+  // Warm leads go to one seller at a time; if not accepted in time they move on.
+  warmAssignedAt DateTime?
+  warmAcceptedAt DateTime?
+  warmSkippedBy  String? // comma-separated ids of sellers it already passed through
+
+  payments   Payment[]
   quotes     Quote[]
   activities Activity[]
   interests     CustomerProduct[]
@@ -275,6 +303,7 @@ model Quote {
   approvedAt          DateTime?
 
   subscription Subscription?
+  payments     Payment[]
 }
 
 model QuoteItem {
@@ -333,6 +362,19 @@ model Settings {
   recruitingInviteSubject   String?
   recruitingInviteBody      String?
   recruitingRetentionMonths Int      @default(6)
+
+  // Commission on paid amounts
+  ownLeadCommissionRate Float  @default(20) // % on leads the seller found themselves
+  commissionMonths      Int    @default(12) // commission only on payments in the first N months
+
+  // Warm leads (website / UGC): hours a seller has to accept before it moves on
+  warmClaimHours Int    @default(72)
+  websiteUrl     String @default("https://unbusyness.com")
+
+  // UGC creators
+  ugcVideoPay   Float   @default(5)
+  ugcBonusTiers String? @default("10000:10, 40000:25, 100000:50") // views:bonus €
+  ugcTerms      String?
 }
 
 // ─── Commission ──────────────────────────────────────────────────────────
@@ -544,4 +586,94 @@ model Candidate {
   updatedAt     DateTime  @updatedAt
 
   @@index([stage])
+}
+
+// ─── Payments (commission is paid on money actually received) ───────────
+
+// A customer payment against an accepted quote. Commission = amount × rate,
+// only within the first Settings.commissionMonths after acceptance.
+model Payment {
+  id           String   @id @default(cuid())
+  quoteId      String
+  quote        Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  customerId   String
+  customer     Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  userId       String? // seller credited
+  user         User?    @relation("PaymentSeller", fields: [userId], references: [id], onDelete: SetNull)
+  amount       Float // net, excl. VAT
+  paidAt       DateTime
+  rate         Float    @default(0) // commission % applied
+  commission   Float    @default(0)
+  note         String?
+  source       String   @default("MANUAL") // MANUAL | IMPORT
+  createdById  String?
+  createdBy    User?    @relation("PaymentRecordedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+
+  @@index([userId, paidAt])
+}
+
+// ─── UGC creators ────────────────────────────────────────────────────────
+
+// A video idea for creators, written by the sales manager (or suggested by AI).
+model UgcTask {
+  id          String     @id @default(cuid())
+  productId   String?
+  product     Product?   @relation(fields: [productId], references: [id], onDelete: SetNull)
+  title       String
+  brief       String? // what to show, hook, call to action
+  theme       String? // e.g. "Christmas", "news: ..."
+  weekOf      DateTime? // Monday of the week it was planned for
+  status      String     @default("DRAFT") // DRAFT | PUBLISHED | CLOSED
+  ai          Boolean    @default(false)
+  createdById String?
+  createdBy   User?      @relation("UgcTaskAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime   @default(now())
+  videos      UgcVideo[]
+
+  @@index([status])
+}
+
+model UgcVideo {
+  id           String    @id @default(cuid())
+  creatorId    String
+  creator      User      @relation("UgcCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  taskId       String?
+  task         UgcTask?  @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  productId    String?
+  product      Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+  title        String
+  note         String? // creator's note to the reviewer
+  fileKey      String? // private storage key (uploaded video)
+  fileName     String?
+  fileType     String?
+  fileSize     Int?
+  linkUrl      String? // or a link (Google Drive, Dropbox, WeTransfer …)
+  status       String    @default("SUBMITTED") // SUBMITTED | CHANGES | APPROVED | REJECTED | PUBLISHED
+  reviewNote   String?
+  reviewedById String?
+  reviewedBy   User?     @relation("UgcReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt   DateTime?
+  postUrl      String? // the Instagram / TikTok post
+  publishedAt  DateTime?
+  basePay      Float     @default(0) // set when published (Settings.ugcVideoPay)
+  views        Int?
+  viewsAt      DateTime? // when the manager entered the views
+  bonus        Float     @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([creatorId, status])
+  @@index([status])
+}
+
+// A click on a creator's link (/r/<code>/<page>).
+model UgcClick {
+  id        String   @id @default(cuid())
+  creatorId String
+  creator   User     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  page      String?
+  createdAt DateTime @default(now())
+
+  @@index([creatorId, createdAt])
 }

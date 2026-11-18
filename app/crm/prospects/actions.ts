@@ -57,6 +57,7 @@ export async function claimProspect(id: string): Promise<ActionResult> {
       city: p.postTown,
       country: "Slovenia",
       source: "Lead finder",
+      leadType: "COLD",
       note,
       status: "NEW",
       ownerId: user.id,

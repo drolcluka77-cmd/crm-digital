@@ -16,6 +16,9 @@ import {
 import { computeQuoteBreakdown, followUpLabel, formatMoney, timeAgo } from "@/lib/format";
 import { LEAD_STATUS_LABEL, OPEN_LEAD_STATUSES } from "@/lib/constants";
 import { recommendFor } from "@/lib/prospects";
+import { expireWarmLeads } from "@/lib/warm-leads";
+import { getSettings } from "@/lib/settings";
+import WarmLeads from "./WarmLeads";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +38,13 @@ export default async function CrmTodayPage() {
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
   await recommendFor(user);
+  await expireWarmLeads().catch(() => 0);
+  const settings = await getSettings();
+  const warm = await prisma.customer.findMany({
+    where: { ownerId: user.id, warmAssignedAt: { not: null }, warmAcceptedAt: null },
+    include: { interests: { include: { product: { select: { name: true } } } } },
+    orderBy: { warmAssignedAt: "asc" },
+  });
   const recommendedCount = await prisma.prospect.count({ where: { recommendedToId: user.id, status: "RECOMMENDED" } });
   const [dueLeads, quietLeads, opened, quotes, products, customerCount, demos, renewals] = await Promise.all([
     prisma.customer.findMany({
@@ -113,6 +123,19 @@ export default async function CrmTodayPage() {
           </Link>
         </div>
       </div>
+
+      <WarmLeads
+        leads={warm.map((c) => ({
+          id: c.id,
+          name: c.name,
+          company: c.company,
+          phone: c.phone,
+          product: c.interests[0]?.product.name || null,
+          ugc: c.leadType === "WARM_UGC",
+          freeMonth: c.freeMonth,
+          deadline: new Date(c.warmAssignedAt!.getTime() + settings.warmClaimHours * 3_600_000).toISOString(),
+        }))}
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard

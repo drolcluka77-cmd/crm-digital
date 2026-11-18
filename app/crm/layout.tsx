@@ -14,6 +14,7 @@ import {
   PencilIcon,
   SparkIcon,
   MailIcon,
+  PlayIcon,
 } from "@/components/icons";
 
 const ic = "h-[18px] w-[18px]";
@@ -39,6 +40,7 @@ export default async function CrmLayout({ children }: { children: React.ReactNod
         { href: "/crm/pool", label: "Lead pool", icon: <SparkIcon className={ic} /> },
         { href: "/crm/quotes", label: "Quotes", icon: <FileIcon className={ic} /> },
         { href: "/crm/library", label: "Sales library", icon: <FolderIcon className={ic} /> },
+        { href: "/crm/ugc", label: "UGC creator", icon: <PlayIcon className={ic} /> },
       ],
     },
     {

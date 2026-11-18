@@ -65,7 +65,7 @@ export async function importToPool(poolId: string, rows: LeadRow[]) {
   if (!(await poolFor(actor, poolId))) return { error: "Pool not found." };
   if (!Array.isArray(rows) || rows.length === 0) return { error: "Nothing to import." };
   if (rows.length > 5000) return { error: "Import at most 5,000 rows at a time." };
-  const result = await insertLeads(rows, { ownerId: null, poolId, actorId: actor.id });
+  const result = await insertLeads(rows, { ownerId: null, poolId, actorId: actor.id, leadType: "COLD" });
   revalidatePools(poolId);
   return result;
 }

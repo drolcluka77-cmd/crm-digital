@@ -39,6 +39,8 @@ export default async function CustomersPage({
     lastContactAt: c.lastContactAt?.toISOString() ?? null,
     updatedAt: c.updatedAt.toISOString(),
     quoteCount: c._count.quotes,
+    leadType: c.leadType,
+    warmPending: !!c.warmAssignedAt && !c.warmAcceptedAt,
     products: c.interests.map((i) => ({ id: i.product.id, name: i.product.name, color: i.product.color })),
   }));
 
