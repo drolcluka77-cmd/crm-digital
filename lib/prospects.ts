@@ -286,9 +286,21 @@ export async function expireRecommendations() {
   return stale.length;
 }
 
+/** Products a seller gets recommendations for: those they may sell, minus any they switched off. */
+export async function recommendationProductIds(user: CurrentUser): Promise<string[]> {
+  const [sellable, me] = await Promise.all([
+    getSellableProductIds(user),
+    prisma.user.findUnique({ where: { id: user.id }, select: { prospectProducts: true } }),
+  ]);
+  if (!me?.prospectProducts) return sellable;
+  const chosen = new Set(me.prospectProducts.split(",").filter(Boolean));
+  return sellable.filter((id) => chosen.has(id));
+}
+
 /**
- * Tops up a seller's recommendations: at most `quota` open ones, and at
- * most `quota` new ones per day. Only products the seller may sell.
+ * Tops up a seller's recommendations, per product: at most `quota` open
+ * ones and at most `quota` new ones per day for each product they may sell
+ * (and haven't switched off).
  */
 export async function recommendFor(user: CurrentUser) {
   if (user.role !== "SALES") return;
@@ -299,34 +311,39 @@ export async function recommendFor(user: CurrentUser) {
   ]);
   const quota = me?.prospectQuota ?? settings.prospectDailyPerSeller;
   if (quota <= 0) return;
+  const productIds = await recommendationProductIds(user);
+  if (productIds.length === 0) return;
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
-  const [open, givenToday] = await Promise.all([
-    prisma.prospect.count({ where: { recommendedToId: user.id, status: "RECOMMENDED" } }),
-    prisma.prospect.count({ where: { recommendedToId: user.id, recommendedAt: { gte: startOfToday } } }),
-  ]);
-  const need = Math.min(quota - open, quota - givenToday);
-  if (need <= 0) return;
-  const productIds = await getSellableProductIds(user);
-  if (productIds.length === 0) return;
 
-  const candidates = await prisma.prospect.findMany({
-    where: {
-      status: "NEW",
-      productId: { in: productIds },
-      OR: [{ skippedBy: null }, { NOT: { skippedBy: { contains: user.id } } }],
-    },
-    orderBy: [{ score: "desc" }, { createdAt: "desc" }],
-    take: need * 3,
-    select: { id: true },
-  });
-  let given = 0;
-  for (const c of candidates) {
-    if (given >= need) break;
-    const { count } = await prisma.prospect.updateMany({
-      where: { id: c.id, status: "NEW" },
-      data: { status: "RECOMMENDED", recommendedToId: user.id, recommendedAt: new Date() },
+  const [open, givenToday] = await Promise.all([
+    prisma.prospect.groupBy({ by: ["productId"], where: { recommendedToId: user.id, status: "RECOMMENDED" }, _count: { _all: true } }),
+    prisma.prospect.groupBy({ by: ["productId"], where: { recommendedToId: user.id, recommendedAt: { gte: startOfToday } }, _count: { _all: true } }),
+  ]);
+  const countFor = (rows: { productId: string | null; _count: { _all: number } }[], id: string) =>
+    rows.find((r) => r.productId === id)?._count._all || 0;
+
+  for (const productId of productIds) {
+    const need = Math.min(quota - countFor(open, productId), quota - countFor(givenToday, productId));
+    if (need <= 0) continue;
+    const candidates = await prisma.prospect.findMany({
+      where: {
+        status: "NEW",
+        productId,
+        OR: [{ skippedBy: null }, { NOT: { skippedBy: { contains: user.id } } }],
+      },
+      orderBy: [{ score: "desc" }, { createdAt: "desc" }],
+      take: need * 3,
+      select: { id: true },
     });
-    given += count;
+    let given = 0;
+    for (const c of candidates) {
+      if (given >= need) break;
+      const { count } = await prisma.prospect.updateMany({
+        where: { id: c.id, status: "NEW" },
+        data: { status: "RECOMMENDED", recommendedToId: user.id, recommendedAt: new Date() },
+      });
+      given += count;
+    }
   }
 }

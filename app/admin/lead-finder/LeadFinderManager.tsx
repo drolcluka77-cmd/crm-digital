@@ -126,7 +126,7 @@ export default function LeadFinderManager(props: {
           <h2 className="font-semibold mb-3">How it works</h2>
           <div className="grid grid-cols-2 gap-3">
             <label className="text-sm">
-              <span className="label">New leads per seller per day</span>
+              <span className="label">New leads per seller, per product, per day</span>
               <input name="daily" type="number" min={0} max={100} defaultValue={s.daily} className="input" />
             </label>
             <label className="text-sm">
@@ -238,13 +238,13 @@ export default function LeadFinderManager(props: {
         <div className="card mb-6">
           <div className="px-5 py-4 border-b border-black/5">
             <h2 className="font-semibold">Sellers</h2>
-            <p className="text-xs text-black/45 mt-0.5">Leave empty to use the default ({s.daily} a day). 0 = no recommendations. Sellers only get leads for products they may sell.</p>
+            <p className="text-xs text-black/45 mt-0.5">Leads per product per day. Leave empty to use the default ({s.daily}). 0 = no recommendations. Sellers only get leads for products they may sell, and can switch products off themselves.</p>
           </div>
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs text-black/40 border-b border-black/5">
                 <th className="px-5 py-2 font-medium">Seller</th>
-                <th className="px-3 py-2 font-medium">Leads per day</th>
+                <th className="px-3 py-2 font-medium">Per product per day</th>
                 <th className="px-3 py-2 font-medium">Open now</th>
                 <th className="px-3 py-2 font-medium">Claimed</th>
               </tr>

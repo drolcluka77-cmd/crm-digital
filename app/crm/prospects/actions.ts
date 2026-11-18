@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireSales } from "@/lib/session";
 import { lookupProspect } from "@/lib/prospect-lookup";
+import { getSellableProductIds } from "@/lib/access";
 
 export type ActionResult = { error?: string; success?: string; customerId?: string } | void;
 
@@ -109,4 +110,24 @@ export async function rejectProspect(id: string, reason: string, doNotContact: b
   });
   revalidatePath("/crm/prospects");
   return { success: doNotContact ? "Marked as do not contact." : "Removed." };
+}
+
+/** Which products the seller wants recommended leads for. */
+export async function setMyLeadProducts(ids: string[]): Promise<ActionResult> {
+  const user = await requireSales();
+  const sellable = await getSellableProductIds(user);
+  const chosen = sellable.filter((id) => ids.includes(id));
+  if (chosen.length === 0) return { error: "Keep at least one product switched on." };
+  const value = chosen.length === sellable.length ? null : chosen.join(",");
+  await prisma.user.update({ where: { id: user.id }, data: { prospectProducts: value } });
+  // Hand back open recommendations for products switched off.
+  const off = sellable.filter((id) => !chosen.includes(id));
+  if (off.length) {
+    await prisma.prospect.updateMany({
+      where: { recommendedToId: user.id, status: "RECOMMENDED", productId: { in: off } },
+      data: { status: "NEW", recommendedToId: null, recommendedAt: null },
+    });
+  }
+  revalidatePath("/crm/prospects");
+  return { success: "Saved." };
 }

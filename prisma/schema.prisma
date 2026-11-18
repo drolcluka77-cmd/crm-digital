@@ -57,6 +57,8 @@ model User {
   // Lead finder: how many recommended leads this seller gets per day
   // (null = the company default in Settings).
   prospectQuota        Int?
+  // Products this seller wants recommended leads for (comma-separated ids; null = all they may sell).
+  prospectProducts     String?
   prospectsRecommended Prospect[] @relation("ProspectRecommended")
   prospectsClaimed     Prospect[] @relation("ProspectClaimed")
   candidatesHired      Candidate[] @relation("CandidateHiredAs")
