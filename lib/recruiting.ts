@@ -22,6 +22,7 @@ Kaj boste delali: klicali podjetja, jim predstavili produkte in jih vodili do na
 
 Naslednji korak je kratek, 30-minutni uvodni pogovor. Predstavimo vam delo, plačilo in provizijo ter odgovorimo na vaša vprašanja. Termin, ki vam ustreza, izberite tukaj:
 {{calendlyLink}}
+Termini so prikazani po slovenskem času (CET). Pri izbiri termina preverite, da je spodaj izbran časovni pas »Central European Time«.
 
 Če imate vprašanja, preprosto odgovorite na to sporočilo.
 
@@ -34,6 +35,7 @@ const REMINDER_BODY = `Pozdravljeni {{firstName}},
 
 pred nekaj dnevi smo vam poslali povabilo na kratek uvodni pogovor o delu pri prodaji digitalnih produktov. Če vas delo še zanima, si termin izberite tukaj:
 {{calendlyLink}}
+Termini so prikazani po slovenskem času (CET). Pri izbiri termina preverite, da je spodaj izbran časovni pas »Central European Time«.
 
 Če vam noben termin ne ustreza ali vas delo ne zanima več, nam preprosto odgovorite na to sporočilo.
 
