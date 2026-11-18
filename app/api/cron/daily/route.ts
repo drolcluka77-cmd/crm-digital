@@ -5,6 +5,7 @@ import { getSettings } from "@/lib/settings";
 import { getBaseUrl } from "@/lib/url";
 import { escapeHtml, formatMoney, computeQuoteBreakdown } from "@/lib/format";
 import { OPEN_LEAD_STATUSES } from "@/lib/constants";
+import { expireRecommendations, importFromAjpes } from "@/lib/prospects";
 
 export const dynamic = "force-dynamic";
 
@@ -158,5 +159,21 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, sellerDigests: sent, weeklySummaries: weeklySent, errors });
+  // Lead finder: hand back stale recommendations; re-import every ~2 weeks
+  // (the AJPES open list is refreshed twice a month).
+  let leadFinder: string | null = null;
+  try {
+    const expired = await expireRecommendations();
+    const last = settings.prospectLastImportAt?.getTime() ?? 0;
+    if (settings.prospectAutoImport && now.getTime() - last > 13 * 86_400_000) {
+      const sum = await importFromAjpes();
+      leadFinder = `${sum.created} new leads imported; ${expired} recommendations expired`;
+    } else {
+      leadFinder = `${expired} recommendations expired`;
+    }
+  } catch (e: any) {
+    errors.push(`Lead finder: ${e?.message || e}`);
+  }
+
+  return NextResponse.json({ ok: true, sellerDigests: sent, weeklySummaries: weeklySent, leadFinder, errors });
 }

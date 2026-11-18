@@ -15,6 +15,7 @@ import {
 } from "@/components/icons";
 import { computeQuoteBreakdown, followUpLabel, formatMoney, timeAgo } from "@/lib/format";
 import { LEAD_STATUS_LABEL, OPEN_LEAD_STATUSES } from "@/lib/constants";
+import { recommendFor } from "@/lib/prospects";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,8 @@ export default async function CrmTodayPage() {
   const in30 = new Date(Date.now() + 30 * 86_400_000);
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
+  await recommendFor(user);
+  const recommendedCount = await prisma.prospect.count({ where: { recommendedToId: user.id, status: "RECOMMENDED" } });
   const [dueLeads, quietLeads, opened, quotes, products, customerCount, demos, renewals] = await Promise.all([
     prisma.customer.findMany({
       where: { ownerId: user.id, status: { in: openStatuses }, nextFollowUpAt: { lte: endOfToday } },
@@ -92,6 +95,11 @@ export default async function CrmTodayPage() {
               ? `${dueLeads.length} follow-up${dueLeads.length === 1 ? "" : "s"} waiting for you today.`
               : "No follow-ups due — a good day to find new leads."}
           </p>
+          {recommendedCount > 0 && (
+            <Link href="/crm/prospects" className="inline-block mt-2 text-sm text-brand-700 hover:underline">
+              {recommendedCount} recommended lead{recommendedCount === 1 ? "" : "s"} waiting for you →
+            </Link>
+          )}
         </div>
         <div className="flex gap-2 shrink-0">
           <Link href="/crm/quick" className="btn-secondary lg:hidden">
