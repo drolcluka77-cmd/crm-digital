@@ -49,7 +49,15 @@ function phraseMatches(name: string, phrase: string): boolean {
   return phrase.split(" ").every((p) => words.some((w) => w.startsWith(p)));
 }
 
-type Rule = { productId: string; keywords: string[]; exclude: string[]; priority: number };
+type Rule = { productId: string; keywords: string[]; rawKeywords: string[]; exclude: string[]; priority: number };
+
+/** Keywords as typed (lower-case, accents kept) — the AJPES search is accent-sensitive. */
+export function rawWords(list: string | null | undefined): string[] {
+  return (list || "")
+    .split(/[,\n;]/)
+    .map((w) => w.trim().toLowerCase().replace(/\s+/g, " "))
+    .filter(Boolean);
+}
 
 export async function loadRules(): Promise<Rule[]> {
   const rules = await prisma.prospectRule.findMany({
@@ -58,6 +66,7 @@ export async function loadRules(): Promise<Rule[]> {
   return rules.map((r) => ({
     productId: r.productId,
     keywords: splitWords(r.keywords),
+    rawKeywords: rawWords(r.keywords),
     exclude: splitWords(r.exclude),
     priority: r.priority,
   }));
@@ -81,33 +90,46 @@ export function matchProduct(name: string, rules: Rule[]) {
 
 /** Starter rules, created once if there are none. Admins edit them in Lead finder. */
 const DEFAULT_RULES: { productName: string; keywords: string; exclude?: string; priority?: number }[] = [
-  { productName: "for Hotels", keywords: "hotel, hoteli, penzion, garni, hostel, motel, resort", exclude: "hotelska oprema", priority: 2 },
+  { productName: "for Hotels", keywords: "hotel, hoteli, hotela, penzion, garni, hostel, motel, resort", exclude: "hotelska oprema", priority: 2 },
   {
     productName: "for Airbnb",
-    keywords: "apartma, apartmaji, apartmajev, sobodajalstvo, sobodajalka, sobodajalec, turisticne sobe, oddajanje sob, pocitniska hisa, pocitniske hise, glamping, turisticna kmetija",
+    keywords: "apartma, apartmaji, apartmajev, sobodajalstvo, sobodajalka, sobodajalec, turistične sobe, oddajanje sob, počitniška hiša, počitniške hiše, glamping, turistična kmetija",
     priority: 2,
   },
   {
     productName: "Building Managers",
-    keywords: "upravljanje nepremicnin, upravljanje z nepremicninami, upravljanje stavb, upravnik, upravniki, hisniske storitve, etazna lastnina",
+    keywords: "upravljanje nepremičnin, upravljanje z nepremičninami, upravljanje stavb, upravnik, upravniki, hišniške storitve, etažna lastnina",
     priority: 3,
   },
   {
     productName: "Tradespeople",
-    keywords: "vodovod, vodovodne, vodoinstalacije, instalacije, instalaterstvo, ogrevanje, centralne kurjave, klima, klimatske, toplotne crpalke, elektroinstalacije, elektroinstalaterstvo, elektro storitve, plinske, dimnikarstvo, servis kotlov",
+    keywords: "vodovod, vodovodne, vodoinštalacije, inštalacije, instalacije, inštalaterstvo, ogrevanje, centralne kurjave, klima, klimatske, toplotne črpalke, elektroinštalacije, elektroinštalaterstvo, elektro storitve, plinske, dimnikarstvo, servis kotlov",
     exclude: "trgovina",
     priority: 1,
   },
   {
     productName: "Picked - Visible",
-    keywords: "frizerstvo, frizerski, kozmetika, kozmeticni, kozmeticne, pedikura, manikura, gostilna, restavracija, picerija, pizzeria, okrepcevalnica, kavarna, slascicarna, zobozdravstvo, zobna ordinacija, fizioterapija, masaze, wellness, avtoservis, avtolicarstvo, vulkanizerstvo, fotostudio",
+    keywords: "frizerstvo, frizerski, kozmetika, kozmetični, kozmetične, pedikura, manikura, gostilna, restavracija, picerija, pizzeria, okrepčevalnica, kavarna, slaščičarna, zobozdravstvo, zobna ordinacija, fizioterapija, masaže, wellness, avtoservis, avtoličarstvo, vulkanizerstvo, fotostudio",
     priority: 0,
   },
 ];
 
 export async function ensureDefaultRules() {
-  if ((await prisma.prospectRule.count()) > 0) return;
   const products = await prisma.product.findMany({ select: { id: true, name: true } });
+  // One-time upgrade: the first starter rules had no accents, which the
+  // accent-sensitive AJPES search misses. Replace them if still unedited.
+  const existing = await prisma.prospectRule.findMany();
+  for (const r of existing) {
+    if (/[čšžćđ]/i.test(r.keywords)) continue;
+    const productName = products.find((p) => p.id === r.productId)?.name.toLowerCase() || "";
+    const d = DEFAULT_RULES.find((x) => productName.includes(x.productName.toLowerCase()));
+    const mine = splitWords(r.keywords);
+    const theirs = new Set(splitWords(d?.keywords));
+    if (d && d.keywords !== r.keywords && mine.every((w) => theirs.has(w))) {
+      await prisma.prospectRule.update({ where: { id: r.id }, data: { keywords: d.keywords } });
+    }
+  }
+  if (existing.length > 0) return;
   for (const d of DEFAULT_RULES) {
     const p = products.find((x) => x.name.toLowerCase().includes(d.productName.toLowerCase()));
     if (!p) continue;
@@ -154,7 +176,8 @@ export type ImportSummary = {
 export async function importFromAjpes(opts: { maxPerKeyword?: number } = {}): Promise<ImportSummary> {
   const maxPerKeyword = opts.maxPerKeyword ?? 1500;
   const rules = await loadRules();
-  const keywords = Array.from(new Set(rules.flatMap((r) => r.keywords)));
+  // Search both as typed and without accents: AJPES matches whole words and accents.
+  const keywords = Array.from(new Set(rules.flatMap((r) => [...r.rawKeywords, ...r.keywords])));
   const summary: ImportSummary = { keywords: keywords.length, fetched: 0, matched: 0, created: 0, duplicates: 0, errors: [] };
 
   const found = new Map<string, { rec: AjpesRecord; productId: string; keyword: string; score: number }>();
