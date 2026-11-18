@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/session";
 import CandidateDetail from "./CandidateDetail";
@@ -8,7 +8,8 @@ export const dynamic = "force-dynamic";
 export default async function CandidatePage({ params }: { params: { id: string } }) {
   const user = await requireStaff();
   const c = await prisma.candidate.findUnique({ where: { id: params.id }, include: { hiredUser: { select: { id: true, name: true } } } });
-  if (!c) notFound();
+  // Deleted (e.g. GDPR request or retention clean-up) — old notifications still link here.
+  if (!c) redirect("/admin/recruiting?gone=1");
   const [managers, products] = await Promise.all([
     prisma.user.findMany({ where: { role: "MANAGER", active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
     prisma.product.findMany({ where: { active: true }, select: { id: true, name: true }, orderBy: { sortOrder: "asc" } }),

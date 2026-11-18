@@ -7,7 +7,7 @@ import RecruitingManager from "./RecruitingManager";
 
 export const dynamic = "force-dynamic";
 
-export default async function RecruitingPage() {
+export default async function RecruitingPage({ searchParams }: { searchParams: { gone?: string } }) {
   await requireStaff();
   const [settings, candidates] = await Promise.all([
     getSettings(),
@@ -15,6 +15,7 @@ export default async function RecruitingPage() {
   ]);
   return (
     <RecruitingManager
+      notice={searchParams.gone ? "That candidate no longer exists — the application was deleted." : null}
       formUrl={`${getBaseUrl()}/prijava?vir=studentski-servis`}
       settings={{
         calendly: settings.recruitingCalendlyUrl || "",

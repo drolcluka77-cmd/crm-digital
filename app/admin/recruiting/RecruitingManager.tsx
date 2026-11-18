@@ -30,10 +30,12 @@ const fmt = (d: string) => new Date(d).toLocaleDateString("sl-SI", { day: "numer
 const fmtTime = (d: string) => new Date(d).toLocaleString("sl-SI", { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" });
 
 export default function RecruitingManager({
+  notice,
   formUrl,
   settings,
   candidates,
 }: {
+  notice?: string | null;
   formUrl: string;
   settings: { calendly: string; autoInvite: boolean; subject: string; body: string; retention: number };
   candidates: C[];
@@ -108,6 +110,7 @@ export default function RecruitingManager({
         <a className="btn-secondary py-1.5" href={formUrl} target="_blank" rel="noreferrer">Open form</a>
       </div>
 
+      {notice && !msg && <div className="error-box mb-4">{notice}</div>}
       {msg?.error && <div className="error-box mb-4">{msg.error}</div>}
       {msg?.success && <div className="success-box mb-4">{msg.success}</div>}
 
