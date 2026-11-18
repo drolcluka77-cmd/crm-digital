@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity";
 import { notify } from "@/lib/notify";
+import { markCandidateBooked } from "@/lib/recruiting";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +47,13 @@ export async function POST(req: NextRequest) {
   const start = startRaw ? new Date(startRaw) : null;
 
   if (!email) return NextResponse.json({ error: "No email in payload" }, { status: 400 });
+
+  // A job candidate booking the intro meeting?
+  const startForCandidate = start && !Number.isNaN(start.getTime()) ? start : null;
+  if (await markCandidateBooked(email, startForCandidate)) {
+    return NextResponse.json({ ok: true, matched: "candidate" });
+  }
+
   const customer = await prisma.customer.findFirst({ where: { email }, include: { owner: { select: { id: true } } } });
   if (!customer || !customer.owner) return NextResponse.json({ ok: true, matched: false });
 

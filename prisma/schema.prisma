@@ -59,6 +59,7 @@ model User {
   prospectQuota        Int?
   prospectsRecommended Prospect[] @relation("ProspectRecommended")
   prospectsClaimed     Prospect[] @relation("ProspectClaimed")
+  candidatesHired      Candidate[] @relation("CandidateHiredAs")
 }
 
 // ─── Catalog ─────────────────────────────────────────────────────────────
@@ -323,6 +324,13 @@ model Settings {
   prospectAutoImport      Boolean   @default(false)
   prospectLastImportAt    DateTime?
   prospectLastImportNote  String?
+
+  // Recruiting
+  recruitingCalendlyUrl     String?  @default("https://calendly.com/drolcluka77/30min")
+  recruitingAutoInvite      Boolean  @default(true)
+  recruitingInviteSubject   String?
+  recruitingInviteBody      String?
+  recruitingRetentionMonths Int      @default(6)
 }
 
 // ─── Commission ──────────────────────────────────────────────────────────
@@ -496,4 +504,42 @@ model Prospect {
 
   @@index([status, productId])
   @@index([recommendedToId, status])
+}
+
+// ─── Recruiting ──────────────────────────────────────────────────────────
+
+// Someone who applied to sell for us (public form /prijava).
+model Candidate {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique // lower-case
+  phone         String?
+  city          String?
+  status        String? // student / dijak / other
+  hoursPerWeek  String?
+  availableFrom String?
+  workMode      String? // remote / Ljubljana / both
+  languages     String?
+  experience    String?
+  motivation    String?
+  cvKey         String? // private storage key
+  cvName        String?
+  source        String? // e.g. "Študentski servis" (?vir= on the form link)
+  consentAt     DateTime
+  consentIp     String?
+  stage         String    @default("NEW") // NEW | INVITED | BOOKED | INTERVIEWED | ONBOARDING | HIRED | REJECTED
+  token         String    @unique // tracked Calendly link /prijava/termin/<token>
+  invitedAt     DateTime?
+  reminderAt    DateTime?
+  clickedAt     DateTime?
+  bookedAt      DateTime? // meeting time from the booking webhook
+  rating        Int? // 1–5
+  notes         String?
+  hiredUserId   String?
+  hiredUser     User?     @relation("CandidateHiredAs", fields: [hiredUserId], references: [id], onDelete: SetNull)
+  closedAt      DateTime? // hired or rejected — starts the retention clock
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([stage])
 }

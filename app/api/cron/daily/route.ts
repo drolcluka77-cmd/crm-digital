@@ -6,6 +6,7 @@ import { getBaseUrl } from "@/lib/url";
 import { escapeHtml, formatMoney, computeQuoteBreakdown } from "@/lib/format";
 import { OPEN_LEAD_STATUSES } from "@/lib/constants";
 import { expireRecommendations, importFromAjpes } from "@/lib/prospects";
+import { recruitingDailyJob } from "@/lib/recruiting";
 
 export const dynamic = "force-dynamic";
 
@@ -175,5 +176,15 @@ export async function GET(req: NextRequest) {
     errors.push(`Lead finder: ${e?.message || e}`);
   }
 
-  return NextResponse.json({ ok: true, sellerDigests: sent, weeklySummaries: weeklySent, leadFinder, errors });
+  // Recruiting: reminders to invited candidates; GDPR clean-up.
+  let recruiting: { reminders: number; deleted: number } | null = null;
+  try {
+    const r = await recruitingDailyJob();
+    recruiting = { reminders: r.reminders, deleted: r.deleted };
+    errors.push(...r.errors.map((e) => `Recruiting: ${e}`));
+  } catch (e: any) {
+    errors.push(`Recruiting: ${e?.message || e}`);
+  }
+
+  return NextResponse.json({ ok: true, sellerDigests: sent, weeklySummaries: weeklySent, leadFinder, recruiting, errors });
 }

@@ -66,6 +66,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       items: [
         { href: "/admin/team", label: isAdmin ? "Team" : "My team", icon: <UsersIcon className={ic} /> },
         { href: "/admin/access", label: "Product access", icon: <ShieldIcon className={ic} /> },
+        { href: "/admin/recruiting", label: "Recruiting", icon: <UsersIcon className={ic} /> },
       ],
     },
     {

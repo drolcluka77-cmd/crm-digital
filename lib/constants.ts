@@ -197,4 +197,6 @@ export const NOTIFICATION_TYPE_LABEL: Record<string, string> = {
   PAYOUT: "Commission paid",
   CERTIFIED: "Certification",
   RENEWAL_DUE: "Renewal due",
+  NEW_CANDIDATE: "New job application",
+  CANDIDATE_BOOKED: "Candidate booked a meeting",
 };
