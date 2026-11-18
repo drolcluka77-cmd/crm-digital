@@ -66,7 +66,7 @@ model User {
   // UGC creator programme (seller switches it on and accepts the terms).
   ugcCreator      Boolean    @default(false)
   ugcTermsAt      DateTime?
-  ugcCode         String?    @unique // e.g. "ANA" — link /r/ana and the customer code
+  ugcCode         String? // e.g. "ANA" — link /r/ana and the customer code (unique, enforced in lib/ugc.ts)
   ugcVideos       UgcVideo[] @relation("UgcCreator")
   ugcReviewed     UgcVideo[] @relation("UgcReviewer")
   ugcTasksCreated UgcTask[]  @relation("UgcTaskAuthor")
