@@ -304,7 +304,7 @@ export default function SettingsForm({ settings }: { settings: Settings }) {
               name="smtpFrom"
               defaultValue={settings.smtpFrom || ""}
               className="input"
-              placeholder="AURELIA DISTRIBUCIJA d.o.o. <you@gmail.com>"
+              placeholder="AURELIA GROUP d.o.o. <you@gmail.com>"
             />
           </div>
 

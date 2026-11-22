@@ -12,7 +12,7 @@ export { CANDIDATE_STAGES, CANDIDATE_STAGE_LABEL, OPEN_CANDIDATE_STAGES } from "
 export const DEFAULT_INVITE_SUBJECT = "Povabilo na uvodni pogovor — prodaja digitalnih produktov";
 export const DEFAULT_INVITE_BODY = `Pozdravljeni {{firstName}},
 
-hvala za vašo prijavo na delo pri AURELIA DISTRIBUCIJA.
+hvala za vašo prijavo na delo pri AURELIA GROUP.
 
 Smo distribucijski center za digitalne produkte. Podjetjem v Sloveniji predstavljamo in prodajamo sodobne digitalne rešitve, med njimi:
 • Unbusyness — aplikacije, ki hotelom, upravnikom stavb, Airbnb gostiteljem in obrtnikom prihranijo čas,
@@ -28,7 +28,7 @@ POMEMBNO: termini so po slovenskem času (CET). Preden potrdite termin, na stran
 
 Lep pozdrav,
 Luka Drolc
-AURELIA DISTRIBUCIJA d.o.o.`;
+AURELIA GROUP d.o.o.`;
 
 const REMINDER_SUBJECT = "Vas delo pri nas še zanima?";
 const REMINDER_BODY = `Pozdravljeni {{firstName}},
@@ -40,7 +40,7 @@ POMEMBNO: termini so po slovenskem času (CET). Preden potrdite termin, na stran
 Če vam noben termin ne ustreza ali vas delo ne zanima več, nam preprosto odgovorite na to sporočilo.
 
 Lep pozdrav,
-AURELIA DISTRIBUCIJA d.o.o.`;
+AURELIA GROUP d.o.o.`;
 
 export function newCandidateToken() {
   return randomBytes(12).toString("base64url");

@@ -104,7 +104,7 @@ export const DEFAULT_UGC_TERMS = `Pogoji za UGC ustvarjalce (Unbusyness)
 
 1. Videe snemam po nalogah ali navodilih v prodajnem portalu. Vsak video pred objavo potrdi sales manager ali admin.
 2. Potrjen video objavim na svojem Instagram/TikTok profilu kot Instagram Collab (sodelovanje) s profilom Unbusyness. Objavo označim kot oglas (#oglas oz. »plačano partnerstvo«).
-3. Družbi AURELIA DISTRIBUCIJA d.o.o. neizključno, časovno in prostorsko neomejeno prenašam pravico do uporabe, predelave (npr. krajšanja, podnapisov) in objave videa na njenih kanalih in v oglasih.
+3. Družbi AURELIA GROUP d.o.o. neizključno, časovno in prostorsko neomejeno prenašam pravico do uporabe, predelave (npr. krajšanja, podnapisov) in objave videa na njenih kanalih in v oglasih.
 4. Soglašam z uporabo svoje podobe in glasu v teh videih. Soglasje lahko za nove objave kadarkoli prekličem; že objavljenih oglasov ni treba odstraniti, razen če se dogovorimo drugače.
 5. V videu ne pokažem osebnih podatkov strank ali drugih oseb brez njihovega soglasja in ne uporabljam glasbe ali vsebin, za katere ni pravic (uporabljam glasbo iz knjižnice Instagram/TikTok).
 6. Plačilo: znesek na objavljen video in morebitni bonus glede na oglede, po veljavnem ceniku v portalu. Izplačilo poteka mesečno prek študentske napotnice oz. dogovorjene pogodbe.

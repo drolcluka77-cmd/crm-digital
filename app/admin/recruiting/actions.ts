@@ -84,7 +84,7 @@ export async function rejectCandidate(id: string, sendNote: boolean): Promise<Ac
   const c = await prisma.candidate.findUnique({ where: { id } });
   if (!c) return { error: "Not found." };
   if (sendNote) {
-    const text = `Pozdravljeni ${firstName(c.name)},\n\nhvala za vaš čas in zanimanje za delo pri nas. Tokrat smo se odločili za druge kandidate. Želimo vam veliko uspeha in vas lepo pozdravljamo.\n\nAURELIA DISTRIBUCIJA d.o.o.`;
+    const text = `Pozdravljeni ${firstName(c.name)},\n\nhvala za vaš čas in zanimanje za delo pri nas. Tokrat smo se odločili za druge kandidate. Želimo vam veliko uspeha in vas lepo pozdravljamo.\n\nAURELIA GROUP d.o.o.`;
     try {
       await sendEmail({ to: c.email, subject: "Vaša prijava", text, html: `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.55">${escapeHtml(text).replace(/\n/g, "<br>")}</div>` });
     } catch (e: any) {
@@ -137,7 +137,7 @@ export async function hireCandidate(id: string, fd: FormData): Promise<ActionRes
   let mailed = true;
   if (fd.get("sendLogin") === "on") {
     const login = `${getBaseUrl()}/login`;
-    const text = `Pozdravljeni ${firstName(c.name)},\n\ndobrodošli v ekipi AURELIA DISTRIBUCIJA!\n\nVaš račun v našem prodajnem CRM-ju je pripravljen:\n${login}\nE-pošta: ${c.email}\nZačasno geslo: ${tempPassword}\n\nPo prvi prijavi geslo zamenjajte pod Account. V CRM-ju najdete svoje produkte, prodajne liste in priporočene kontakte za klice.\n\nLep pozdrav,\nAURELIA DISTRIBUCIJA d.o.o.`;
+    const text = `Pozdravljeni ${firstName(c.name)},\n\ndobrodošli v ekipi AURELIA GROUP!\n\nVaš račun v našem prodajnem CRM-ju je pripravljen:\n${login}\nE-pošta: ${c.email}\nZačasno geslo: ${tempPassword}\n\nPo prvi prijavi geslo zamenjajte pod Account. V CRM-ju najdete svoje produkte, prodajne liste in priporočene kontakte za klice.\n\nLep pozdrav,\nAURELIA GROUP d.o.o.`;
     try {
       await sendEmail({ to: c.email, subject: "Dobrodošli — vaš dostop do CRM", text, html: `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.55">${escapeHtml(text).replace(/\n/g, "<br>")}</div>` });
     } catch {
