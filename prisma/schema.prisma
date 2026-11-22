@@ -765,7 +765,7 @@ model Contract {
   proformaDueAt    DateTime?
   paymentReference String? // SI00 …
   paymentLinkUrl   String? // card payment link (Revolut checkout)
-  revolutOrderId   String?   @unique
+  revolutOrderId   String?
   paidAt           DateTime?
 
   createdAt    DateTime  @default(now())
@@ -773,4 +773,5 @@ model Contract {
 
   @@index([status])
   @@index([userId])
+  @@index([revolutOrderId])
 }

@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
   if (!orderId || !/^ORDER_(COMPLETED|AUTHORISED)$/.test(String(body?.event || ""))) {
     return new NextResponse(null, { status: 204 });
   }
-  const contract = await prisma.contract.findUnique({ where: { revolutOrderId: orderId }, select: { id: true, paidAt: true } });
+  const contract = await prisma.contract.findFirst({ where: { revolutOrderId: orderId }, select: { id: true, paidAt: true } });
   if (!contract || contract.paidAt) return new NextResponse(null, { status: 204 });
   try {
     const order = await getRevolutOrder(orderId);
