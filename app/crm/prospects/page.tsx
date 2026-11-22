@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireSales } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
-import { recommendFor, recommendationProductIds, AJPES_ATTRIBUTION } from "@/lib/prospects";
+import { recommendFor, recommendationProductIds, leadGroupsFor, parseSegmentPrefs, AJPES_ATTRIBUTION } from "@/lib/prospects";
 import { getSellableProductIds } from "@/lib/access";
 import ProspectList from "./ProspectList";
 
@@ -12,7 +12,7 @@ export default async function ProspectsPage() {
   await recommendFor(user);
   const [settings, me, prospects] = await Promise.all([
     getSettings(),
-    prisma.user.findUnique({ where: { id: user.id }, select: { prospectQuota: true } }),
+    prisma.user.findUnique({ where: { id: user.id }, select: { prospectQuota: true, prospectSegments: true } }),
     prisma.prospect.findMany({
       where: { recommendedToId: user.id, status: "RECOMMENDED" },
       include: { product: { select: { id: true, name: true, color: true } } },
@@ -20,25 +20,42 @@ export default async function ProspectsPage() {
     }),
   ]);
   const quota = me?.prospectQuota ?? settings.prospectDailyPerSeller;
+  const prefs = parseSegmentPrefs(me?.prospectSegments);
   const [sellableIds, enabledIds] = await Promise.all([getSellableProductIds(user), recommendationProductIds(user)]);
-  const [sellable, available] = await Promise.all([
-    prisma.product.findMany({ where: { id: { in: sellableIds } }, select: { id: true, name: true, color: true }, orderBy: { sortOrder: "asc" } }),
-    prisma.prospect.groupBy({ by: ["productId"], where: { status: "NEW", productId: { in: sellableIds } }, _count: { _all: true } }),
-  ]);
-  const products = sellable.map((p) => ({
-    id: p.id,
-    name: p.name,
-    color: p.color,
-    enabled: enabledIds.includes(p.id),
-    open: prospects.filter((x) => x.productId === p.id).length,
-    available: available.find((a) => a.productId === p.id)?._count._all || 0,
-  }));
+  const groups = await leadGroupsFor(sellableIds);
+  const allIds = groups.flatMap((g) => g.productIds);
+  const available = await prisma.prospect.groupBy({
+    by: ["productId", "segment"],
+    where: { status: "NEW", productId: { in: allIds } },
+    _count: { _all: true },
+  });
+
+  const groupOf = (productId: string | null) => groups.find((g) => productId && g.productIds.includes(productId));
+  const groupProps = groups.map((g) => {
+    const rows = available.filter((a) => a.productId && g.productIds.includes(a.productId));
+    const segs = new Map<string, number>();
+    rows.forEach((r) => r.segment && segs.set(r.segment, (segs.get(r.segment) || 0) + r._count._all));
+    return {
+      key: g.key,
+      name: g.name,
+      color: g.color,
+      // The seller's own products in this group (what "Choose products" switches).
+      productIds: g.productIds.filter((id) => sellableIds.includes(id)),
+      enabled: g.productIds.some((id) => enabledIds.includes(id)),
+      open: prospects.filter((x) => groupOf(x.productId)?.key === g.key).length,
+      available: rows.reduce((n, r) => n + r._count._all, 0),
+      segments: Array.from(segs.entries())
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => a.name.localeCompare(b.name, "sl")),
+      chosen: prefs[g.key] || [],
+    };
+  });
   const lookupReady = !!(process.env.GOOGLE_PLACES_API_KEY || process.env.ANTHROPIC_API_KEY);
 
   return (
     <ProspectList
       quota={quota}
-      products={products}
+      groups={groupProps}
       expiryDays={settings.prospectExpiryDays}
       lookupReady={lookupReady}
       attribution={AJPES_ATTRIBUTION}
@@ -50,8 +67,10 @@ export default async function ProspectsPage() {
         address: [p.street, [p.postalCode, p.postTown].filter(Boolean).join(" ")].filter(Boolean).join(", "),
         town: p.postTown,
         regNumber: p.regNumber,
-        productId: p.productId,
-        product: p.product ? { name: p.product.name, color: p.product.color } : null,
+        groupKey: groupOf(p.productId)?.key || null,
+        groupName: groupOf(p.productId)?.name || p.product?.name || null,
+        color: p.product?.color || null,
+        segment: p.segment,
         matchedKeyword: p.matchedKeyword,
         recommendedAt: p.recommendedAt?.toISOString() ?? null,
         phone: p.phone,

@@ -20,7 +20,7 @@ const STATUS_LABEL: Record<string, string> = {
   DO_NOT_CONTACT: "Do not contact",
 };
 
-type Rule = { id: string; productId: string; productName: string; keywords: string; exclude: string | null; priority: number; active: boolean };
+type Rule = { id: string; productId: string; productName: string; segment: string | null; keywords: string; exclude: string | null; priority: number; active: boolean };
 
 export default function LeadFinderManager(props: {
   isAdmin: boolean;
@@ -35,7 +35,7 @@ export default function LeadFinderManager(props: {
   rules: Rule[];
   sellers: { id: string; name: string; quota: number | null; open: number; claimed: number }[];
   filters: { q: string; status: string; product: string };
-  prospects: { id: string; name: string; town: string | null; legalForm: string | null; product: string | null; keyword: string | null; status: string; who: string | null; phone: string | null; email: string | null; reason: string | null }[];
+  prospects: { id: string; name: string; town: string | null; legalForm: string | null; product: string | null; keyword: string | null; segment: string | null; status: string; who: string | null; phone: string | null; email: string | null; reason: string | null }[];
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
@@ -192,6 +192,10 @@ export default function LeadFinderManager(props: {
               </label>
             </div>
             <label className="text-sm">
+              <span className="label">Industry (shown to sellers so they can pick, e.g. “Frizerski saloni”)</span>
+              <input name="segment" className="input" defaultValue={editing === "new" ? "" : editing.segment || ""} placeholder="Frizerski saloni" />
+            </label>
+            <label className="text-sm">
               <span className="label">Keywords in the company name</span>
               <textarea name="keywords" rows={2} className="input" defaultValue={editing === "new" ? "" : editing.keywords} placeholder="hotel, penzion, garni" required />
             </label>
@@ -211,6 +215,7 @@ export default function LeadFinderManager(props: {
               <div className="min-w-0 flex-1">
                 <div className="font-medium text-sm">
                   {r.productName}
+                  {r.segment && <span className="ml-1.5 text-black/60">· {r.segment}</span>}
                   <span className="text-xs text-black/40 font-normal ml-2">priority {r.priority}{r.active ? "" : " · off"}</span>
                 </div>
                 <div className="text-sm text-black/65 mt-0.5">{r.keywords}</div>
@@ -316,6 +321,7 @@ export default function LeadFinderManager(props: {
                   </td>
                   <td className="px-3 py-2.5 text-xs">
                     {p.product || "—"}
+                    {p.segment && <div className="text-black/55">{p.segment}</div>}
                     {p.keyword && <div className="text-black/40">“{p.keyword}”</div>}
                   </td>
                   <td className="px-3 py-2.5 text-xs">

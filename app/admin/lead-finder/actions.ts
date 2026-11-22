@@ -57,6 +57,7 @@ export async function saveRule(fd: FormData): Promise<ActionResult> {
   if (!productId || !keywords) return { error: "Choose a product and add at least one keyword." };
   const data = {
     productId,
+    segment: String(fd.get("segment") || "").trim().slice(0, 60) || null,
     keywords,
     exclude: String(fd.get("exclude") || "").trim() || null,
     priority: int(fd.get("priority"), -10, 10, 0),
@@ -79,7 +80,7 @@ export async function deleteRule(id: string): Promise<ActionResult> {
 export async function rematchAvailable(): Promise<ActionResult> {
   await requireStaff();
   const rules = await loadRules();
-  const rows = await prisma.prospect.findMany({ where: { status: "NEW" }, select: { id: true, name: true, productId: true } });
+  const rows = await prisma.prospect.findMany({ where: { status: "NEW" }, select: { id: true, name: true, productId: true, segment: true } });
   let changed = 0;
   let unmatched = 0;
   for (const r of rows) {
@@ -87,13 +88,16 @@ export async function rematchAvailable(): Promise<ActionResult> {
     if (!m) {
       await prisma.prospect.update({ where: { id: r.id }, data: { status: "REJECTED", rejectReason: "No longer matches any rule" } });
       unmatched++;
-    } else if (m.productId !== r.productId) {
-      await prisma.prospect.update({ where: { id: r.id }, data: { productId: m.productId, matchedKeyword: m.keyword, score: m.score } });
+    } else if (m.productId !== r.productId || m.segment !== r.segment) {
+      await prisma.prospect.update({
+        where: { id: r.id },
+        data: { productId: m.productId, segment: m.segment, matchedKeyword: m.keyword, score: m.score },
+      });
       changed++;
     }
   }
   revalidatePath(PATH);
-  return { success: `${changed} leads moved to another product, ${unmatched} no longer match and were set aside.` };
+  return { success: `${changed} leads moved to another product or industry, ${unmatched} no longer match and were set aside.` };
 }
 
 export async function setSellerQuota(userId: string, value: string): Promise<ActionResult> {

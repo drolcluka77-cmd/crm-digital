@@ -49,7 +49,7 @@ function phraseMatches(name: string, phrase: string): boolean {
   return phrase.split(" ").every((p) => words.some((w) => w.startsWith(p)));
 }
 
-type Rule = { productId: string; keywords: string[]; rawKeywords: string[]; exclude: string[]; priority: number };
+type Rule = { productId: string; segment: string | null; keywords: string[]; rawKeywords: string[]; exclude: string[]; priority: number };
 
 /** Keywords as typed (lower-case, accents kept) — the AJPES search is accent-sensitive. */
 export function rawWords(list: string | null | undefined): string[] {
@@ -65,6 +65,7 @@ export async function loadRules(): Promise<Rule[]> {
   });
   return rules.map((r) => ({
     productId: r.productId,
+    segment: r.segment?.trim() || null,
     keywords: splitWords(r.keywords),
     rawKeywords: rawWords(r.keywords),
     exclude: splitWords(r.exclude),
@@ -75,66 +76,140 @@ export async function loadRules(): Promise<Rule[]> {
 /** Best product for a company name, or null when no rule matches. */
 export function matchProduct(name: string, rules: Rule[]) {
   const n = normalize(name);
-  let best: { productId: string; keyword: string; score: number } | null = null;
+  let best: { productId: string; segment: string | null; keyword: string; score: number } | null = null;
   for (const r of rules) {
     if (r.exclude.some((x) => phraseMatches(n, x))) continue;
     for (const k of r.keywords) {
       if (!phraseMatches(n, k)) continue;
       // Longer / multi-word keywords are more specific → higher score.
       const score = 50 + r.priority * 10 + Math.min(k.length, 25);
-      if (!best || score > best.score) best = { productId: r.productId, keyword: k, score };
+      if (!best || score > best.score) best = { productId: r.productId, segment: r.segment, keyword: k, score };
     }
   }
   return best;
 }
 
 /** Starter rules, created once if there are none. Admins edit them in Lead finder. */
-const DEFAULT_RULES: { productName: string; keywords: string; exclude?: string; priority?: number }[] = [
-  { productName: "for Hotels", keywords: "hotel, hoteli, hotela, penzion, garni, hostel, motel, resort", exclude: "hotelska oprema", priority: 2 },
+type DefaultRule = { productName: string; segment?: string; keywords: string; exclude?: string; priority?: number };
+const DEFAULT_RULES: DefaultRule[] = [
+  { productName: "for Hotels", segment: "Hoteli", keywords: "hotel, hoteli, hotela, penzion, garni, hostel, motel, resort", exclude: "hotelska oprema", priority: 2 },
   {
     productName: "for Airbnb",
+    segment: "Apartmaji in sobe",
     keywords: "apartma, apartmaji, apartmajev, sobodajalstvo, sobodajalka, sobodajalec, turistične sobe, oddajanje sob, počitniška hiša, počitniške hiše, glamping, turistična kmetija",
     priority: 2,
   },
   {
     productName: "Building Managers",
+    segment: "Upravniki",
     keywords: "upravljanje nepremičnin, upravljanje z nepremičninami, upravljanje stavb, upravnik, upravniki, hišniške storitve, etažna lastnina",
     priority: 3,
   },
   {
     productName: "Tradespeople",
-    keywords: "vodovod, vodovodne, vodoinštalacije, inštalacije, instalacije, inštalaterstvo, ogrevanje, centralne kurjave, klima, klimatske, toplotne črpalke, elektroinštalacije, elektroinštalaterstvo, elektro storitve, plinske, dimnikarstvo, servis kotlov",
+    segment: "Inštalaterji",
+    keywords: "vodovod, vodovodne, vodoinštalacije, inštalacije, instalacije, inštalaterstvo, ogrevanje, centralne kurjave, klima, klimatske, toplotne črpalke, plinske, dimnikarstvo, servis kotlov",
     exclude: "trgovina",
     priority: 1,
   },
-  {
-    productName: "Picked - Visible",
-    keywords: "frizerstvo, frizerski, kozmetika, kozmetični, kozmetične, pedikura, manikura, gostilna, restavracija, picerija, pizzeria, okrepčevalnica, kavarna, slaščičarna, zobozdravstvo, zobna ordinacija, fizioterapija, masaže, wellness, avtoservis, avtoličarstvo, vulkanizerstvo, fotostudio",
-    priority: 0,
-  },
+  ...pickedRules(),
 ];
 
+/** Picked (GEO) — local businesses people ask AI assistants about, one rule per industry. */
+function pickedRules(): DefaultRule[] {
+  const r = (segment: string, keywords: string, priority = 0, exclude?: string): DefaultRule => ({
+    productName: "Picked",
+    segment,
+    keywords,
+    priority,
+    exclude,
+  });
+  return [
+    r("Frizerski saloni", "frizerstvo, frizerski, frizerka, frizer, brivnica, barber"),
+    r("Kozmetični saloni", "kozmetika, kozmetični, kozmetične, kozmetičarka, pedikura, manikura, lepotni salon, studio lepote, nohti"),
+    r("Gostinstvo", "gostilna, restavracija, picerija, pizzeria, okrepčevalnica, kavarna, slaščičarna, bistro, catering, gostinstvo"),
+    r("Zdravje in terapije", "zobozdravstvo, zobna ordinacija, fizioterapija, masaže, masažni, wellness, osteopatija, kiropraktika"),
+    r("Avtoservisi", "avtoservis, avtoličarstvo, avtokleparstvo, vulkanizerstvo, avtopralnica, avtomehanika"),
+    // Above Tradespeople, so electricians go to Picked.
+    r("Električarji", "elektroinštalacije, elektroinštalaterstvo, elektro storitve, elektromontaža, elektroinstalacije, električar", 4, "trgovina"),
+    r("Prevozniki", "prevozništvo, avtoprevozništvo, prevozi, prevoz, taksi, taxi, selitve, transport", 0, "trgovina"),
+    r("Fitnes in šport", "fitnes, fitness, joga, pilates, plesna šola, športni center"),
+    r("Fotografi", "fotostudio, fotografija, fotograf"),
+    r("Čiščenje", "čiščenje, čistilni servis, čistilni"),
+    r("Računovodstvo", "računovodstvo, računovodski servis, knjigovodstvo"),
+  ];
+}
+
+/** Old single Picked rule, before industries — replaced by pickedRules(). */
+const OLD_PICKED_KEYWORDS =
+  "frizerstvo, frizerski, kozmetika, kozmetični, kozmetične, pedikura, manikura, gostilna, restavracija, picerija, pizzeria, okrepčevalnica, kavarna, slaščičarna, zobozdravstvo, zobna ordinacija, fizioterapija, masaže, wellness, avtoservis, avtoličarstvo, vulkanizerstvo, fotostudio";
+
+const findProduct = (products: { id: string; name: string }[], d: DefaultRule) =>
+  d.productName === "Picked"
+    ? products.find((x) => /^picked/i.test(x.name) && /visible/i.test(x.name)) || products.find((x) => /^picked/i.test(x.name))
+    : products.find((x) => x.name.toLowerCase().includes(d.productName.toLowerCase()));
+
 export async function ensureDefaultRules() {
-  const products = await prisma.product.findMany({ select: { id: true, name: true } });
+  const products = await prisma.product.findMany({ select: { id: true, name: true, leadGroup: true } });
+
+  // The Picked packages share one pool of leads.
+  const picked = products.filter((p) => /^picked/i.test(p.name));
+  if (picked.length > 0 && picked.every((p) => !p.leadGroup)) {
+    await prisma.product.updateMany({ where: { id: { in: picked.map((p) => p.id) } }, data: { leadGroup: "Picked" } });
+  }
+
   // One-time upgrade: the first starter rules had no accents, which the
   // accent-sensitive AJPES search misses. Replace them if still unedited.
   const existing = await prisma.prospectRule.findMany();
   for (const r of existing) {
     if (/[čšžćđ]/i.test(r.keywords)) continue;
     const productName = products.find((p) => p.id === r.productId)?.name.toLowerCase() || "";
-    const d = DEFAULT_RULES.find((x) => productName.includes(x.productName.toLowerCase()));
+    const d = DEFAULT_RULES.find((x) => x.productName !== "Picked" && productName.includes(x.productName.toLowerCase()));
     const mine = splitWords(r.keywords);
     const theirs = new Set(splitWords(d?.keywords));
     if (d && d.keywords !== r.keywords && mine.every((w) => theirs.has(w))) {
       await prisma.prospectRule.update({ where: { id: r.id }, data: { keywords: d.keywords } });
     }
   }
+
+  // One-time upgrade: one Picked rule → one rule per industry, plus industry labels.
+  const oldPicked = existing.find((r) => !r.segment && r.keywords === OLD_PICKED_KEYWORDS);
+  if (oldPicked) {
+    await prisma.prospectRule.delete({ where: { id: oldPicked.id } });
+    for (const d of pickedRules()) {
+      await prisma.prospectRule.create({
+        data: { productId: oldPicked.productId, segment: d.segment, keywords: d.keywords, exclude: d.exclude || null, priority: d.priority || 0 },
+      });
+    }
+    // Electricians now belong to Picked, not Tradespeople.
+    for (const r of existing) {
+      if (r.id === oldPicked.id || r.segment) continue;
+      const d = DEFAULT_RULES.find((x) => x.productName !== "Picked" && findProduct(products, x)?.id === r.productId);
+      if (!d) continue;
+      const data: { segment?: string; keywords?: string } = { segment: d.segment };
+      if (d.productName === "Tradespeople" && /elektroinštalacije/.test(r.keywords)) data.keywords = d.keywords;
+      await prisma.prospectRule.update({ where: { id: r.id }, data });
+    }
+    await labelSegments();
+  }
+
   if (existing.length > 0) return;
   for (const d of DEFAULT_RULES) {
-    const p = products.find((x) => x.name.toLowerCase().includes(d.productName.toLowerCase()));
+    const p = findProduct(products, d);
     if (!p) continue;
     await prisma.prospectRule.create({
-      data: { productId: p.id, keywords: d.keywords, exclude: d.exclude || null, priority: d.priority || 0 },
+      data: { productId: p.id, segment: d.segment || null, keywords: d.keywords, exclude: d.exclude || null, priority: d.priority || 0 },
+    });
+  }
+}
+
+/** Fills in the industry of leads found before industries existed, from the keyword they matched. */
+export async function labelSegments() {
+  const rules = await prisma.prospectRule.findMany({ where: { segment: { not: null } } });
+  for (const r of rules) {
+    await prisma.prospect.updateMany({
+      where: { segment: null, productId: r.productId, matchedKeyword: { in: splitWords(r.keywords) } },
+      data: { segment: r.segment },
     });
   }
 }
@@ -180,7 +255,7 @@ export async function importFromAjpes(opts: { maxPerKeyword?: number } = {}): Pr
   const keywords = Array.from(new Set(rules.flatMap((r) => [...r.rawKeywords, ...r.keywords])));
   const summary: ImportSummary = { keywords: keywords.length, fetched: 0, matched: 0, created: 0, duplicates: 0, errors: [] };
 
-  const found = new Map<string, { rec: AjpesRecord; productId: string; keyword: string; score: number }>();
+  const found = new Map<string, { rec: AjpesRecord; productId: string; segment: string | null; keyword: string; score: number }>();
   for (const k of keywords) {
     try {
       for (let offset = 0; offset < maxPerKeyword; offset += 500) {
@@ -242,6 +317,7 @@ export async function importFromAjpes(opts: { maxPerKeyword?: number } = {}): Pr
       settlement: String(f.rec["Naselje"] || "").trim() || null,
       source: "AJPES",
       productId: f.productId,
+      segment: f.segment,
       matchedKeyword: f.keyword,
       score: f.score,
     });
@@ -297,39 +373,85 @@ export async function recommendationProductIds(user: CurrentUser): Promise<strin
   return sellable.filter((id) => chosen.has(id));
 }
 
+export type LeadGroup = { key: string; name: string; color: string | null; productIds: string[] };
+
 /**
- * Tops up a seller's recommendations, per product: at most `quota` open
- * ones and at most `quota` new ones per day for each product they may sell
- * (and haven't switched off).
+ * Products grouped the way leads are shared: products with the same
+ * `leadGroup` (the Picked packages) share one pool; every other product has
+ * its own. `productIds` lists every product in the group, sellable or not.
+ */
+export async function leadGroupsFor(productIds: string[]): Promise<LeadGroup[]> {
+  if (productIds.length === 0) return [];
+  const mine = await prisma.product.findMany({
+    where: { id: { in: productIds } },
+    select: { id: true, name: true, color: true, leadGroup: true, sortOrder: true },
+    orderBy: { sortOrder: "asc" },
+  });
+  const groupNames = Array.from(new Set(mine.map((p) => p.leadGroup).filter(Boolean))) as string[];
+  const members = groupNames.length
+    ? await prisma.product.findMany({ where: { leadGroup: { in: groupNames } }, select: { id: true, leadGroup: true } })
+    : [];
+  const groups: LeadGroup[] = [];
+  for (const p of mine) {
+    if (p.leadGroup) {
+      if (groups.some((g) => g.key === `g:${p.leadGroup}`)) continue;
+      groups.push({
+        key: `g:${p.leadGroup}`,
+        name: p.leadGroup,
+        color: p.color,
+        productIds: members.filter((m) => m.leadGroup === p.leadGroup).map((m) => m.id),
+      });
+    } else {
+      groups.push({ key: p.id, name: p.name, color: p.color, productIds: [p.id] });
+    }
+  }
+  return groups;
+}
+
+/** Industries a seller chose per lead group (empty = all). */
+export function parseSegmentPrefs(json: string | null | undefined): Record<string, string[]> {
+  if (!json) return {};
+  try {
+    const v = JSON.parse(json);
+    return v && typeof v === "object" ? v : {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Tops up a seller's recommendations, per lead group: at most `quota` open
+ * ones and at most `quota` new ones per day for each group they may sell
+ * (and haven't switched off), only from the industries they chose.
  */
 export async function recommendFor(user: CurrentUser) {
   if (user.role !== "SALES") return;
   await expireRecommendations();
   const [settings, me] = await Promise.all([
     getSettings(),
-    prisma.user.findUnique({ where: { id: user.id }, select: { prospectQuota: true } }),
+    prisma.user.findUnique({ where: { id: user.id }, select: { prospectQuota: true, prospectSegments: true } }),
   ]);
   const quota = me?.prospectQuota ?? settings.prospectDailyPerSeller;
   if (quota <= 0) return;
-  const productIds = await recommendationProductIds(user);
-  if (productIds.length === 0) return;
+  const groups = await leadGroupsFor(await recommendationProductIds(user));
+  if (groups.length === 0) return;
+  const prefs = parseSegmentPrefs(me?.prospectSegments);
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
 
-  const [open, givenToday] = await Promise.all([
-    prisma.prospect.groupBy({ by: ["productId"], where: { recommendedToId: user.id, status: "RECOMMENDED" }, _count: { _all: true } }),
-    prisma.prospect.groupBy({ by: ["productId"], where: { recommendedToId: user.id, recommendedAt: { gte: startOfToday } }, _count: { _all: true } }),
-  ]);
-  const countFor = (rows: { productId: string | null; _count: { _all: number } }[], id: string) =>
-    rows.find((r) => r.productId === id)?._count._all || 0;
-
-  for (const productId of productIds) {
-    const need = Math.min(quota - countFor(open, productId), quota - countFor(givenToday, productId));
+  for (const g of groups) {
+    const [open, givenToday] = await Promise.all([
+      prisma.prospect.count({ where: { recommendedToId: user.id, status: "RECOMMENDED", productId: { in: g.productIds } } }),
+      prisma.prospect.count({ where: { recommendedToId: user.id, recommendedAt: { gte: startOfToday }, productId: { in: g.productIds } } }),
+    ]);
+    const need = Math.min(quota - open, quota - givenToday);
     if (need <= 0) continue;
+    const segments = prefs[g.key] || [];
     const candidates = await prisma.prospect.findMany({
       where: {
         status: "NEW",
-        productId,
+        productId: { in: g.productIds },
+        ...(segments.length ? { segment: { in: segments } } : {}),
         OR: [{ skippedBy: null }, { NOT: { skippedBy: { contains: user.id } } }],
       },
       orderBy: [{ score: "desc" }, { createdAt: "desc" }],

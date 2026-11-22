@@ -59,6 +59,7 @@ model User {
   prospectQuota        Int?
   // Products this seller wants recommended leads for (comma-separated ids; null = all they may sell).
   prospectProducts     String?
+  prospectSegments     String? // JSON { leadGroupKey: ["Frizerski saloni", …] } — industries the seller wants leads for
   prospectsRecommended Prospect[] @relation("ProspectRecommended")
   prospectsClaimed     Prospect[] @relation("ProspectClaimed")
   candidatesHired      Candidate[] @relation("CandidateHiredAs")
@@ -85,6 +86,9 @@ model Product {
   id             String   @id @default(cuid())
   name           String
   family         String?
+  // Products with the same lead group share Lead finder leads (e.g. the three
+  // Picked packages). null = the product has its own leads.
+  leadGroup      String?
   tagline        String?
   targetSegment  String? // who it's for: "Property managers, HOAs"
   description    String?
@@ -502,6 +506,7 @@ model ProspectRule {
   id        String   @id @default(cuid())
   productId String
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  segment   String? // industry label shown to sellers, e.g. "Frizerski saloni"
   keywords  String // comma-separated; matched against the start of words in the name
   exclude   String? // comma-separated words that disqualify a match
   priority  Int      @default(0) // higher wins when several products match
@@ -525,6 +530,7 @@ model Prospect {
   productId       String?
   product         Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
   matchedKeyword  String?
+  segment         String? // industry, from the matching rule
   score           Int       @default(0)
   status          String    @default("NEW") // NEW | RECOMMENDED | CLAIMED | REJECTED | DO_NOT_CONTACT
   recommendedToId String?

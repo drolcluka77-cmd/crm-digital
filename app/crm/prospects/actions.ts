@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSales } from "@/lib/session";
 import { lookupProspect } from "@/lib/prospect-lookup";
 import { getSellableProductIds } from "@/lib/access";
+import { leadGroupsFor, parseSegmentPrefs } from "@/lib/prospects";
 
 export type ActionResult = { error?: string; success?: string; customerId?: string } | void;
 
@@ -40,6 +41,7 @@ export async function claimProspect(id: string): Promise<ActionResult> {
     `Lead finder (AJPES) · matična št. ${p.regNumber}`,
     p.legalForm ? `Pravna oblika: ${p.legalForm}` : null,
     address ? `Naslov: ${address}` : null,
+    p.segment ? `Panoga: ${p.segment}` : null,
     p.activity ? `Dejavnost: ${p.activity}` : null,
     p.soleTrader ? "s.p. (fizična oseba) — promocijske e-pošte ne pošiljaj brez soglasja; klic je v redu." : null,
   ]
@@ -126,6 +128,37 @@ export async function setMyLeadProducts(ids: string[]): Promise<ActionResult> {
   if (off.length) {
     await prisma.prospect.updateMany({
       where: { recommendedToId: user.id, status: "RECOMMENDED", productId: { in: off } },
+      data: { status: "NEW", recommendedToId: null, recommendedAt: null },
+    });
+  }
+  revalidatePath("/crm/prospects");
+  return { success: "Saved." };
+}
+
+/** Which industries the seller wants leads from in one lead group (empty = all). */
+export async function setMyLeadSegments(groupKey: string, segments: string[]): Promise<ActionResult> {
+  const user = await requireSales();
+  const groups = await leadGroupsFor(await getSellableProductIds(user));
+  const g = groups.find((x) => x.key === groupKey);
+  if (!g) return { error: "You don't sell this product." };
+  const clean = Array.from(new Set(segments.map((s) => s.trim()).filter(Boolean))).slice(0, 50);
+  const me = await prisma.user.findUnique({ where: { id: user.id }, select: { prospectSegments: true } });
+  const prefs = parseSegmentPrefs(me?.prospectSegments);
+  if (clean.length) prefs[groupKey] = clean;
+  else delete prefs[groupKey];
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { prospectSegments: Object.keys(prefs).length ? JSON.stringify(prefs) : null },
+  });
+  // Hand back open leads from other industries; new ones arrive on the next page load.
+  if (clean.length) {
+    await prisma.prospect.updateMany({
+      where: {
+        recommendedToId: user.id,
+        status: "RECOMMENDED",
+        productId: { in: g.productIds },
+        OR: [{ segment: null }, { segment: { notIn: clean } }],
+      },
       data: { status: "NEW", recommendedToId: null, recommendedAt: null },
     });
   }

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { claimProspect, lookupContact, rejectProspect, skipProspect, setMyLeadProducts } from "./actions";
+import { claimProspect, lookupContact, rejectProspect, skipProspect, setMyLeadProducts, setMyLeadSegments } from "./actions";
 
 type Lookup = {
   summary?: string | null;
@@ -23,8 +23,10 @@ type P = {
   address: string;
   town: string | null;
   regNumber: string;
-  productId: string | null;
-  product: { name: string; color: string | null } | null;
+  groupKey: string | null;
+  groupName: string | null;
+  color: string | null;
+  segment: string | null;
   matchedKeyword: string | null;
   recommendedAt: string | null;
   phone: string | null;
@@ -35,18 +37,28 @@ type P = {
   lookup: Lookup | null;
 };
 
-type Prod = { id: string; name: string; color: string | null; enabled: boolean; open: number; available: number };
+type Group = {
+  key: string;
+  name: string;
+  color: string | null;
+  productIds: string[];
+  enabled: boolean;
+  open: number;
+  available: number;
+  segments: { name: string; count: number }[];
+  chosen: string[];
+};
 
 export default function ProspectList({
   prospects,
-  products,
+  groups,
   quota,
   expiryDays,
   lookupReady,
   attribution,
 }: {
   prospects: P[];
-  products: Prod[];
+  groups: Group[];
   quota: number;
   expiryDays: number;
   lookupReady: boolean;
@@ -59,14 +71,24 @@ export default function ProspectList({
   const [reason, setReason] = useState("");
   const [tab, setTab] = useState<string>("ALL");
   const [choosing, setChoosing] = useState(false);
-  const [chosen, setChosen] = useState<string[]>(products.filter((p) => p.enabled).map((p) => p.id));
+  const [chosen, setChosen] = useState<string[]>(groups.filter((g) => g.enabled).map((g) => g.key));
   const [prefMsg, setPrefMsg] = useState<string | null>(null);
-  const shown = tab === "ALL" ? prospects : prospects.filter((p) => p.productId === tab);
-  const active = products.filter((p) => p.enabled);
+  const shown = tab === "ALL" ? prospects : prospects.filter((p) => p.groupKey === tab);
+  const active = groups.filter((g) => g.enabled);
+  const current = groups.find((g) => g.key === tab);
+
+  async function saveSegments(g: Group, segments: string[]) {
+    setBusy("seg");
+    const res = await setMyLeadSegments(g.key, segments);
+    setBusy(null);
+    if (res?.error) setPrefMsg(res.error);
+    router.refresh();
+  }
 
   async function savePrefs() {
     setBusy("prefs");
-    const res = await setMyLeadProducts(chosen);
+    const ids = groups.filter((g) => chosen.includes(g.key)).flatMap((g) => g.productIds);
+    const res = await setMyLeadProducts(ids);
     setBusy(null);
     if (res?.error) setPrefMsg(res.error);
     else {
@@ -107,9 +129,9 @@ export default function ProspectList({
         <button onClick={() => setTab("ALL")} className={tab === "ALL" ? "chip-active" : "chip"}>
           All <span className="ml-1.5 opacity-60">{prospects.length}</span>
         </button>
-        {active.map((p) => (
-          <button key={p.id} onClick={() => setTab(p.id)} className={tab === p.id ? "chip-active" : "chip"}>
-            {p.name} <span className="ml-1.5 opacity-60">{p.open}</span>
+        {active.map((g) => (
+          <button key={g.key} onClick={() => setTab(g.key)} className={tab === g.key ? "chip-active" : "chip"}>
+            {g.name} <span className="ml-1.5 opacity-60">{g.open}</span>
           </button>
         ))}
         <button className="text-sm text-brand-700 hover:underline ml-1" onClick={() => setChoosing((v) => !v)}>
@@ -121,15 +143,15 @@ export default function ProspectList({
         <div className="card p-4 mb-5">
           <div className="text-sm font-medium mb-2">Which products do you want leads for?</div>
           <div className="grid sm:grid-cols-2 gap-1.5">
-            {products.map((p) => (
-              <label key={p.id} className="text-sm flex items-center gap-2">
+            {groups.map((g) => (
+              <label key={g.key} className="text-sm flex items-center gap-2">
                 <input
                   type="checkbox"
-                  checked={chosen.includes(p.id)}
-                  onChange={(e) => setChosen((c) => (e.target.checked ? [...c, p.id] : c.filter((x) => x !== p.id)))}
+                  checked={chosen.includes(g.key)}
+                  onChange={(e) => setChosen((c) => (e.target.checked ? [...c, g.key] : c.filter((x) => x !== g.key)))}
                 />
-                {p.name}
-                <span className="text-xs text-black/40">{p.available > 0 ? `${p.available} available` : "no leads yet"}</span>
+                {g.name}
+                <span className="text-xs text-black/40">{g.available > 0 ? `${g.available} available` : "no leads yet"}</span>
               </label>
             ))}
           </div>
@@ -140,9 +162,43 @@ export default function ProspectList({
         </div>
       )}
 
+      {current && current.segments.length > 1 && (
+        <div className="card p-4 mb-5">
+          <div className="text-sm font-medium">Industries</div>
+          <div className="text-xs text-black/45 mb-2.5">
+            Pick the industries you want to call this week, so you know which examples to give. No selection = all industries.
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              className={current.chosen.length === 0 ? "chip-active" : "chip"}
+              disabled={busy === "seg"}
+              onClick={() => saveSegments(current, [])}
+            >
+              All industries
+            </button>
+            {current.segments.map((s) => {
+              const on = current.chosen.includes(s.name);
+              return (
+                <button
+                  key={s.name}
+                  className={on ? "chip-active" : "chip"}
+                  disabled={busy === "seg"}
+                  onClick={() =>
+                    saveSegments(current, on ? current.chosen.filter((x) => x !== s.name) : [...current.chosen, s.name])
+                  }
+                >
+                  {s.name} <span className="ml-1.5 opacity-60">{s.count}</span>
+                </button>
+              );
+            })}
+          </div>
+          {busy === "seg" && <div className="text-xs text-black/45 mt-2">Updating your leads…</div>}
+        </div>
+      )}
+
       {shown.length === 0 && (
         <div className="card p-10 text-center text-sm text-black/40">
-          {tab !== "ALL" && (products.find((p) => p.id === tab)?.available || 0) === 0
+          {tab !== "ALL" && (current?.available || 0) === 0
             ? "No leads for this product yet — your manager can add keywords for it in Lead finder."
             : "No recommended leads right now. New ones arrive every day."}
         </div>
@@ -161,13 +217,14 @@ export default function ProspectList({
                     {[p.legalForm, p.address, `mat. št. ${p.regNumber}`].filter(Boolean).join(" · ")}
                   </div>
                 </div>
-                {p.product && (
+                {p.groupName && (
                   <span
                     className="text-xs font-medium rounded-full px-2.5 py-1 shrink-0"
-                    style={{ background: (p.product.color || "#4f46e5") + "1a", color: p.product.color || "#4f46e5" }}
+                    style={{ background: (p.color || "#4f46e5") + "1a", color: p.color || "#4f46e5" }}
                     title={p.matchedKeyword ? `Matched “${p.matchedKeyword}” in the name` : undefined}
                   >
-                    {p.product.name}
+                    {p.groupName}
+                    {p.segment ? ` · ${p.segment}` : ""}
                   </span>
                 )}
               </div>
