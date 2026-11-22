@@ -304,6 +304,16 @@ async function bookingLinkFor(customerId: string): Promise<string> {
   return `${getBaseUrl()}/b/${token}`;
 }
 
+/** The seller's tracked booking link for this customer, shown in the e-mail editor. */
+export async function getCustomerBookingLink(customerId: string): Promise<{ link?: string; error?: string }> {
+  const user = await requireSales();
+  const customer = await ownCustomer(user, customerId);
+  if (!customer) return { error: "Customer not found." };
+  const me = await prisma.user.findUnique({ where: { id: user.id }, select: { bookingUrl: true } });
+  if (!me?.bookingUrl) return { error: "Add your booking link under Account first." };
+  return { link: await bookingLinkFor(customerId) };
+}
+
 function signatureFor(user: CurrentUser, companyName: string) {
   return `${escapeHtml(user.name)}<br/>${escapeHtml(companyName)}${user.phone ? `<br/>${escapeHtml(user.phone)}` : ""}`;
 }

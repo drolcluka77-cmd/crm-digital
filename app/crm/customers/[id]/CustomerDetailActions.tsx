@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Modal from "@/components/Modal";
 import { PencilIcon, MailIcon, PlusIcon, SendIcon, TrashIcon } from "@/components/icons";
-import { updateCustomer, sendIntroEmail, deleteCustomer, prepareOwnMailEmail } from "../actions";
+import { updateCustomer, sendIntroEmail, deleteCustomer, prepareOwnMailEmail, getCustomerBookingLink } from "../actions";
 import CustomerForm, { type CustomerFormValues } from "../CustomerForm";
 import SendMaterialsModal from "@/app/crm/SendMaterialsModal";
 import type { SellerMaterial, SellerTemplate } from "@/lib/seller";
@@ -45,9 +45,18 @@ export default function CustomerDetailActions({
     return rank(a) - rank(b);
   });
 
-  function applyTemplate(id: string) {
+  const [bookingLink, setBookingLink] = useState<string | null>(null);
+  async function getBookingLink() {
+    if (bookingLink) return bookingLink;
+    const r = await getCustomerBookingLink(customer.id);
+    if (r.link) setBookingLink(r.link);
+    return r.link || null;
+  }
+
+  async function applyTemplate(id: string) {
     const t = templates.find((x) => x.id === id);
     if (!t) return;
+    const link = /\{\{\s*bookingLink\s*\}\}/.test(t.subject + t.body) ? await getBookingLink() : null;
     const productName = t.productName || products.find((p) => interestProductIds.includes(p.id))?.name || "";
     const vars = {
       firstName: customer.name.split(" ")[0],
@@ -57,7 +66,8 @@ export default function CustomerDetailActions({
       demoLink: t.demoUrl || "",
       sellerName: seller.name,
       sellerPhone: seller.phone || "",
-      // {{bookingLink}} is replaced by the server with a tracked link.
+      // Tracked link to the seller's booking page (left as {{bookingLink}} if they have none yet).
+      bookingLink: link || undefined,
     };
     setSubject(fillTemplate(t.subject, vars));
     setBody(fillTemplate(t.body, vars));
@@ -189,7 +199,10 @@ export default function CustomerDetailActions({
                   <button
                     type="button"
                     className="text-brand-600 hover:underline"
-                    onClick={() => setBody((b) => `${b}\n\nPick a time that suits you: {{bookingLink}}`)}
+                    onClick={async () => {
+                      const link = await getBookingLink();
+                      setBody((b) => `${b}\n\nPick a time that suits you: ${link || "{{bookingLink}}"}`);
+                    }}
                   >
                     + insert my booking link
                   </button>
