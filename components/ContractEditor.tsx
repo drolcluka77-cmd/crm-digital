@@ -18,6 +18,8 @@ import {
 
 export type ContractView = {
   id: string;
+  /** Changes whenever the contract is saved — remounts the form so it shows the saved text. */
+  version: string;
   number: string;
   status: string;
   statusLabel: string;
@@ -298,6 +300,7 @@ export default function ContractEditor({
       </div>
 
       <form
+        key={c.version}
         id="contract-form"
         className="grid lg:grid-cols-[320px_1fr] gap-5"
         onChange={() => setDirty(true)}

@@ -24,6 +24,7 @@ export async function loadContractView(id: string): Promise<{ view: ContractView
     reviewRequired: s.contractReviewRequired,
     view: {
       id: c.id,
+      version: c.updatedAt.toISOString(),
       number: c.number,
       status: c.status,
       statusLabel: CONTRACT_STATUS_LABEL[c.status] || c.status,
