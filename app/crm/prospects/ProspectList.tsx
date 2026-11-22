@@ -208,6 +208,8 @@ export default function ProspectList({
         {shown.map((p) => {
           const m = msg[p.id];
           const l = p.lookup;
+          // Find the contact first; only then is Claim the main action.
+          const needsLookup = lookupReady && !p.lookedUp && !p.phone && !p.email;
           return (
             <div key={p.id} className="card p-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -308,13 +310,22 @@ export default function ProspectList({
               ) : (
                 <div className="mt-4 flex flex-wrap items-center gap-2">
                   {lookupReady && (
-                    <button className="btn-secondary py-1.5" disabled={!!busy} onClick={() => run(p.id, "lookup", () => lookupContact(p.id))}>
+                    <button
+                      className={`${needsLookup ? "btn-primary" : "btn-secondary"} py-1.5`}
+                      disabled={!!busy}
+                      onClick={() => run(p.id, "lookup", () => lookupContact(p.id))}
+                    >
                       {busy === p.id + "lookup" ? "Searching…" : p.lookedUp ? "Search again" : "Find contact"}
                     </button>
                   )}
                   <a className="btn-secondary py-1.5" href={google(p)} target="_blank" rel="noreferrer">Google</a>
                   <a className="btn-secondary py-1.5" href={maps(p)} target="_blank" rel="noreferrer">Maps</a>
-                  <button className="btn-primary py-1.5" disabled={!!busy} onClick={() => run(p.id, "claim", () => claimProspect(p.id))}>
+                  <button
+                    className={`${needsLookup ? "btn-secondary" : "btn-primary"} py-1.5`}
+                    disabled={!!busy}
+                    title={needsLookup ? "Find the contact first, so the customer is saved with a phone and e-mail." : undefined}
+                    onClick={() => run(p.id, "claim", () => claimProspect(p.id))}
+                  >
                     {busy === p.id + "claim" ? "Claiming…" : "Claim"}
                   </button>
                   <span className="flex-1" />
