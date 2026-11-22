@@ -7,6 +7,8 @@ import Badge from "@/components/Badge";
 import { UsersIcon, PackageIcon, ChartIcon, CoinsIcon, ClockIcon } from "@/components/icons";
 import { computeQuoteBreakdown, formatMoney, timeAgo } from "@/lib/format";
 import { ACTIVITY_TYPE_LABEL, OPEN_LEAD_STATUSES, QUOTE_STATUS_LABEL } from "@/lib/constants";
+import { getSettings } from "@/lib/settings";
+import { proformaLines } from "@/lib/contracts";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +45,21 @@ export default async function ConsoleDashboardPage() {
     prisma.quote.count({ where: { userId: scope, approvalStatus: "PENDING" } }),
   ]);
   const mrr = subs.reduce((s, x) => s + x.monthlyValue, 0);
+
+  // Proformas from signed contracts: paid vs. still open.
+  const [settings, signed] = await Promise.all([
+    getSettings(),
+    prisma.contract.findMany({
+      where: { userId: scope, status: "SIGNED", proformaNumber: { not: null } },
+      select: { paidAt: true, proformaDueAt: true, quote: { select: { discount: true, vatRate: true, notes: true, number: true, items: true } } },
+    }),
+  ]);
+  const withTotal = signed.map((c) => ({ ...c, total: proformaLines(c.quote, settings.legalVatPayer).total }));
+  const paid = withTotal.filter((c) => c.paidAt);
+  const paidThisMonth = paid.filter((c) => c.paidAt! >= startOfMonth);
+  const unpaid = withTotal.filter((c) => !c.paidAt);
+  const overdueProformas = unpaid.filter((c) => c.proformaDueAt && c.proformaDueAt < new Date());
+  const total = (list: { total: number }[]) => list.reduce((s, c) => s + c.total, 0);
 
   const withValue = quotes.map((q) => ({ q, b: computeQuoteBreakdown(q.items, q.discount, q.vatRate) }));
   const open = withValue.filter(({ q }) => q.status === "DRAFT" || q.status === "SENT");
@@ -116,6 +133,25 @@ export default async function ConsoleDashboardPage() {
           sublabel="leads past their follow-up date"
           icon={<ClockIcon className="h-5 w-5" />}
         />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+        <Link href="/admin/contracts">
+          <StatCard
+            tone="accent"
+            label="Paid this month"
+            value={formatMoney(total(paidThisMonth))}
+            sublabel={`${paidThisMonth.length} proforma${paidThisMonth.length === 1 ? "" : "s"} · ${formatMoney(total(paid))} paid all time`}
+            icon={<CoinsIcon className="h-5 w-5" />}
+          />
+        </Link>
+        <Link href="/admin/contracts">
+          <StatCard
+            label="Awaiting payment"
+            value={formatMoney(total(unpaid))}
+            sublabel={`${unpaid.length} signed, unpaid proforma${unpaid.length === 1 ? "" : "s"}${overdueProformas.length ? ` · ${overdueProformas.length} overdue` : ""}`}
+            icon={<ClockIcon className="h-5 w-5" />}
+          />
+        </Link>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-8">
         <StatCard
