@@ -15,6 +15,7 @@ import {
 } from "@/components/icons";
 import { setQuoteStatus, deleteQuote, sendQuoteByEmail, duplicateQuote, getAcceptanceLink } from "../actions";
 import { LinkIcon } from "@/components/icons";
+import { createContractFromQuote } from "@/lib/contract-actions";
 import QuoteBuilder, { type BuilderProduct, type LineItem } from "../QuoteBuilder";
 import { formatDate, formatMoney } from "@/lib/format";
 import { APPROVAL_STATUS_LABEL, BILLING_SUFFIX, QUOTE_STATUS_LABEL } from "@/lib/constants";
@@ -26,7 +27,9 @@ export default function QuoteDetail({
   annualNet,
   totalsSummary,
   commissionOverride,
+  contract,
 }: {
+  contract: { id: string; number: string; statusLabel: string } | null;
   quote: {
     id: string;
     number: string;
@@ -118,6 +121,32 @@ export default function QuoteDetail({
             <DownloadIcon className="h-4 w-4" />
             PDF
           </a>
+          {contract ? (
+            <Link href={`/crm/contracts/${contract.id}`} className="btn-secondary" title={contract.statusLabel}>
+              Contract {contract.number}
+            </Link>
+          ) : (
+            !awaiting &&
+            quote.status !== "REJECTED" && (
+              <button
+                className="btn-secondary"
+                disabled={busy}
+                title="Turn this quote into a contract the client signs online"
+                onClick={async () => {
+                  setBusy(true);
+                  const r = await createContractFromQuote(quote.id);
+                  setBusy(false);
+                  if (r?.error) {
+                    alert(r.error);
+                    return;
+                  }
+                  if (r?.id) router.push(`/crm/contracts/${r.id}`);
+                }}
+              >
+                Create contract
+              </button>
+            )
+          )}
           {!locked && !awaiting && quote.status !== "REJECTED" && (
             <button className="btn-secondary" onClick={copyLink} title="Link where the client can accept online">
               <LinkIcon className="h-4 w-4" />

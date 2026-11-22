@@ -4,7 +4,7 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   experimental: {
-    serverComponentsExternalPackages: ["@replit/object-storage"],
+    serverComponentsExternalPackages: ["@replit/object-storage", "@pdf-lib/fontkit", "qrcode"],
     serverActions: {
       bodySizeLimit: "50mb",
     },

@@ -98,7 +98,7 @@ export const ACTIVITY_TYPES = [
 /** Activity types a seller can log by hand. */
 export const MANUAL_ACTIVITY_TYPES = ["NOTE", "CALL", "MEETING", "DEMO", "EMAIL"] as const;
 /** Activity types that count as "we were in touch" (updates lastContactAt). */
-export const CONTACT_ACTIVITY_TYPES = ["CALL", "MEETING", "DEMO", "EMAIL", "MATERIALS_SENT", "QUOTE_SENT", "DEMO_BOOKED"];
+export const CONTACT_ACTIVITY_TYPES = ["CALL", "MEETING", "DEMO", "EMAIL", "MATERIALS_SENT", "QUOTE_SENT", "DEMO_BOOKED", "CONTRACT_SENT"];
 export const ACTIVITY_TYPE_LABEL: Record<string, string> = {
   NOTE: "Note",
   CALL: "Call",
@@ -118,6 +118,8 @@ export const ACTIVITY_TYPE_LABEL: Record<string, string> = {
   LEAD_ASSIGNED: "Lead assigned",
   WEBSITE_SIGNUP: "Signed up on the website",
   PAYMENT: "Payment received",
+  CONTRACT_SENT: "Contract sent",
+  CONTRACT_SIGNED: "Contract signed",
 };
 
 // Suggestions shown in free-text fields (users can type anything).
@@ -200,6 +202,10 @@ export const NOTIFICATION_TYPE_LABEL: Record<string, string> = {
   CERTIFIED: "Certification",
   RENEWAL_DUE: "Renewal due",
   NEW_CANDIDATE: "New job application",
+  CONTRACT_REVIEW: "Contract to review",
+  CONTRACT_REVIEWED: "Contract reviewed",
+  CONTRACT_VIEWED: "Contract opened",
+  CONTRACT_SIGNED: "Contract signed",
   WARM_LEAD: "Warm lead",
   UGC_SUBMITTED: "UGC video submitted",
   UGC_REVIEWED: "UGC video reviewed",

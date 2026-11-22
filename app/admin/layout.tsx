@@ -31,9 +31,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     unreadCount(user.id),
     getManagedSellerIds(user),
   ]);
-  const [pendingApprovals, pendingUgc] = await Promise.all([
+  const [pendingApprovals, pendingUgc, pendingContracts] = await Promise.all([
     prisma.quote.count({ where: { userId: { in: sellerIds }, approvalStatus: "PENDING" } }),
     prisma.ugcVideo.count({ where: { creatorId: { in: sellerIds }, status: "SUBMITTED" } }),
+    prisma.contract.count({ where: { status: "IN_REVIEW", ...(isAdmin ? {} : { userId: { in: sellerIds } }) } }),
   ]);
 
   const sections: NavSection[] = [
@@ -41,6 +42,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       items: [
         { href: "/admin", label: "Dashboard", icon: <GridIcon className={ic} /> },
         { href: "/admin/approvals", label: "Approvals", icon: <CheckCircleIcon className={ic} />, badge: pendingApprovals },
+        { href: "/admin/contracts", label: "Contracts", icon: <FileIcon className={ic} />, badge: pendingContracts },
         { href: "/admin/notifications", label: "Notifications", icon: <MailIcon className={ic} />, badge: unread },
       ],
     },

@@ -45,6 +45,8 @@ model User {
   customers      Customer[]         @relation("CustomerOwner")
   quotes         Quote[]            @relation("QuoteSeller")
   approvedQuotes Quote[]            @relation("QuoteApprover")
+  contracts         Contract[]     @relation("ContractSeller")
+  reviewedContracts Contract[]     @relation("ContractReviewer")
   activities     Activity[]
   shares         MaterialShare[]
   notifications  Notification[]
@@ -242,6 +244,7 @@ model Customer {
 
   payments   Payment[]
   quotes     Quote[]
+  contracts  Contract[]
   activities Activity[]
   interests     CustomerProduct[]
   shares        MaterialShare[]
@@ -308,6 +311,7 @@ model Quote {
 
   subscription Subscription?
   payments     Payment[]
+  contract     Contract?
 }
 
 model QuoteItem {
@@ -360,6 +364,22 @@ model Settings {
   prospectLastImportAt    DateTime?
   prospectLastImportNote  String?
   prospectRulesVersion    Int       @default(1) // starter-rule upgrades already applied
+
+  // Contracts & proforma invoices — the company that signs and bills.
+  legalName            String  @default("AURELIA GROUP d.o.o.")
+  legalAddress         String?
+  legalRegNo           String? // matična številka
+  legalTaxNo           String? // davčna številka
+  legalVatId           String? // ID za DDV (only for VAT payers)
+  legalVatPayer        Boolean @default(false) // false: no VAT on contracts/proformas (94. člen ZDDV-1)
+  legalIban            String?
+  legalBic             String?
+  legalBank            String?
+  legalRepresentative  String? // who signs for the company, e.g. "Luka Drolc, direktor"
+  legalEmail           String?
+  contractTemplate     String? // null = the built-in template
+  contractReviewRequired Boolean @default(true) // a manager/admin approves before it goes out
+  proformaDueDays      Int     @default(8)
 
   // Recruiting
   recruitingCalendlyUrl     String?  @default("https://calendly.com/drolcluka77/30min")
@@ -689,4 +709,65 @@ model UgcClick {
   createdAt DateTime @default(now())
 
   @@index([creatorId, createdAt])
+}
+
+// ─── Contracts (from a quote → review → e-signature → proforma invoice) ──
+
+model Contract {
+  id           String    @id @default(cuid())
+  number       String    @unique // POG-2026-0001
+  quoteId      String    @unique
+  quote        Quote     @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  customerId   String
+  customer     Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  userId       String // seller
+  user         User      @relation("ContractSeller", fields: [userId], references: [id])
+  status       String    @default("DRAFT") // DRAFT | IN_REVIEW | APPROVED | SENT | SIGNED | CANCELLED
+
+  // Client details as they appear on the contract
+  clientCompany        String?
+  clientAddress        String?
+  clientRegNo          String?
+  clientVatId          String?
+  clientRepresentative String? // who signs for the client
+  clientEmail          String? // where the signing link and code go
+
+  title        String    @default("Pogodba o naročilu storitev")
+  body         String // full contract text (editable until sent)
+
+  // Review
+  reviewRequestedAt DateTime?
+  reviewedById      String?
+  reviewedBy        User?     @relation("ContractReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt        DateTime?
+  reviewNote        String?
+
+  // Sending & signing (/c/<publicToken>)
+  publicToken     String?   @unique
+  sentAt          DateTime?
+  viewedAt        DateTime?
+  codeHash        String? // e-mail code for signing (hashed)
+  codeExpiresAt   DateTime?
+  codeAttempts    Int       @default(0)
+  signedName      String?
+  signedTitle     String?
+  signedEmail     String?
+  signedAt        DateTime?
+  signedIp        String?
+  signedUserAgent String?
+  documentHash    String? // SHA-256 of the signed text
+
+  // Proforma invoice (predračun) issued after signing
+  proformaNumber   String?   @unique
+  proformaIssuedAt DateTime?
+  proformaDueAt    DateTime?
+  paymentReference String? // SI00 …
+  paymentLinkUrl   String? // card / SEPA link (Stripe, later)
+  paidAt           DateTime?
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([status])
+  @@index([userId])
 }

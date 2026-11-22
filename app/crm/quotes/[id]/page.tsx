@@ -6,6 +6,7 @@ import { getSettings } from "@/lib/settings";
 import { getBuilderProducts } from "@/lib/builder";
 import { computeQuoteBreakdown } from "@/lib/format";
 import QuoteDetail from "./QuoteDetail";
+import { CONTRACT_STATUS_LABEL } from "@/lib/contracts";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ export default async function QuoteDetailPage({ params }: { params: { id: string
   const [quote, products, settings, me] = await Promise.all([
     prisma.quote.findUnique({
       where: { id: params.id },
-      include: { items: true, customer: true, approvedBy: { select: { name: true } } },
+      include: { items: true, customer: true, approvedBy: { select: { name: true } }, contract: { select: { id: true, number: true, status: true } } },
     }),
     getBuilderProducts(user),
     getSettings(),
@@ -66,6 +67,11 @@ export default async function QuoteDetailPage({ params }: { params: { id: string
             declineReason: quote.declineReason,
           }}
           commissionOverride={me?.commissionRate ?? null}
+          contract={
+            quote.contract
+              ? { id: quote.contract.id, number: quote.contract.number, statusLabel: CONTRACT_STATUS_LABEL[quote.contract.status] || quote.contract.status }
+              : null
+          }
           products={products}
           companyName={settings.companyName}
           annualNet={breakdown.annualNet}
