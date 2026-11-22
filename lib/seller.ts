@@ -26,17 +26,27 @@ export async function getSellerProducts(user: CurrentUser) {
   });
 }
 
+/** Products that share leads (the Picked packages) also share materials and templates. */
+async function withLeadGroups(own: string[]): Promise<string[]> {
+  const groups = (
+    await prisma.product.findMany({ where: { id: { in: own }, leadGroup: { not: null } }, select: { leadGroup: true } })
+  ).map((p) => p.leadGroup!);
+  if (!groups.length) return own;
+  const members = await prisma.product.findMany({ where: { leadGroup: { in: groups } }, select: { id: true } });
+  return Array.from(new Set([...own, ...members.map((p) => p.id)]));
+}
+
 /** Materials the seller may open: general ones + those of accessible products. */
 export async function getSellerMaterials(
   user: CurrentUser,
   opts: { productId?: string; sendableOnly?: boolean } = {}
 ): Promise<SellerMaterial[]> {
-  const ids = await getAccessibleProductIds(user);
+  const ids = await withLeadGroups(await getAccessibleProductIds(user));
   const rows = await prisma.salesMaterial.findMany({
     where: {
       AND: [
         opts.productId
-          ? { productId: opts.productId }
+          ? { productId: { in: (await withLeadGroups([opts.productId])).filter((id) => ids.includes(id)) } }
           : { OR: [{ productId: null }, { productId: { in: ids }, product: { active: true } }] },
         opts.sendableOnly ? { internalOnly: false } : {},
       ],
@@ -74,13 +84,7 @@ export type SellerTemplate = {
 
 /** Email templates: general ones + those of products the seller can see. */
 export async function getSellerTemplates(user: CurrentUser): Promise<SellerTemplate[]> {
-  const own = await getAccessibleProductIds(user);
-  // Products that share leads (the Picked packages) share templates too.
-  const groups = (await prisma.product.findMany({ where: { id: { in: own }, leadGroup: { not: null } }, select: { leadGroup: true } }))
-    .map((p) => p.leadGroup!);
-  const ids = groups.length
-    ? Array.from(new Set([...own, ...(await prisma.product.findMany({ where: { leadGroup: { in: groups } }, select: { id: true } })).map((p) => p.id)]))
-    : own;
+  const ids = await withLeadGroups(await getAccessibleProductIds(user));
   const rows = await prisma.emailTemplate.findMany({
     where: { OR: [{ productId: null }, { productId: { in: ids }, product: { active: true } }] },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
