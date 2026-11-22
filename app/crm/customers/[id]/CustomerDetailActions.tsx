@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Modal from "@/components/Modal";
 import { PencilIcon, MailIcon, PlusIcon, SendIcon, TrashIcon } from "@/components/icons";
-import { updateCustomer, sendIntroEmail, deleteCustomer } from "../actions";
+import { updateCustomer, sendIntroEmail, deleteCustomer, prepareOwnMailEmail } from "../actions";
 import CustomerForm, { type CustomerFormValues } from "../CustomerForm";
 import SendMaterialsModal from "@/app/crm/SendMaterialsModal";
 import type { SellerMaterial, SellerTemplate } from "@/lib/seller";
@@ -198,9 +198,33 @@ export default function CustomerDetailActions({
                 )}
               </div>
             </div>
-            <button type="submit" className="btn-primary w-full" disabled={busy}>
-              {busy ? "Sending…" : "Send email"}
-            </button>
+            <div className="grid sm:grid-cols-2 gap-2">
+              <button type="submit" className="btn-primary w-full" disabled={busy}>
+                {busy ? "Sending…" : "Send email"}
+              </button>
+              <button
+                type="button"
+                className="btn-secondary w-full"
+                disabled={busy}
+                title="Opens the message in your own e-mail app (use this for cold e-mails) and logs it here"
+                onClick={async (e) => {
+                  const form = (e.currentTarget as HTMLButtonElement).form!;
+                  setBusy(true);
+                  setError(null);
+                  const r = await prepareOwnMailEmail(new FormData(form));
+                  setBusy(false);
+                  if (r && r.error) return setError(r.error);
+                  if (r && r.mailto) window.location.href = r.mailto;
+                  setEmailOpen(false);
+                  router.refresh();
+                }}
+              >
+                Open in my e-mail
+              </button>
+            </div>
+            <p className="text-xs text-black/40">
+              Cold e-mails (first contact with a lead): use “Open in my e-mail”, so they go from your own mailbox.
+            </p>
           </form>
         )}
       </Modal>

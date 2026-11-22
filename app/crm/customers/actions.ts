@@ -357,6 +357,47 @@ export async function sendIntroEmail(formData: FormData): Promise<ActionResult> 
 }
 
 /**
+ * "Open in my e-mail": the seller sends from their own mailbox (e.g. cold
+ * outreach, which shouldn't go through the CRM's mail service). Fills the
+ * tracked booking link, logs the e-mail and returns a mailto: link.
+ */
+export async function prepareOwnMailEmail(formData: FormData): Promise<{ error?: string; success?: string; mailto?: string }> {
+  const user = await requireSales();
+  const customerId = str(formData, "customerId");
+  const subject = str(formData, "subject");
+  const message = str(formData, "message");
+  const customer = await ownCustomer(user, customerId);
+  if (!customer) return { error: "Customer not found." };
+  if (!customer.email) return { error: "This customer doesn't have an email address on file." };
+  if (!subject || !message) return { error: "Write a subject and message." };
+
+  let finalMessage = message;
+  let finalSubject = subject;
+  if (/\{\{\s*bookingLink\s*\}\}/.test(message + subject)) {
+    const me = await prisma.user.findUnique({ where: { id: user.id }, select: { bookingUrl: true } });
+    if (!me?.bookingUrl) {
+      return { error: "Add your booking link (Calendly, Cal.com …) under Account first, or remove {{bookingLink}}." };
+    }
+    const link = await bookingLinkFor(customerId);
+    finalMessage = fillTemplate(message, { bookingLink: link });
+    finalSubject = fillTemplate(subject, { bookingLink: link });
+  }
+  if (/\{\{\s*\w+\s*\}\}/.test(finalMessage + finalSubject)) {
+    return { error: "Some {{placeholders}} are still empty — fill them in first." };
+  }
+  const settings = await getSettings();
+  const signature = [user.name, settings.companyName, user.phone].filter(Boolean).join("\n");
+  const mailto = `mailto:${encodeURIComponent(customer.email)}?subject=${encodeURIComponent(finalSubject)}&body=${encodeURIComponent(`${finalMessage}\n\n${signature}`)}`;
+
+  await logActivity(customerId, user.id, "EMAIL", `“${finalSubject}” (sent from own mailbox)`);
+  if (customer.status === "NEW") {
+    await prisma.customer.update({ where: { id: customerId }, data: { status: "CONTACTED" } });
+  }
+  revalidateCustomer(customerId);
+  return { success: "Opened in your e-mail app and logged.", mailto };
+}
+
+/**
  * Emails chosen materials to a client. Each material becomes a tracked link
  * (/s/<token>) so the seller sees when it's opened; small files can also be
  * attached directly.
