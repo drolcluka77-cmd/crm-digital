@@ -66,7 +66,7 @@ export default async function ProspectsPage() {
         soleTrader: p.soleTrader,
         address: [p.street, [p.postalCode, p.postTown].filter(Boolean).join(" ")].filter(Boolean).join(", "),
         town: p.postTown,
-        regNumber: p.regNumber,
+        regNumber: p.companyReg || p.regNumber.split(":")[0],
         groupKey: groupOf(p.productId)?.key || null,
         groupName: groupOf(p.productId)?.name || p.product?.name || null,
         color: p.product?.color || null,

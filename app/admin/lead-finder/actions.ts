@@ -80,11 +80,11 @@ export async function deleteRule(id: string): Promise<ActionResult> {
 export async function rematchAvailable(): Promise<ActionResult> {
   await requireStaff();
   const rules = await loadRules();
-  const rows = await prisma.prospect.findMany({ where: { status: "NEW" }, select: { id: true, name: true, productId: true, segment: true } });
+  const rows = await prisma.prospect.findMany({ where: { status: "NEW" }, select: { id: true, name: true, productId: true, segment: true, pool: true } });
   let changed = 0;
   let unmatched = 0;
   for (const r of rows) {
-    const m = matchProduct(r.name, rules);
+    const m = matchProduct(r.name, rules, r.pool);
     if (!m) {
       await prisma.prospect.update({ where: { id: r.id }, data: { status: "REJECTED", rejectReason: "No longer matches any rule" } });
       unmatched++;

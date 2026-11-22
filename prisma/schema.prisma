@@ -359,6 +359,7 @@ model Settings {
   prospectAutoImport      Boolean   @default(false)
   prospectLastImportAt    DateTime?
   prospectLastImportNote  String?
+  prospectRulesVersion    Int       @default(1) // starter-rule upgrades already applied
 
   // Recruiting
   recruitingCalendlyUrl     String?  @default("https://calendly.com/drolcluka77/30min")
@@ -518,7 +519,12 @@ model ProspectRule {
 // seller. Claiming it creates a normal Customer owned by the seller.
 model Prospect {
   id              String    @id @default(cuid())
-  regNumber       String    @unique // matična številka
+  // Lead key: the matična številka, plus ":<pool>" for leads in a shared
+  // pool (e.g. "1234567000:Picked"), so one company can be a lead for
+  // Picked and for an Unbusyness product at the same time.
+  regNumber       String    @unique
+  companyReg      String? // matična številka alone
+  pool            String    @default("main") // "main", or a product leadGroup
   name            String
   legalForm       String?
   soleTrader      Boolean   @default(false) // s.p. = natural person (no marketing email without consent)
@@ -553,6 +559,7 @@ model Prospect {
   updatedAt       DateTime  @updatedAt
 
   @@index([status, productId])
+  @@index([companyReg])
   @@index([recommendedToId, status])
 }
 

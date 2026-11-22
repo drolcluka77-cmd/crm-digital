@@ -32,13 +32,45 @@ export async function claimProspect(id: string): Promise<ActionResult> {
   const { user, p } = await myRecommendation(id);
   if (!p) return { error: "This lead is no longer recommended to you." };
 
+  const reg = p.companyReg || p.regNumber.split(":")[0];
+
+  // The same company may already be a customer from another pool (e.g. Picked and Unbusyness).
+  const sibling = await prisma.prospect.findFirst({
+    where: { companyReg: reg, status: "CLAIMED", NOT: { id: p.id } },
+    include: { claimedBy: { select: { name: true } } },
+  });
+  if (sibling?.customerId) {
+    if (sibling.claimedById !== user.id) {
+      await prisma.prospect.update({
+        where: { id: p.id },
+        data: { status: "REJECTED", rejectReason: `Already a customer of ${sibling.claimedBy?.name || "another seller"}`, recommendedToId: null },
+      });
+      revalidatePath("/crm/prospects");
+      return { error: `This company is already a customer of ${sibling.claimedBy?.name || "another seller"}.` };
+    }
+    // Same seller: add the product to the existing customer.
+    if (p.product) {
+      await prisma.customerProduct.upsert({
+        where: { customerId_productId: { customerId: sibling.customerId, productId: p.product.id } },
+        create: { customerId: sibling.customerId, productId: p.product.id },
+        update: {},
+      });
+    }
+    await prisma.prospect.update({
+      where: { id: p.id },
+      data: { status: "CLAIMED", claimedById: user.id, claimedAt: new Date(), customerId: sibling.customerId },
+    });
+    revalidatePath("/crm/prospects");
+    return { success: "Already your customer — product added.", customerId: sibling.customerId };
+  }
+
   // Lead protection: an e-mail can belong to only one customer.
   let email = p.email?.toLowerCase() || null;
   if (email && (await prisma.customer.findFirst({ where: { email } }))) email = null;
 
   const address = [p.street, [p.postalCode, p.postTown].filter(Boolean).join(" ")].filter(Boolean).join(", ");
   const note = [
-    `Lead finder (AJPES) · matična št. ${p.regNumber}`,
+    `Lead finder (AJPES) · matična št. ${reg}`,
     p.legalForm ? `Pravna oblika: ${p.legalForm}` : null,
     address ? `Naslov: ${address}` : null,
     p.segment ? `Panoga: ${p.segment}` : null,

@@ -49,7 +49,7 @@ function phraseMatches(name: string, phrase: string): boolean {
   return phrase.split(" ").every((p) => words.some((w) => w.startsWith(p)));
 }
 
-type Rule = { productId: string; segment: string | null; keywords: string[]; rawKeywords: string[]; exclude: string[]; priority: number };
+type Rule = { productId: string; pool: string; segment: string | null; keywords: string[]; rawKeywords: string[]; exclude: string[]; priority: number };
 
 /** Keywords as typed (lower-case, accents kept) — the AJPES search is accent-sensitive. */
 export function rawWords(list: string | null | undefined): string[] {
@@ -62,9 +62,11 @@ export function rawWords(list: string | null | undefined): string[] {
 export async function loadRules(): Promise<Rule[]> {
   const rules = await prisma.prospectRule.findMany({
     where: { active: true, product: { active: true } },
+    include: { product: { select: { leadGroup: true } } },
   });
   return rules.map((r) => ({
     productId: r.productId,
+    pool: r.product.leadGroup || "main",
     segment: r.segment?.trim() || null,
     keywords: splitWords(r.keywords),
     rawKeywords: rawWords(r.keywords),
@@ -73,17 +75,31 @@ export async function loadRules(): Promise<Rule[]> {
   }));
 }
 
-/** Best product for a company name, or null when no rule matches. */
-export function matchProduct(name: string, rules: Rule[]) {
+/** The lead key: matična številka, plus the pool for shared pools. */
+export function leadKey(reg: string, pool: string) {
+  return pool === "main" ? reg : `${reg}:${pool}`;
+}
+
+type Match = { productId: string; pool: string; segment: string | null; keyword: string; score: number };
+
+/** Best match in every pool (a hotel can be a lead for Unbusyness and for Picked). */
+export function matchPools(name: string, rules: Rule[]): Match[] {
+  const pools = Array.from(new Set(rules.map((r) => r.pool)));
+  return pools.map((pool) => matchProduct(name, rules, pool)).filter(Boolean) as Match[];
+}
+
+/** Best product for a company name within one pool (or any pool), or null when no rule matches. */
+export function matchProduct(name: string, rules: Rule[], pool?: string): Match | null {
   const n = normalize(name);
-  let best: { productId: string; segment: string | null; keyword: string; score: number } | null = null;
+  let best: Match | null = null;
   for (const r of rules) {
+    if (pool && r.pool !== pool) continue;
     if (r.exclude.some((x) => phraseMatches(n, x))) continue;
     for (const k of r.keywords) {
       if (!phraseMatches(n, k)) continue;
       // Longer / multi-word keywords are more specific → higher score.
       const score = 50 + r.priority * 10 + Math.min(k.length, 25);
-      if (!best || score > best.score) best = { productId: r.productId, segment: r.segment, keyword: k, score };
+      if (!best || score > best.score) best = { productId: r.productId, pool: r.pool, segment: r.segment, keyword: k, score };
     }
   }
   return best;
@@ -91,6 +107,8 @@ export function matchProduct(name: string, rules: Rule[]) {
 
 /** Starter rules, created once if there are none. Admins edit them in Lead finder. */
 type DefaultRule = { productName: string; segment?: string; keywords: string; exclude?: string; priority?: number };
+const TRADES_KEYWORDS =
+  "vodovod, vodovodne, vodoinštalacije, inštalacije, instalacije, inštalaterstvo, ogrevanje, centralne kurjave, klima, klimatske, toplotne črpalke, elektroinštalacije, elektroinštalaterstvo, elektro storitve, plinske, dimnikarstvo, servis kotlov";
 const DEFAULT_RULES: DefaultRule[] = [
   { productName: "for Hotels", segment: "Hoteli", keywords: "hotel, hoteli, hotela, penzion, garni, hostel, motel, resort", exclude: "hotelska oprema", priority: 2 },
   {
@@ -105,34 +123,33 @@ const DEFAULT_RULES: DefaultRule[] = [
     keywords: "upravljanje nepremičnin, upravljanje z nepremičninami, upravljanje stavb, upravnik, upravniki, hišniške storitve, etažna lastnina",
     priority: 3,
   },
-  {
-    productName: "Tradespeople",
-    segment: "Inštalaterji",
-    keywords: "vodovod, vodovodne, vodoinštalacije, inštalacije, instalacije, inštalaterstvo, ogrevanje, centralne kurjave, klima, klimatske, toplotne črpalke, plinske, dimnikarstvo, servis kotlov",
-    exclude: "trgovina",
-    priority: 1,
-  },
+  { productName: "Tradespeople", segment: "Inštalaterji", keywords: TRADES_KEYWORDS, exclude: "trgovina", priority: 1 },
   ...pickedRules(),
 ];
 
-/** Picked (GEO) — local businesses people ask AI assistants about, one rule per industry. */
+/**
+ * Picked (GEO) — local businesses people ask AI assistants about, one rule
+ * per industry. Picked is its own pool, so these overlap freely with the
+ * Unbusyness rules (a hotel is a lead for both).
+ */
 function pickedRules(): DefaultRule[] {
-  const r = (segment: string, keywords: string, priority = 0, exclude?: string): DefaultRule => ({
-    productName: "Picked",
-    segment,
-    keywords,
-    priority,
-    exclude,
-  });
+  const r = (segment: string, keywords: string, exclude?: string): DefaultRule => ({ productName: "Picked", segment, keywords, exclude });
   return [
+    r("Hoteli", "hotel, hoteli, hotela, penzion, garni, hostel, motel, resort", "hotelska oprema"),
+    r("Apartmaji in Airbnb", "apartma, apartmaji, apartmajev, sobodajalstvo, sobodajalka, sobodajalec, turistične sobe, oddajanje sob, počitniška hiša, počitniške hiše, glamping, turistična kmetija"),
+    r("Restavracije in gostinstvo", "gostilna, restavracija, picerija, pizzeria, okrepčevalnica, kavarna, slaščičarna, bistro, catering, gostinstvo"),
+    r("Zobozdravniki", "zobozdravstvo, zobozdravnik, zobna ordinacija, zobni center, dentalni, dentalna, ortodontija, implantologija"),
+    r("Estetske klinike", "estetska kirurgija, estetska medicina, estetska klinika, estetski center, estetski, laserski center, dermatologija"),
+    r("Terapije in wellness", "fizioterapija, masaže, masažni, wellness, osteopatija, kiropraktika"),
     r("Frizerski saloni", "frizerstvo, frizerski, frizerka, frizer, brivnica, barber"),
     r("Kozmetični saloni", "kozmetika, kozmetični, kozmetične, kozmetičarka, pedikura, manikura, lepotni salon, studio lepote, nohti"),
-    r("Gostinstvo", "gostilna, restavracija, picerija, pizzeria, okrepčevalnica, kavarna, slaščičarna, bistro, catering, gostinstvo"),
-    r("Zdravje in terapije", "zobozdravstvo, zobna ordinacija, fizioterapija, masaže, masažni, wellness, osteopatija, kiropraktika"),
-    r("Avtoservisi", "avtoservis, avtoličarstvo, avtokleparstvo, vulkanizerstvo, avtopralnica, avtomehanika"),
-    // Above Tradespeople, so electricians go to Picked.
-    r("Električarji", "elektroinštalacije, elektroinštalaterstvo, elektro storitve, elektromontaža, elektroinstalacije, električar", 4, "trgovina"),
-    r("Prevozniki", "prevozništvo, avtoprevozništvo, prevozi, prevoz, taksi, taxi, selitve, transport", 0, "trgovina"),
+    r("Avtomehaniki in avtoservisi", "avtoservis, avtomehanika, avtomehanik, avtoličarstvo, avtokleparstvo, vulkanizerstvo, avtopralnica, avtoelektrika"),
+    r("Avtovleka", "avtovleka, vleka vozil, pomoč na cesti, avtovlečna"),
+    r("Električarji", "elektroinštalacije, elektroinštalaterstvo, elektro storitve, elektromontaža, elektroinstalacije, električar", "trgovina"),
+    r("Zavarovalniške agencije", "zavarovalniško zastopanje, zavarovalno zastopanje, zavarovalniška agencija, zavarovalna agencija, zavarovalno posredovanje, zavarovalniško posredovanje"),
+    r("Deratizacija", "deratizacija, dezinsekcija, dezinfekcija, zatiranje škodljivcev, ddd storitve"),
+    r("Turistične aktivnosti", "turistična agencija, turistične storitve, turizem, potovalna agencija, rafting, kanjoning, adrenalinski, izleti, jahanje, padalstvo, turistično vodenje"),
+    r("Prevozniki", "prevozništvo, avtoprevozništvo, prevozi, prevoz, taksi, taxi, selitve, transport", "trgovina"),
     r("Fitnes in šport", "fitnes, fitness, joga, pilates, plesna šola, športni center"),
     r("Fotografi", "fotostudio, fotografija, fotograf"),
     r("Čiščenje", "čiščenje, čistilni servis, čistilni"),
@@ -140,16 +157,16 @@ function pickedRules(): DefaultRule[] {
   ];
 }
 
-/** Old single Picked rule, before industries — replaced by pickedRules(). */
-const OLD_PICKED_KEYWORDS =
-  "frizerstvo, frizerski, kozmetika, kozmetični, kozmetične, pedikura, manikura, gostilna, restavracija, picerija, pizzeria, okrepčevalnica, kavarna, slaščičarna, zobozdravstvo, zobna ordinacija, fizioterapija, masaže, wellness, avtoservis, avtoličarstvo, vulkanizerstvo, fotostudio";
-
 const findProduct = (products: { id: string; name: string }[], d: DefaultRule) =>
   d.productName === "Picked"
     ? products.find((x) => /^picked/i.test(x.name) && /visible/i.test(x.name)) || products.find((x) => /^picked/i.test(x.name))
     : products.find((x) => x.name.toLowerCase().includes(d.productName.toLowerCase()));
 
+const RULES_VERSION = 2;
+
 export async function ensureDefaultRules() {
+  const settings = await getSettings();
+  if (settings.prospectRulesVersion >= RULES_VERSION) return;
   const products = await prisma.product.findMany({ select: { id: true, name: true, leadGroup: true } });
 
   // The Picked packages share one pool of leads.
@@ -157,50 +174,49 @@ export async function ensureDefaultRules() {
   if (picked.length > 0 && picked.every((p) => !p.leadGroup)) {
     await prisma.product.updateMany({ where: { id: { in: picked.map((p) => p.id) } }, data: { leadGroup: "Picked" } });
   }
+  const pickedIds = picked.map((p) => p.id);
 
-  // One-time upgrade: the first starter rules had no accents, which the
-  // accent-sensitive AJPES search misses. Replace them if still unedited.
   const existing = await prisma.prospectRule.findMany();
-  for (const r of existing) {
-    if (/[čšžćđ]/i.test(r.keywords)) continue;
-    const productName = products.find((p) => p.id === r.productId)?.name.toLowerCase() || "";
-    const d = DEFAULT_RULES.find((x) => x.productName !== "Picked" && productName.includes(x.productName.toLowerCase()));
-    const mine = splitWords(r.keywords);
-    const theirs = new Set(splitWords(d?.keywords));
-    if (d && d.keywords !== r.keywords && mine.every((w) => theirs.has(w))) {
-      await prisma.prospectRule.update({ where: { id: r.id }, data: { keywords: d.keywords } });
-    }
-  }
-
-  // One-time upgrade: one Picked rule → one rule per industry, plus industry labels.
-  const oldPicked = existing.find((r) => !r.segment && r.keywords === OLD_PICKED_KEYWORDS);
-  if (oldPicked) {
-    await prisma.prospectRule.delete({ where: { id: oldPicked.id } });
-    for (const d of pickedRules()) {
+  if (existing.length === 0) {
+    for (const d of DEFAULT_RULES) {
+      const p = findProduct(products, d);
+      if (!p) continue;
       await prisma.prospectRule.create({
-        data: { productId: oldPicked.productId, segment: d.segment, keywords: d.keywords, exclude: d.exclude || null, priority: d.priority || 0 },
+        data: { productId: p.id, segment: d.segment || null, keywords: d.keywords, exclude: d.exclude || null, priority: d.priority || 0 },
       });
     }
-    // Electricians now belong to Picked, not Tradespeople.
+  } else {
+    // Upgrade to v2: Picked becomes its own pool with one rule per industry
+    // (overlapping with Unbusyness), and electricians go back to Tradespeople too.
+    const pickedProduct = findProduct(products, { productName: "Picked", keywords: "" });
+    if (pickedProduct) {
+      await prisma.prospectRule.deleteMany({ where: { productId: { in: pickedIds } } });
+      for (const d of pickedRules()) {
+        await prisma.prospectRule.create({
+          data: { productId: pickedProduct.id, segment: d.segment, keywords: d.keywords, exclude: d.exclude || null, priority: 0 },
+        });
+      }
+    }
     for (const r of existing) {
-      if (r.id === oldPicked.id || r.segment) continue;
+      if (pickedIds.includes(r.productId)) continue;
       const d = DEFAULT_RULES.find((x) => x.productName !== "Picked" && findProduct(products, x)?.id === r.productId);
       if (!d) continue;
-      const data: { segment?: string; keywords?: string } = { segment: d.segment };
-      if (d.productName === "Tradespeople" && /elektroinštalacije/.test(r.keywords)) data.keywords = d.keywords;
-      await prisma.prospectRule.update({ where: { id: r.id }, data });
+      const data: { segment?: string; keywords?: string } = {};
+      if (!r.segment && d.segment) data.segment = d.segment;
+      if (d.productName === "Tradespeople" && !/elektroinštalacije/.test(r.keywords)) data.keywords = TRADES_KEYWORDS;
+      if (Object.keys(data).length) await prisma.prospectRule.update({ where: { id: r.id }, data });
     }
-    await labelSegments();
   }
 
-  if (existing.length > 0) return;
-  for (const d of DEFAULT_RULES) {
-    const p = findProduct(products, d);
-    if (!p) continue;
-    await prisma.prospectRule.create({
-      data: { productId: p.id, segment: d.segment || null, keywords: d.keywords, exclude: d.exclude || null, priority: d.priority || 0 },
-    });
+  // Leads already found for Picked move to their own pool, so the same
+  // companies can be found again for Unbusyness.
+  if (pickedIds.length) {
+    await prisma.$executeRaw`UPDATE "Prospect" SET "pool" = 'Picked', "regNumber" = "regNumber" || ':Picked'
+      WHERE "productId" = ANY(${pickedIds}) AND "pool" = 'main' AND "regNumber" NOT LIKE '%:%'`;
   }
+  await prisma.$executeRaw`UPDATE "Prospect" SET "companyReg" = split_part("regNumber", ':', 1) WHERE "companyReg" IS NULL`;
+  await labelSegments();
+  await prisma.settings.update({ where: { id: 1 }, data: { prospectRulesVersion: RULES_VERSION } });
 }
 
 /** Fills in the industry of leads found before industries existed, from the keyword they matched. */
@@ -255,7 +271,7 @@ export async function importFromAjpes(opts: { maxPerKeyword?: number } = {}): Pr
   const keywords = Array.from(new Set(rules.flatMap((r) => [...r.rawKeywords, ...r.keywords])));
   const summary: ImportSummary = { keywords: keywords.length, fetched: 0, matched: 0, created: 0, duplicates: 0, errors: [] };
 
-  const found = new Map<string, { rec: AjpesRecord; productId: string; segment: string | null; keyword: string; score: number }>();
+  const found = new Map<string, { rec: AjpesRecord; reg: string } & Match>();
   for (const k of keywords) {
     try {
       for (let offset = 0; offset < maxPerKeyword; offset += 500) {
@@ -266,10 +282,11 @@ export async function importFromAjpes(opts: { maxPerKeyword?: number } = {}): Pr
           // Main entities end in 000; other numbers are branches/units.
           if (!/^\d{10}$/.test(reg) || !reg.endsWith("000")) continue;
           if (String(rec["Država"] || "SLOVENIJA").toUpperCase() !== "SLOVENIJA") continue;
-          const m = matchProduct(String(rec["Popolno ime"] || ""), rules);
-          if (!m) continue;
-          const prev = found.get(reg);
-          if (!prev || m.score > prev.score) found.set(reg, { rec, ...m });
+          for (const m of matchPools(String(rec["Popolno ime"] || ""), rules)) {
+            const key = leadKey(reg, m.pool);
+            const prev = found.get(key);
+            if (!prev || m.score > prev.score) found.set(key, { rec, reg, ...m });
+          }
         }
         if (offset + 500 >= total) break;
         await sleep(250);
@@ -295,9 +312,9 @@ export async function importFromAjpes(opts: { maxPerKeyword?: number } = {}): Pr
   );
 
   const rows = [];
-  for (const [reg, f] of found) {
+  for (const [key, f] of found) {
     const name = String(f.rec["Popolno ime"] || "").trim();
-    if (existing.has(reg) || customerNames.has(normalize(name))) {
+    if (existing.has(key) || customerNames.has(normalize(name))) {
       summary.duplicates++;
       continue;
     }
@@ -307,7 +324,9 @@ export async function importFromAjpes(opts: { maxPerKeyword?: number } = {}): Pr
       .join(" ")
       .trim();
     rows.push({
-      regNumber: reg,
+      regNumber: key,
+      companyReg: f.reg,
+      pool: f.pool,
       name,
       legalForm,
       soleTrader: !!legalForm && /podjetnik|s\.p\./i.test(legalForm),
@@ -456,11 +475,24 @@ export async function recommendFor(user: CurrentUser) {
       },
       orderBy: [{ score: "desc" }, { createdAt: "desc" }],
       take: need * 3,
-      select: { id: true },
+      select: { id: true, companyReg: true },
     });
+    // Skip companies another seller already has as a customer (from another pool).
+    const taken = new Set(
+      (
+        await prisma.prospect.findMany({
+          where: {
+            companyReg: { in: candidates.map((c) => c.companyReg).filter(Boolean) as string[] },
+            OR: [{ status: "CLAIMED", NOT: { claimedById: user.id } }, { status: "DO_NOT_CONTACT" }],
+          },
+          select: { companyReg: true },
+        })
+      ).map((x) => x.companyReg)
+    );
     let given = 0;
     for (const c of candidates) {
       if (given >= need) break;
+      if (c.companyReg && taken.has(c.companyReg)) continue;
       const { count } = await prisma.prospect.updateMany({
         where: { id: c.id, status: "NEW" },
         data: { status: "RECOMMENDED", recommendedToId: user.id, recommendedAt: new Date() },
