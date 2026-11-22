@@ -8,6 +8,43 @@ import { notify, supervisorsOf } from "@/lib/notify";
 import { acceptQuote } from "@/lib/quotes";
 import { hashDocument, nextProformaNumber, paymentReferenceFor, proformaLines } from "@/lib/contracts";
 import { renderContractPdf, renderProformaPdf } from "@/lib/contract-pdf";
+import { createRevolutOrder, revolutEnabled } from "@/lib/revolut";
+
+/** Creates a Revolut card-payment link for a signed contract's proforma (once). Returns the link or null. */
+export async function ensurePaymentLink(contractId: string, baseUrl: string): Promise<string | null> {
+  if (!revolutEnabled()) return null;
+  const c = await prisma.contract.findUnique({ where: { id: contractId }, include: { quote: { include: { items: true } } } });
+  if (!c || !c.proformaNumber || c.paidAt) return c?.paymentLinkUrl ?? null;
+  if (c.paymentLinkUrl) return c.paymentLinkUrl;
+  const s = await getSettings();
+  const total = proformaLines(c.quote, s.legalVatPayer).total;
+  if (total <= 0) return null;
+  const order = await createRevolutOrder({
+    amount: total,
+    description: `Predračun ${c.proformaNumber} (pogodba ${c.number}) — ${c.clientCompany || ""}`.trim(),
+    reference: c.proformaNumber,
+    email: c.clientEmail,
+    redirectUrl: `${baseUrl}/c/${c.publicToken}?placano=1`,
+  });
+  await prisma.contract.update({ where: { id: c.id }, data: { revolutOrderId: order.id, paymentLinkUrl: order.checkoutUrl } });
+  return order.checkoutUrl;
+}
+
+/** Called when Revolut confirms the payment. */
+export async function markProformaPaid(contractId: string, how: string) {
+  const c = await prisma.contract.findUnique({ where: { id: contractId }, include: { customer: true } });
+  if (!c || c.paidAt) return;
+  await prisma.contract.update({ where: { id: c.id }, data: { paidAt: new Date() } });
+  await logActivity(c.customerId, null, "PAYMENT", `Proforma ${c.proformaNumber} paid (${how})`);
+  const who = c.clientCompany || c.customer.company || c.customer.name;
+  await notify([c.userId], { type: "PAYMENT", title: `💶 ${who} paid proforma ${c.proformaNumber}`, link: `/crm/contracts/${c.id}` });
+  await notify(await supervisorsOf(c.userId), {
+    type: "PAYMENT",
+    title: `💶 ${who} paid proforma ${c.proformaNumber} (${how})`,
+    body: "Record the payment under Payments for commission.",
+    link: `/admin/contracts/${c.id}`,
+  });
+}
 
 const fullInclude = { quote: { include: { items: true } }, customer: true, user: true, reviewedBy: { select: { name: true } } } as const;
 
@@ -85,6 +122,12 @@ export async function completeSigning(
   await logActivity(c.customerId, null, "CONTRACT_SIGNED", `Contract ${c.number} signed online by ${sig.name} · proforma ${proformaNumber} issued`);
 
   const total = proformaLines(c.quote, s.legalVatPayer).total;
+  let payLink: string | null = null;
+  try {
+    payLink = await ensurePaymentLink(c.id, getBaseUrl());
+  } catch (e) {
+    console.error("Revolut payment link failed", e);
+  }
   const [contractPdf, proformaPdf] = await Promise.all([contractPdfFor(c.id), proformaPdfFor(c.id)]);
   const link = `${getBaseUrl()}/c/${c.publicToken}`;
   const text = `Pozdravljeni,
@@ -97,7 +140,7 @@ Prejemnik: ${s.legalName}
 IBAN: ${s.legalIban || "—"}
 Referenca: ${paymentReferenceFor(proformaNumber)}
 
-Predračun lahko plačate tudi tako, da v mobilni banki skenirate UPN QR kodo na predračunu.${c.paymentLinkUrl ? `\nPlačilo s kartico: ${c.paymentLinkUrl}` : ""}
+Predračun lahko plačate tudi tako, da v mobilni banki skenirate UPN QR kodo na predračunu.${payLink ? `\n\nPlačilo s kartico (Revolut): ${payLink}` : ""}
 
 Dokumenta sta vedno na voljo tudi tukaj: ${link}
 

@@ -8,6 +8,7 @@ import {
   cancelContract,
   deleteContract,
   markContractPaid,
+  createPaymentLink,
   regenerateContract,
   reviewContract,
   saveContract,
@@ -47,6 +48,8 @@ export type ContractView = {
   proformaDueAt: string | null;
   proformaTotal: string | null;
   paidAt: string | null;
+  paymentLinkUrl: string | null;
+  revolut: boolean;
   signingLink: string | null;
   problems: string[];
 };
@@ -237,9 +240,30 @@ export default function ContractEditor({
             <div className="text-xs text-black/40 break-all">IP {c.signedIp} · SHA-256 {c.documentHash}</div>
           </div>
         )}
-        {c.status === "SIGNED" && staff && (
+        {c.status === "SIGNED" && !c.paidAt && (
           <>
             <span className="flex-1" />
+            {c.paymentLinkUrl ? (
+              <button
+                className="btn-secondary"
+                onClick={() => {
+                  navigator.clipboard?.writeText(c.paymentLinkUrl!);
+                  setMsg({ success: `Card payment link copied: ${c.paymentLinkUrl}` });
+                }}
+              >
+                Copy payment link
+              </button>
+            ) : (
+              c.revolut && (
+                <button className="btn-secondary" disabled={!!busy} onClick={() => run("paylink", () => createPaymentLink(c.id))}>
+                  {busy === "paylink" ? "Creating…" : "Create card payment link"}
+                </button>
+              )
+            )}
+          </>
+        )}
+        {c.status === "SIGNED" && staff && (
+          <>
             <button className="btn-secondary" disabled={!!busy} onClick={() => run("paid", () => markContractPaid(c.id, !c.paidAt))}>
               {c.paidAt ? "Mark as unpaid" : "Mark as paid"}
             </button>

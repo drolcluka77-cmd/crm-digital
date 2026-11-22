@@ -380,6 +380,8 @@ model Settings {
   contractTemplate     String? // null = the built-in template
   contractReviewRequired Boolean @default(true) // a manager/admin approves before it goes out
   proformaDueDays      Int     @default(8)
+  revolutWebhookId     String?
+  revolutWebhookSecret String? // signing secret for /api/webhooks/revolut
 
   // Recruiting
   recruitingCalendlyUrl     String?  @default("https://calendly.com/drolcluka77/30min")
@@ -762,7 +764,8 @@ model Contract {
   proformaIssuedAt DateTime?
   proformaDueAt    DateTime?
   paymentReference String? // SI00 …
-  paymentLinkUrl   String? // card / SEPA link (Stripe, later)
+  paymentLinkUrl   String? // card payment link (Revolut checkout)
+  revolutOrderId   String?   @unique
   paidAt           DateTime?
 
   createdAt    DateTime  @default(now())

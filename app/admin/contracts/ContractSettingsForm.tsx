@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { saveContractSettings } from "@/lib/contract-actions";
+import { connectRevolutWebhook, saveContractSettings } from "@/lib/contract-actions";
 
 type S = {
   legalName: string;
@@ -24,7 +24,15 @@ type S = {
 const PLACEHOLDERS =
   "{{stevilka}} {{datum}} {{ponudba}} {{izvajalec_naziv}} {{izvajalec_naslov}} {{izvajalec_maticna}} {{izvajalec_davcna}} {{izvajalec_zastopnik}} {{narocnik_naziv}} {{narocnik_naslov}} {{narocnik_maticna}} {{narocnik_ddv}} {{narocnik_zastopnik}} {{storitve}} {{cene}} {{ddv_klavzula}} {{rok_placila}} {{opombe}}";
 
-export default function ContractSettingsForm({ s, defaultTemplate }: { s: S; defaultTemplate: string }) {
+export default function ContractSettingsForm({
+  s,
+  defaultTemplate,
+  revolut,
+}: {
+  s: S;
+  defaultTemplate: string;
+  revolut: { enabled: boolean; webhook: boolean };
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ error?: string; success?: string } | null>(null);
@@ -81,6 +89,36 @@ export default function ContractSettingsForm({ s, defaultTemplate }: { s: S; def
           1. odstavka 94. člena ZDDV-1”.
         </p>
       )}
+      <div className="rounded-xl bg-sand-50 p-4 text-sm">
+        <div className="font-medium">Card payments (Revolut)</div>
+        {!revolut.enabled ? (
+          <p className="text-black/55 mt-1">
+            Not connected. Add the Merchant API secret key on Railway as <code>REVOLUT_API_KEY</code>; then every
+            signed contract gets a card payment link on the proforma.
+          </p>
+        ) : (
+          <div className="mt-1 flex flex-wrap items-center gap-3">
+            <span className="text-emerald-700">✓ Connected — proformas get a card payment link.</span>
+            <span className="text-black/55">
+              {revolut.webhook ? "Paid proformas are marked automatically." : "Connect the webhook so paid proformas are marked automatically."}
+            </span>
+            <button
+              type="button"
+              className="btn-secondary py-1"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                const r = await connectRevolutWebhook();
+                setBusy(false);
+                setMsg(r || null);
+                router.refresh();
+              }}
+            >
+              {revolut.webhook ? "Reconnect webhook" : "Connect webhook"}
+            </button>
+          </div>
+        )}
+      </div>
       <label className="text-sm flex items-center gap-2">
         <input type="checkbox" name="contractReviewRequired" defaultChecked={s.contractReviewRequired} />
         A manager or admin approves every contract before the seller can send it

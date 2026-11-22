@@ -6,12 +6,32 @@ import { notify } from "@/lib/notify";
 import { formatDate, formatMoney } from "@/lib/format";
 import { proformaLines } from "@/lib/contracts";
 import SignPanel from "./SignPanel";
+import { getRevolutOrder, revolutEnabled } from "@/lib/revolut";
+import { markProformaPaid } from "@/lib/contract-signing";
 
 export const dynamic = "force-dynamic";
 export const metadata = { robots: { index: false, follow: false }, title: "Pogodba" };
 
 /** Public contract page: read, then sign with a code from e-mail (no login; the token is the key). */
-export default async function PublicContractPage({ params }: { params: { token: string } }) {
+export default async function PublicContractPage({
+  params,
+  searchParams,
+}: {
+  params: { token: string };
+  searchParams: { placano?: string };
+}) {
+  // Back from the Revolut checkout: confirm the payment straight away (the webhook may still be on its way).
+  if (searchParams.placano) {
+    const pending = await prisma.contract.findUnique({ where: { publicToken: params.token }, select: { id: true, revolutOrderId: true, paidAt: true } });
+    if (pending?.revolutOrderId && !pending.paidAt && revolutEnabled()) {
+      try {
+        const o = await getRevolutOrder(pending.revolutOrderId);
+        if (o.state === "completed") await markProformaPaid(pending.id, "Revolut card payment");
+      } catch {
+        /* the webhook will catch up */
+      }
+    }
+  }
   const c = await prisma.contract.findUnique({
     where: { publicToken: params.token },
     include: { quote: { include: { items: true } }, user: true, customer: true },
@@ -75,7 +95,7 @@ export default async function PublicContractPage({ params }: { params: { token: 
                 <div>Prejemnik: {s.legalName}</div>
                 <div>IBAN: {s.legalIban || "—"}</div>
                 <div>Referenca: {c.paymentReference}</div>
-                {c.paymentLinkUrl && (
+                {c.paymentLinkUrl && !c.paidAt && (
                   <a href={c.paymentLinkUrl} className="btn-primary mt-3 inline-flex">Plačaj s kartico</a>
                 )}
                 {c.paidAt && <div className="text-emerald-700 font-medium mt-2">Plačano — hvala!</div>}

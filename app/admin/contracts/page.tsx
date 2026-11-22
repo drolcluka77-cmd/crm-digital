@@ -5,6 +5,7 @@ import { listContracts } from "@/lib/contract-view";
 import { DEFAULT_CONTRACT_TEMPLATE } from "@/lib/contracts";
 import ContractList from "@/components/ContractList";
 import ContractSettingsForm from "./ContractSettingsForm";
+import { revolutEnabled } from "@/lib/revolut";
 
 export const dynamic = "force-dynamic";
 
@@ -55,6 +56,7 @@ export default async function AdminContractsPage() {
             contractTemplate: s.contractTemplate,
           }}
           defaultTemplate={DEFAULT_CONTRACT_TEMPLATE}
+          revolut={{ enabled: revolutEnabled(), webhook: !!s.revolutWebhookId }}
         />
       )}
     </div>

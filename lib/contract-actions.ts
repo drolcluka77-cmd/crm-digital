@@ -9,6 +9,8 @@ import { sendEmail } from "@/lib/mailer";
 import { escapeHtml } from "@/lib/format";
 import { logActivity } from "@/lib/activity";
 import { notify, supervisorsOf } from "@/lib/notify";
+import { ensurePaymentLink } from "@/lib/contract-signing";
+import { registerRevolutWebhook, revolutEnabled } from "@/lib/revolut";
 import {
   buildContractBody,
   canSeeContract,
@@ -295,4 +297,36 @@ export async function saveContractSettings(fd: FormData): Promise<ContractResult
   });
   revalidatePath("/admin/contracts");
   return { success: "Saved. New contracts use these details; open drafts can be rebuilt with “Rebuild text”." };
+}
+
+/** Admin: creates (or shows) the Revolut payment link for a signed contract. */
+export async function createPaymentLink(id: string): Promise<ContractResult> {
+  const { user, c } = await load(id);
+  if (!c) return { error: "Contract not found." };
+  if (!isStaff(user.role) && c.userId !== user.id) return { error: "Not allowed." };
+  if (!revolutEnabled()) return { error: "Revolut isn't connected (REVOLUT_API_KEY is not set)." };
+  if (c.status !== "SIGNED") return { error: "The contract isn't signed yet." };
+  try {
+    const link = await ensurePaymentLink(c.id, getBaseUrl());
+    paths(c);
+    return link ? { success: `Payment link: ${link}`, link } : { error: "Nothing to pay." };
+  } catch (e: any) {
+    return { error: String(e?.message || e) };
+  }
+}
+
+/** Admin: registers the webhook so paid proformas are marked automatically. */
+export async function connectRevolutWebhook(): Promise<ContractResult> {
+  const user = await requireUser();
+  if (user.role !== "ADMIN") return { error: "Only an admin can do this." };
+  if (!revolutEnabled()) return { error: "Add REVOLUT_API_KEY on Railway first." };
+  try {
+    const url = `${getBaseUrl()}/api/webhooks/revolut`;
+    const w = await registerRevolutWebhook(url);
+    await prisma.settings.update({ where: { id: 1 }, data: { revolutWebhookId: w.id, revolutWebhookSecret: w.secret } });
+    revalidatePath("/admin/contracts");
+    return { success: `Webhook connected: ${url}` };
+  } catch (e: any) {
+    return { error: String(e?.message || e) };
+  }
 }

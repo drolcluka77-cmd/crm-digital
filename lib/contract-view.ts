@@ -4,6 +4,7 @@ import { getBaseUrl } from "@/lib/url";
 import { formatMoney } from "@/lib/format";
 import { CONTRACT_STATUS_LABEL, contractProblems, proformaLines } from "@/lib/contracts";
 import type { ContractView } from "@/components/ContractEditor";
+import { revolutEnabled } from "@/lib/revolut";
 
 /** Loads a contract shaped for ContractEditor. */
 export async function loadContractView(id: string): Promise<{ view: ContractView; userId: string; reviewRequired: boolean } | null> {
@@ -53,6 +54,8 @@ export async function loadContractView(id: string): Promise<{ view: ContractView
       proformaDueAt: c.proformaDueAt?.toISOString() ?? null,
       proformaTotal: c.proformaNumber ? formatMoney(proformaLines(c.quote, s.legalVatPayer).total) : null,
       paidAt: c.paidAt?.toISOString() ?? null,
+      paymentLinkUrl: c.paymentLinkUrl,
+      revolut: revolutEnabled(),
       signingLink: c.publicToken ? `${getBaseUrl()}/c/${c.publicToken}` : null,
       problems: contractProblems(c),
     },
