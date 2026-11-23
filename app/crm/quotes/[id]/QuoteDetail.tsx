@@ -19,6 +19,7 @@ import { createContractFromQuote } from "@/lib/contract-actions";
 import QuoteBuilder, { type BuilderProduct, type LineItem } from "../QuoteBuilder";
 import { formatDate, formatMoney } from "@/lib/format";
 import { APPROVAL_STATUS_LABEL, BILLING_SUFFIX, QUOTE_STATUS_LABEL } from "@/lib/constants";
+import { useT } from "@/components/LocaleProvider";
 
 export default function QuoteDetail({
   quote,
@@ -59,6 +60,7 @@ export default function QuoteDetail({
   annualNet: number;
   totalsSummary: { billing: string; total: number }[];
 }) {
+  const t = useT();
   const router = useRouter();
   const [sendOpen, setSendOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -103,14 +105,14 @@ export default function QuoteDetail({
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-semibold tracking-tight">{quote.number}</h1>
-            <Badge variant={quote.status}>{QUOTE_STATUS_LABEL[quote.status]}</Badge>
+            <Badge variant={quote.status}>{t(QUOTE_STATUS_LABEL[quote.status])}</Badge>
           </div>
           <p className="text-black/50 text-sm mt-1">
-            For{" "}
+            {t("For")}{" "}
             <Link href={`/crm/customers/${quote.customerId}`} className="hover:text-brand-600 underline-offset-2 hover:underline">
               {quote.customerName}
             </Link>{" "}
-            · {formatMoney(annualNet)} first-year value
+            · {formatMoney(annualNet)}{t(" first-year value")}
             {quote.validUntil && ` · valid until ${formatDate(quote.validUntil)}`}
             {quote.sentAt && ` · sent ${formatDate(quote.sentAt)}`}
             {quote.viewedAt && ` · opened by client ${formatDate(quote.viewedAt)}`}
@@ -119,11 +121,11 @@ export default function QuoteDetail({
         <div className="flex flex-wrap gap-2">
           <a href={`/api/quotes/${quote.id}/pdf`} target="_blank" rel="noreferrer" className="btn-secondary">
             <DownloadIcon className="h-4 w-4" />
-            PDF
+            {t("PDF")}
           </a>
           {contract ? (
             <Link href={`/crm/contracts/${contract.id}`} className="btn-secondary" title={contract.statusLabel}>
-              Contract {contract.number}
+              {t("Contract ")}{contract.number}
             </Link>
           ) : (
             !awaiting &&
@@ -131,7 +133,7 @@ export default function QuoteDetail({
               <button
                 className="btn-secondary"
                 disabled={busy}
-                title="Turn this quote into a contract the client signs online"
+                title={t("Turn this quote into a contract the client signs online")}
                 onClick={async () => {
                   setBusy(true);
                   const r = await createContractFromQuote(quote.id);
@@ -143,40 +145,40 @@ export default function QuoteDetail({
                   if (r?.id) router.push(`/crm/contracts/${r.id}`);
                 }}
               >
-                Create contract
+                {t("Create contract")}
               </button>
             )
           )}
           {!locked && !awaiting && quote.status !== "REJECTED" && (
-            <button className="btn-secondary" onClick={copyLink} title="Link where the client can accept online">
+            <button className="btn-secondary" onClick={copyLink} title={t("Link where the client can accept online")}>
               <LinkIcon className="h-4 w-4" />
-              Acceptance link
+              {t("Acceptance link")}
             </button>
           )}
           {!locked && !awaiting && (
             <button className="btn-primary" onClick={() => setSendOpen(true)}>
               <SendIcon className="h-4 w-4" />
-              {quote.status === "SENT" ? "Send again" : "Send to customer"}
+              {quote.status === "SENT" ? t("Send again") : t("Send to customer")}
             </button>
           )}
           {quote.status !== "ACCEPTED" && !awaiting && (
             <button className="btn-ghost" disabled={busy} onClick={() => handleStatus("ACCEPTED")}>
               <CheckCircleIcon className="h-4 w-4" />
-              Won
+              {t("Won")}
             </button>
           )}
           {quote.status !== "REJECTED" && quote.status !== "ACCEPTED" && (
             <button className="btn-ghost" disabled={busy} onClick={() => handleStatus("REJECTED")}>
               <XIcon className="h-4 w-4" />
-              Lost
+              {t("Lost")}
             </button>
           )}
           {locked && (
             <button className="btn-ghost" disabled={busy} onClick={() => handleStatus("SENT")}>
-              Reopen
+              {t("Reopen")}
             </button>
           )}
-          <button className="btn-ghost" disabled={busy} onClick={() => duplicateQuote(quote.id)} title="Duplicate">
+          <button className="btn-ghost" disabled={busy} onClick={() => duplicateQuote(quote.id)} title={t("Duplicate")}>
             <LayersIcon className="h-4 w-4" />
           </button>
           {!locked && (
@@ -199,29 +201,28 @@ export default function QuoteDetail({
           }`}
         >
           <div className="font-medium">
-            {APPROVAL_STATUS_LABEL[quote.approvalStatus]}
+            {t(APPROVAL_STATUS_LABEL[quote.approvalStatus])}
             {quote.approvedBy && quote.approvalStatus !== "PENDING" ? ` by ${quote.approvedBy}` : ""}
           </div>
           {quote.approvalReason && <div className="text-xs mt-0.5">{quote.approvalReason}</div>}
           {quote.approvalNote && <div className="text-xs mt-1 italic">“{quote.approvalNote}”</div>}
           {quote.approvalStatus === "PENDING" && (
-            <div className="text-xs mt-1">You can send it and mark it won once your manager approves.</div>
+            <div className="text-xs mt-1">{t("You can send it and mark it won once your manager approves.")}</div>
           )}
         </div>
       )}
       {quote.acceptedByName && (
         <div className="success-box mb-4">
-          Accepted online by {quote.acceptedByName}
+          {t("Accepted online by ")}{quote.acceptedByName}
           {quote.acceptedByTitle ? `, ${quote.acceptedByTitle}` : ""}.
         </div>
       )}
       {quote.declineReason && (
-        <div className="error-box mb-4">Client&apos;s reason for declining: {quote.declineReason}</div>
+        <div className="error-box mb-4">{t("Client's reason for declining: ")}{quote.declineReason}</div>
       )}
       {locked && (
         <div className="success-box mb-4">
-          This quote was accepted, so it&apos;s locked to keep your commission record intact. Reopen it to make
-          changes, or duplicate it for an upsell.
+          {t("This quote was accepted, so it's locked to keep your commission record intact. Reopen it to make changes, or duplicate it for an upsell.")}
         </div>
       )}
 
@@ -280,6 +281,7 @@ function SendQuoteModal({
   totalText: string;
   onSent: () => void;
 }) {
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
@@ -304,10 +306,10 @@ function SendQuoteModal({
     <Modal open={open} onClose={close} title={`Send ${quoteNumber}`}>
       {sent ? (
         <div className="text-center py-6">
-          <div className="text-emerald-600 font-medium mb-1">Quote sent</div>
-          <p className="text-sm text-black/50">PDF attached. It&apos;s on the customer&apos;s timeline too.</p>
+          <div className="text-emerald-600 font-medium mb-1">{t("Quote sent")}</div>
+          <p className="text-sm text-black/50">{t("PDF attached. It's on the customer's timeline too.")}</p>
           <button className="btn-secondary mt-4" onClick={close}>
-            Close
+            {t("Close")}
           </button>
         </div>
       ) : (
@@ -321,22 +323,22 @@ function SendQuoteModal({
           {error && <div className="error-box">{error}</div>}
           <input type="hidden" name="id" value={quoteId} />
           <div>
-            <label className="label">To</label>
+            <label className="label">{t("To")}</label>
             <input
               name="to"
               type="email"
               required
               defaultValue={defaultTo}
               className="input"
-              placeholder="customer@email.com"
+              placeholder={t("customer@email.com")}
             />
           </div>
           <div>
-            <label className="label">Subject</label>
+            <label className="label">{t("Subject")}</label>
             <input name="subject" className="input" defaultValue={`Your quote from ${companyName} (${quoteNumber})`} />
           </div>
           <div>
-            <label className="label">Message</label>
+            <label className="label">{t("Message")}</label>
             <textarea
               name="message"
               required
@@ -353,11 +355,11 @@ function SendQuoteModal({
                 if (hidden) hidden.value = e.currentTarget.checked ? "on" : "off";
               }}
             />
-            Include a &ldquo;View &amp; accept online&rdquo; button
+            {t("Include a &ldquo;View & accept online&rdquo; button")}
           </label>
           <input type="hidden" name="includeLink" defaultValue="on" />
           <button type="submit" className="btn-primary w-full" disabled={busy}>
-            {busy ? "Sending…" : "Send quote"}
+            {busy ? t("Sending…") : t("Send quote")}
           </button>
         </form>
       )}

@@ -53,3 +53,12 @@ export async function updateMyProfile(formData: FormData): Promise<ActionResult>
   revalidatePath("/admin/settings");
   return { success: "Saved." };
 }
+
+/** CRM language for this seller. */
+export async function setMyLanguage(locale: string): Promise<ActionResult> {
+  const user = await requireUser();
+  const value = locale === "en" ? "en" : "sl";
+  await prisma.user.update({ where: { id: user.id }, data: { locale: value } });
+  revalidatePath("/crm", "layout");
+  return { success: value === "sl" ? "Jezik je nastavljen." : "Language saved." };
+}

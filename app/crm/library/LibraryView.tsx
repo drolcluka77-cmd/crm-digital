@@ -8,6 +8,7 @@ import SendMaterialsModal from "@/app/crm/SendMaterialsModal";
 import { MATERIAL_TYPE_LABEL } from "@/lib/constants";
 import { formatDate, formatFileSize, materialHref } from "@/lib/format";
 import type { SellerMaterial } from "@/lib/seller";
+import { useT } from "@/components/LocaleProvider";
 
 export default function LibraryView({
   materials,
@@ -16,6 +17,7 @@ export default function LibraryView({
   materials: SellerMaterial[];
   customers: { id: string; name: string; company: string | null; email: string | null }[];
 }) {
+  const t = useT();
   const [type, setType] = useState("ALL");
   const [query, setQuery] = useState("");
   const [sendIds, setSendIds] = useState<string[] | null>(null);
@@ -41,15 +43,15 @@ export default function LibraryView({
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Sales library</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t("Sales library")}</h1>
         <p className="text-black/50 text-sm mt-1">
-          Decks, PDFs, demo videos and links for your products. Send them to clients as tracked links.
+          {t("Decks, PDFs, demo videos and links for your products. Send them to clients as tracked links.")}
         </p>
       </div>
 
       {materials.length === 0 ? (
         <div className="card p-10 text-center text-black/40 text-sm">
-          Nothing here yet — materials appear once your admin uploads them for your products.
+          {t("Nothing here yet — materials appear once your admin uploads them for your products.")}
         </div>
       ) : (
         <>
@@ -59,13 +61,13 @@ export default function LibraryView({
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search…"
+                placeholder={t("Search…")}
                 className="input pl-9 py-2"
               />
             </div>
-            {["ALL", ...types].map((t) => (
-              <button key={t} onClick={() => setType(t)} className={type === t ? "chip-active" : "chip"}>
-                {t === "ALL" ? "All" : MATERIAL_TYPE_LABEL[t]}
+            {["ALL", ...types].map((ty) => (
+              <button key={ty} onClick={() => setType(ty)} className={type === ty ? "chip-active" : "chip"}>
+                {ty === "ALL" ? t("All") : t(MATERIAL_TYPE_LABEL[ty])}
               </button>
             ))}
           </div>
@@ -85,24 +87,24 @@ export default function LibraryView({
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-medium">{m.title}</span>
-                          {m.internalOnly && <Badge variant="WARN">Internal</Badge>}
+                          {m.internalOnly && <Badge variant="WARN">{t("Internal")}</Badge>}
                         </div>
                         <div className="text-xs text-black/40 mt-0.5">
-                          {MATERIAL_TYPE_LABEL[m.type]}
-                          {m.fileName ? ` · ${formatFileSize(m.fileSize)}` : " · link"} · {formatDate(m.uploadedAt)}
+                          {t(MATERIAL_TYPE_LABEL[m.type])}
+                          {m.fileName ? ` · ${formatFileSize(m.fileSize)}` : t(" · link")} · {formatDate(m.uploadedAt)}
                         </div>
                         {m.description && <p className="text-sm text-black/50 mt-0.5 line-clamp-1">{m.description}</p>}
                       </div>
-                      <a href={materialHref(m)} target="_blank" rel="noreferrer" className="btn-ghost" title="Open">
+                      <a href={materialHref(m)} target="_blank" rel="noreferrer" className="btn-ghost" title={t("Open")}>
                         <EyeIcon className="h-4 w-4" />
                       </a>
                       {m.fileName && (
-                        <a href={`/api/materials/${m.id}?download=1`} className="btn-ghost" title="Download">
+                        <a href={`/api/materials/${m.id}?download=1`} className="btn-ghost" title={t("Download")}>
                           <DownloadIcon className="h-4 w-4" />
                         </a>
                       )}
                       {!m.internalOnly && (
-                        <button className="btn-ghost" title="Send to a client" onClick={() => setSendIds([m.id])}>
+                        <button className="btn-ghost" title={t("Send to a client")} onClick={() => setSendIds([m.id])}>
                           <SendIcon className="h-4 w-4" />
                         </button>
                       )}
@@ -112,7 +114,7 @@ export default function LibraryView({
               </div>
             ))}
             {groups.length === 0 && (
-              <div className="card p-8 text-center text-sm text-black/40">Nothing matches.</div>
+              <div className="card p-8 text-center text-sm text-black/40">{t("Nothing matches.")}</div>
             )}
           </div>
         </>

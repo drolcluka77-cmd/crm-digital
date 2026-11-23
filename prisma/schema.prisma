@@ -63,6 +63,7 @@ model User {
   prospectQuota        Int?
   // Products this seller wants recommended leads for (comma-separated ids; null = all they may sell).
   prospectProducts     String?
+  locale               String   @default("sl") // CRM language for sellers: "sl" or "en"
   prospectSegments     String? // JSON { leadGroupKey: ["Frizerski saloni", …] } — industries the seller wants leads for
   prospectsRecommended Prospect[] @relation("ProspectRecommended")
   prospectsClaimed     Prospect[] @relation("ProspectClaimed")

@@ -1,5 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import Badge from "@/components/Badge";
+import { getT } from "@/lib/i18n-server";
+import { useT } from "@/components/LocaleProvider";
 
 type Row = {
   id: string;
@@ -17,10 +21,11 @@ type Row = {
 const variant = (s: string) => (s === "SIGNED" ? "WON" : s === "CANCELLED" ? "LOST" : s === "IN_REVIEW" ? "WARN" : s === "SENT" ? "SENT" : s === "APPROVED" ? "INFO" : "MUTED");
 
 export default function ContractList({ rows, base, showSeller }: { rows: Row[]; base: string; showSeller?: boolean }) {
+  const t = useT();
   if (rows.length === 0) {
     return (
       <div className="card p-10 text-center text-sm text-black/40">
-        No contracts yet. Open a quote and click “Create contract”.
+        {t("No contracts yet. Open a quote and click “Create contract”.")}
       </div>
     );
   }
@@ -29,11 +34,11 @@ export default function ContractList({ rows, base, showSeller }: { rows: Row[]; 
       <table className="w-full text-sm">
         <thead>
           <tr className="text-left text-xs text-black/40 border-b border-black/5">
-            <th className="px-5 py-3 font-medium">Contract</th>
-            <th className="px-3 py-3 font-medium">Client</th>
-            {showSeller && <th className="px-3 py-3 font-medium">Seller</th>}
-            <th className="px-3 py-3 font-medium">Status</th>
-            <th className="px-5 py-3 font-medium">Proforma</th>
+            <th className="px-5 py-3 font-medium">{t("Contract")}</th>
+            <th className="px-3 py-3 font-medium">{t("Client")}</th>
+            {showSeller && <th className="px-3 py-3 font-medium">{t("Seller")}</th>}
+            <th className="px-3 py-3 font-medium">{t("Status")}</th>
+            <th className="px-5 py-3 font-medium">{t("Proforma")}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-black/5">
@@ -52,7 +57,7 @@ export default function ContractList({ rows, base, showSeller }: { rows: Row[]; 
               <td className="px-5 py-3 text-black/60">
                 {r.proformaNumber ? (
                   <>
-                    {r.proformaNumber} · {r.paid ? <span className="text-emerald-700">paid</span> : "unpaid"}
+                    {r.proformaNumber} · {r.paid ? <span className="text-emerald-700">{t("paid")}</span> : t("unpaid")}
                   </>
                 ) : (
                   "—"

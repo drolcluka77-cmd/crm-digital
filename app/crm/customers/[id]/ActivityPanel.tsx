@@ -11,6 +11,7 @@ import {
 } from "@/lib/constants";
 import { formatDateTime, timeAgo } from "@/lib/format";
 import { TrashIcon } from "@/components/icons";
+import { useT } from "@/components/LocaleProvider";
 
 type Activity = {
   id: string;
@@ -52,6 +53,7 @@ export default function ActivityPanel({
   currentStatus: string;
   activities: Activity[];
 }) {
+  const t = useT();
   const router = useRouter();
   const [type, setType] = useState<string>("CALL");
   const [busy, setBusy] = useState(false);
@@ -69,7 +71,7 @@ export default function ActivityPanel({
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Delete this entry?")) return;
+    if (!confirm(t("Delete this entry?"))) return;
     await deleteActivity(id);
     router.refresh();
   }
@@ -78,14 +80,14 @@ export default function ActivityPanel({
     <div className="card">
       <div className="px-5 pt-5">
         <div className="flex flex-wrap gap-1.5 mb-3">
-          {MANUAL_ACTIVITY_TYPES.map((t) => (
+          {MANUAL_ACTIVITY_TYPES.map((ty) => (
             <button
-              key={t}
+              key={ty}
               type="button"
-              onClick={() => setType(t)}
-              className={type === t ? "chip-active text-xs px-3 py-1" : "chip text-xs px-3 py-1"}
+              onClick={() => setType(ty)}
+              className={type === ty ? "chip-active text-xs px-3 py-1" : "chip text-xs px-3 py-1"}
             >
-              {ACTIVITY_TYPE_LABEL[t]}
+              {t(ACTIVITY_TYPE_LABEL[ty])}
             </button>
           ))}
         </div>
@@ -104,35 +106,35 @@ export default function ActivityPanel({
             name="body"
             required
             className="input min-h-[80px]"
-            placeholder={PLACEHOLDER[type]}
+            placeholder={t(PLACEHOLDER[type])}
           />
           <div className="flex flex-wrap items-end gap-3">
             <div>
-              <label className="label">Next follow-up</label>
+              <label className="label">{t("Next follow-up")}</label>
               <input name="nextFollowUpAt" type="date" className="input py-2" />
             </div>
             <div>
-              <label className="label">Move to stage</label>
+              <label className="label">{t("Move to stage")}</label>
               <select name="status" defaultValue="" className="input py-2">
-                <option value="">— keep {LEAD_STATUS_LABEL[currentStatus]} —</option>
+                <option value="">{t("— keep ")}{t(LEAD_STATUS_LABEL[currentStatus])} —</option>
                 {LEAD_STATUSES.filter((s) => s !== currentStatus).map((s) => (
                   <option key={s} value={s}>
-                    {LEAD_STATUS_LABEL[s]}
+                    {t(LEAD_STATUS_LABEL[s])}
                   </option>
                 ))}
               </select>
             </div>
             <button type="submit" className="btn-primary ml-auto" disabled={busy}>
-              {busy ? "Saving…" : `Log ${ACTIVITY_TYPE_LABEL[type].toLowerCase()}`}
+              {busy ? t("Saving…") : t("Log {what}", { what: t(ACTIVITY_TYPE_LABEL[type]).toLowerCase() })}
             </button>
           </div>
         </form>
       </div>
 
       <div className="mt-5 border-t border-black/5 px-5 py-4">
-        <div className="section-title mb-3">Timeline</div>
+        <div className="section-title mb-3">{t("Timeline")}</div>
         {activities.length === 0 ? (
-          <div className="text-sm text-black/40 py-4 text-center">No activity yet.</div>
+          <div className="text-sm text-black/40 py-4 text-center">{t("No activity yet.")}</div>
         ) : (
           <ol className="relative border-l border-black/10 ml-1.5 space-y-4">
             {activities.map((a) => (
@@ -143,7 +145,7 @@ export default function ActivityPanel({
                   }`}
                 />
                 <div className="flex items-baseline gap-2 text-sm">
-                  <span className="font-medium">{ACTIVITY_TYPE_LABEL[a.type] || a.type}</span>
+                  <span className="font-medium">{t(ACTIVITY_TYPE_LABEL[a.type] || a.type)}</span>
                   <span className="text-xs text-black/35" title={formatDateTime(a.createdAt)}>
                     {timeAgo(a.createdAt)}
                     {a.userName ? ` · ${a.userName}` : ""}
@@ -152,7 +154,7 @@ export default function ActivityPanel({
                     <button
                       onClick={() => handleDelete(a.id)}
                       className="ml-auto opacity-0 group-hover:opacity-100 text-black/30 hover:text-rose-500"
-                      title="Delete"
+                      title={t("Delete")}
                     >
                       <TrashIcon className="h-3.5 w-3.5" />
                     </button>

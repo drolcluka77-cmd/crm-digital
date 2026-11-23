@@ -10,6 +10,7 @@ import CsvImport from "@/components/CsvImport";
 import CustomerForm from "./CustomerForm";
 import { LEAD_STATUSES, LEAD_STATUS_LABEL, LEAD_TYPE_BADGE, LEAD_TYPE_LABEL } from "@/lib/constants";
 import { followUpLabel, formatMoney, timeAgo } from "@/lib/format";
+import { useT } from "@/components/LocaleProvider";
 
 type Row = {
   id: string;
@@ -53,6 +54,7 @@ export default function CustomersManager({
   initialProduct?: string;
   initialDue?: FollowUpFilter;
 }) {
+  const t = useT();
   const [query, setQuery] = useState("");
   const [stage, setStage] = useState(initialStage || "OPEN");
   const [product, setProduct] = useState(initialProduct || "ALL");
@@ -109,13 +111,13 @@ export default function CustomersManager({
     <div>
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Customers</h1>
-          <p className="text-black/50 text-sm mt-1">Your leads and clients, from first call to signed deal.</p>
+          <h1 className="text-2xl font-semibold tracking-tight">{t("Customers")}</h1>
+          <p className="text-black/50 text-sm mt-1">{t("Your leads and clients, from first call to signed deal.")}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <CsvImport
             onImport={importMyLeads}
-            hint="Import your own lead list. Leads are added to your customers as New leads. Contacts that already exist in the CRM (same email) are skipped."
+            hint={t("Import your own lead list. Leads are added to your customers as New leads. Contacts that already exist in the CRM (same email) are skipped.")}
           />
           <button
             className="btn-primary"
@@ -125,7 +127,7 @@ export default function CustomersManager({
             }}
           >
             <PlusIcon className="h-4 w-4" />
-            Add customer
+            {t("Add customer")}
           </button>
         </div>
       </div>
@@ -133,7 +135,7 @@ export default function CustomersManager({
       <div className="flex flex-wrap gap-2 mb-4">
         {stages.map((s) => (
           <button key={s} onClick={() => setStage(s)} className={stage === s ? "chip-active" : "chip"}>
-            {s === "OPEN" ? "Open" : s === "ALL" ? "All" : LEAD_STATUS_LABEL[s]}
+            {s === "OPEN" ? t("Open") : s === "ALL" ? t("All") : LEAD_STATUS_LABEL[s]}
             <span className="ml-1.5 opacity-60">{counts[s] ?? 0}</span>
           </button>
         ))}
@@ -145,13 +147,13 @@ export default function CustomersManager({
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search name, company, city, segment…"
+            placeholder={t("Search name, company, city, segment…")}
             className="input pl-10"
           />
         </div>
         {products.length > 1 && (
           <select value={product} onChange={(e) => setProduct(e.target.value)} className="input w-auto">
-            <option value="ALL">All products</option>
+            <option value="ALL">{t("All products")}</option>
             {products.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
@@ -163,12 +165,12 @@ export default function CustomersManager({
           value={followUp}
           onChange={(e) => setFollowUp(e.target.value as FollowUpFilter)}
           className="input w-auto"
-          aria-label="Follow-up"
+          aria-label={t("Follow-up")}
         >
-          <option value="ANY">Any follow-up</option>
-          <option value="DUE">Follow-up due (today or overdue)</option>
-          <option value="WEEK">Follow-ups in the next 7 days</option>
-          <option value="SCHEDULED">All scheduled follow-ups</option>
+          <option value="ANY">{t("Any follow-up")}</option>
+          <option value="DUE">{t("Follow-up due (today or overdue)")}</option>
+          <option value="WEEK">{t("Follow-ups in the next 7 days")}</option>
+          <option value="SCHEDULED">{t("All scheduled follow-ups")}</option>
         </select>
       </div>
 
@@ -176,12 +178,12 @@ export default function CustomersManager({
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-xs text-black/40 border-b border-black/5">
-              <th className="px-5 py-3 font-medium">Customer</th>
-              <th className="px-3 py-3 font-medium">Products</th>
-              <th className="px-3 py-3 font-medium">Stage</th>
-              <th className="px-3 py-3 font-medium">Follow-up</th>
-              <th className="px-3 py-3 font-medium text-right">Est. value</th>
-              <th className="px-5 py-3 font-medium text-right">Last contact</th>
+              <th className="px-5 py-3 font-medium">{t("Customer")}</th>
+              <th className="px-3 py-3 font-medium">{t("Products")}</th>
+              <th className="px-3 py-3 font-medium">{t("Stage")}</th>
+              <th className="px-3 py-3 font-medium">{t("Follow-up")}</th>
+              <th className="px-3 py-3 font-medium text-right">{t("Est. value")}</th>
+              <th className="px-5 py-3 font-medium text-right">{t("Last contact")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-black/5">
@@ -195,7 +197,7 @@ export default function CustomersManager({
                         {c.company || c.name}
                         {c.leadType !== "OTHER" && (
                           <Badge variant={LEAD_TYPE_BADGE[c.leadType] || "MUTED"} className="!text-[10px] !py-0">
-                            {c.warmPending ? "🔥 accept" : LEAD_TYPE_LABEL[c.leadType]}
+                            {c.warmPending ? t("🔥 accept") : LEAD_TYPE_LABEL[c.leadType]}
                           </Badge>
                         )}
                       </div>
@@ -225,7 +227,7 @@ export default function CustomersManager({
                     </div>
                   </td>
                   <td className="px-3 py-3">
-                    <Badge variant={c.status}>{LEAD_STATUS_LABEL[c.status]}</Badge>
+                    <Badge variant={c.status}>{t(LEAD_STATUS_LABEL[c.status])}</Badge>
                   </td>
                   <td className="px-3 py-3 whitespace-nowrap">
                     {f ? (
@@ -245,7 +247,7 @@ export default function CustomersManager({
                     {c.estimatedValue ? formatMoney(c.estimatedValue) : <span className="text-black/25">—</span>}
                   </td>
                   <td className="px-5 py-3 text-right text-xs text-black/45 whitespace-nowrap">
-                    {c.lastContactAt ? timeAgo(c.lastContactAt) : "never"}
+                    {c.lastContactAt ? timeAgo(c.lastContactAt) : t("never")}
                   </td>
                 </tr>
               );
@@ -254,8 +256,8 @@ export default function CustomersManager({
               <tr>
                 <td colSpan={6} className="px-5 py-12 text-center text-black/40 text-sm">
                   {customers.length === 0
-                    ? "No customers yet. Add your first lead to get started."
-                    : "No customers match these filters."}
+                    ? t("No customers yet. Add your first lead to get started.")
+                    : t("No customers match these filters.")}
                 </td>
               </tr>
             )}
@@ -263,7 +265,7 @@ export default function CustomersManager({
         </table>
       </div>
 
-      <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Add customer" wide>
+      <Modal open={addOpen} onClose={() => setAddOpen(false)} title={t("Add customer")} wide>
         <CustomerForm
           products={products}
           busy={busy}

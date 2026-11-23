@@ -5,6 +5,7 @@ import Link from "next/link";
 import { PlayIcon, LinkIcon, SendIcon, PlusIcon } from "@/components/icons";
 import SendMaterialsModal from "@/app/crm/SendMaterialsModal";
 import type { SellerMaterial } from "@/lib/seller";
+import { useT } from "@/components/LocaleProvider";
 
 export default function ProductActions({
   productId,
@@ -21,6 +22,7 @@ export default function ProductActions({
   customers: { id: string; name: string; company: string | null; email: string | null }[];
   canSell: boolean;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const sendable = materials.filter((m) => !m.internalOnly);
 
@@ -28,20 +30,20 @@ export default function ProductActions({
     <div className="flex flex-wrap gap-2">
       {demoUrl && (
         <a href={demoUrl} target="_blank" rel="noreferrer" className="btn-primary">
-          <PlayIcon className="h-4 w-4" /> Open demo
+          <PlayIcon className="h-4 w-4" />{t(" Open demo")}
         </a>
       )}
       {websiteUrl && (
         <a href={websiteUrl} target="_blank" rel="noreferrer" className="btn-secondary">
-          <LinkIcon className="h-4 w-4" /> Website
+          <LinkIcon className="h-4 w-4" />{t(" Website")}
         </a>
       )}
       <button className="btn-secondary" onClick={() => setOpen(true)} disabled={!canSell || sendable.length === 0}>
-        <SendIcon className="h-4 w-4" /> Send to a client
+        <SendIcon className="h-4 w-4" />{t(" Send to a client")}
       </button>
       {canSell && (
         <Link href={`/crm/quotes/new?productId=${productId}`} className="btn-secondary">
-          <PlusIcon className="h-4 w-4" /> Quote
+          <PlusIcon className="h-4 w-4" />{t(" Quote")}
         </Link>
       )}
       <SendMaterialsModal

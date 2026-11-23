@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { changeMyPassword } from "./actions";
+import { useT } from "@/components/LocaleProvider";
 
 export default function AccountForm() {
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -23,8 +25,8 @@ export default function AccountForm() {
 
   return (
     <div className="card p-6 max-w-md">
-      <h2 className="font-semibold mb-1">Change password</h2>
-      <p className="text-sm text-black/50 mb-4">Update your own login password.</p>
+      <h2 className="font-semibold mb-1">{t("Change password")}</h2>
+      <p className="text-sm text-black/50 mb-4">{t("Update your own login password.")}</p>
       {error && (
         <div className="rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 mb-4">
           {error}
@@ -45,11 +47,11 @@ export default function AccountForm() {
         }}
       >
         <div>
-          <label className="label">Current password</label>
+          <label className="label">{t("Current password")}</label>
           <input name="currentPassword" type="password" required className="input" />
         </div>
         <div>
-          <label className="label">New password</label>
+          <label className="label">{t("New password")}</label>
           <input
             name="newPassword"
             type="password"
@@ -59,7 +61,7 @@ export default function AccountForm() {
           />
         </div>
         <button type="submit" className="btn-primary" disabled={busy}>
-          {busy ? "Updating…" : "Update password"}
+          {busy ? t("Updating…") : t("Update password")}
         </button>
       </form>
     </div>

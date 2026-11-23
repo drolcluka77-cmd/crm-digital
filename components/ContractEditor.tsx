@@ -15,6 +15,7 @@ import {
   sendContract,
   submitContractForReview,
 } from "@/lib/contract-actions";
+import { useT } from "@/components/LocaleProvider";
 
 export type ContractView = {
   id: string;
@@ -71,6 +72,7 @@ export default function ContractEditor({
   customerHref: string | null;
   quoteHref: string | null;
 }) {
+  const t = useT();
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ error?: string; success?: string } | null>(null);
@@ -118,48 +120,48 @@ export default function ContractEditor({
       <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight">Contract {c.number}</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">{t("Contract ")}{c.number}</h1>
             <Badge variant={statusVariant as any}>{c.statusLabel}</Badge>
           </div>
           <div className="text-sm text-black/50 mt-1">
             {customerHref ? <Link href={customerHref} className="underline">{c.customerName}</Link> : c.customerName}
-            {" · "}from quote {quoteHref ? <Link href={quoteHref} className="underline">{c.quoteNumber}</Link> : c.quoteNumber}
-            {" · "}seller {c.sellerName}
+            {" · "}{t("from quote ")}{quoteHref ? <Link href={quoteHref} className="underline">{c.quoteNumber}</Link> : c.quoteNumber}
+            {" · "}{t("seller ")}{c.sellerName}
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <a href={`/api/contracts/${c.id}/pdf`} target="_blank" rel="noreferrer" className="btn-secondary">PDF</a>
+          <a href={`/api/contracts/${c.id}/pdf`} target="_blank" rel="noreferrer" className="btn-secondary">{t("PDF")}</a>
           {c.proformaNumber && (
             <a href={`/api/contracts/${c.id}/predracun`} target="_blank" rel="noreferrer" className="btn-secondary">
-              Proforma {c.proformaNumber}
+              {t("Proforma ")}{c.proformaNumber}
             </a>
           )}
         </div>
       </div>
 
-      {msg?.error && <div className="error-box mb-4">{msg.error}</div>}
-      {msg?.success && <div className="success-box mb-4 break-all">{msg.success}</div>}
+      {msg?.error && <div className="error-box mb-4">{t(msg.error)}</div>}
+      {msg?.success && <div className="success-box mb-4 break-all">{t(msg.success)}</div>}
 
       {c.reviewNote && c.status === "DRAFT" && (
         <div className="mb-4 rounded-xl border px-4 py-3 text-sm bg-amber-50 border-amber-200 text-amber-800">
-          <div className="font-medium">Changes requested{c.reviewedBy ? ` by ${c.reviewedBy}` : ""}</div>
+          <div className="font-medium">{t("Changes requested")}{c.reviewedBy ? ` by ${c.reviewedBy}` : ""}</div>
           <div className="mt-0.5 whitespace-pre-wrap">{c.reviewNote}</div>
         </div>
       )}
       {c.status === "APPROVED" && (
         <div className="success-box mb-4">
-          Approved{c.reviewedBy ? ` by ${c.reviewedBy}` : ""}. You can send it for signature.
+          {t("Approved")}{c.reviewedBy ? ` by ${c.reviewedBy}` : ""}{t(". You can send it for signature.")}
           {c.reviewNote ? ` Note: “${c.reviewNote}”` : ""}
         </div>
       )}
       {c.status === "IN_REVIEW" && !staff && (
         <div className="mb-4 rounded-xl border px-4 py-3 text-sm bg-amber-50 border-amber-200 text-amber-800">
-          Waiting for your manager&apos;s review. You&apos;ll get a notification.
+          {t("Waiting for your manager's review. You'll get a notification.")}
         </div>
       )}
       {editable && c.problems.length > 0 && (
         <div className="mb-4 rounded-xl border px-4 py-3 text-sm bg-amber-50 border-amber-200 text-amber-800">
-          <div className="font-medium">Before it can be sent</div>
+          <div className="font-medium">{t("Before it can be sent")}</div>
           <ul className="list-disc pl-5 mt-1">
             {c.problems.map((p) => (
               <li key={p}>{p}</li>
@@ -172,23 +174,23 @@ export default function ContractEditor({
       <div className="card p-4 mb-5 flex flex-wrap items-center gap-2">
         {c.status === "DRAFT" && reviewRequired && !staff && (
           <button className="btn-primary" disabled={!!busy} onClick={() => saveThen("review", () => submitContractForReview(c.id))}>
-            {busy === "review" ? "Sending…" : "Send for review"}
+            {busy === "review" ? t("Sending…") : t("Send for review")}
           </button>
         )}
         {staff && (c.status === "IN_REVIEW" || c.status === "DRAFT") && (
           <>
             <input
               className="input flex-1 min-w-[200px]"
-              placeholder="Note for the seller (optional)"
+              placeholder={t("Note for the seller (optional)")}
               value={note}
               onChange={(e) => setNote(e.target.value)}
             />
             <button className="btn-primary" disabled={!!busy} onClick={() => saveThen("approve", () => reviewContract(c.id, true, note))}>
-              {busy === "approve" ? "Approving…" : "Approve"}
+              {busy === "approve" ? t("Approving…") : t("Approve")}
             </button>
             {c.status === "IN_REVIEW" && (
               <button className="btn-secondary" disabled={!!busy} onClick={() => run("back", () => reviewContract(c.id, false, note))}>
-                Request changes
+                {t("Request changes")}
               </button>
             )}
           </>
@@ -202,14 +204,14 @@ export default function ContractEditor({
               saveThen("send", () => sendContract(c.id));
             }}
           >
-            {busy === "send" ? "Sending…" : "Send for signature"}
+            {busy === "send" ? t("Sending…") : t("Send for signature")}
           </button>
         )}
         {c.status === "SENT" && (
           <>
             <div className="text-sm text-black/60">
-              Sent {fmt(c.sentAt)} to {c.clientEmail}
-              {c.viewedAt ? ` · opened ${fmt(c.viewedAt)}` : " · not opened yet"}
+              {t("Sent ")}{fmt(c.sentAt)}{t(" to ")}{c.clientEmail}
+              {c.viewedAt ? ` · opened ${fmt(c.viewedAt)}` : t(" · not opened yet")}
             </div>
             <span className="flex-1" />
             {c.signingLink && (
@@ -220,26 +222,26 @@ export default function ContractEditor({
                   setMsg({ success: `Signing link copied: ${c.signingLink}` });
                 }}
               >
-                Copy signing link
+                {t("Copy signing link")}
               </button>
             )}
             <button className="btn-secondary" disabled={!!busy} onClick={() => run("send", () => sendContract(c.id))}>
-              Send again
+              {t("Send again")}
             </button>
           </>
         )}
         {c.status === "SIGNED" && (
           <div className="text-sm space-y-0.5">
             <div className="font-medium text-emerald-700">
-              ✅ Signed by {c.signedName}
+              {t("✅ Signed by ")}{c.signedName}
               {c.signedTitle ? `, ${c.signedTitle}` : ""} · {fmt(c.signedAt)}
             </div>
             <div className="text-black/55">
-              Proforma {c.proformaNumber}: <b>{c.proformaTotal}</b>
+              {t("Proforma ")}{c.proformaNumber}: <b>{c.proformaTotal}</b>
               {c.proformaDueAt ? `, due ${new Date(c.proformaDueAt).toLocaleDateString("sl-SI")}` : ""} ·{" "}
-              {c.paidAt ? <span className="text-emerald-700 font-medium">paid {fmt(c.paidAt)}</span> : "not paid yet"}
+              {c.paidAt ? <span className="text-emerald-700 font-medium">{t("paid ")}{fmt(c.paidAt)}</span> : t("not paid yet")}
             </div>
-            <div className="text-xs text-black/40 break-all">IP {c.signedIp} · SHA-256 {c.documentHash}</div>
+            <div className="text-xs text-black/40 break-all">{t("IP ")}{c.signedIp}{t(" · SHA-256 ")}{c.documentHash}</div>
           </div>
         )}
         {c.status === "SIGNED" && !c.paidAt && (
@@ -253,12 +255,12 @@ export default function ContractEditor({
                   setMsg({ success: `Card payment link copied: ${c.paymentLinkUrl}` });
                 }}
               >
-                Copy payment link
+                {t("Copy payment link")}
               </button>
             ) : (
               c.revolut && (
                 <button className="btn-secondary" disabled={!!busy} onClick={() => run("paylink", () => createPaymentLink(c.id))}>
-                  {busy === "paylink" ? "Creating…" : "Create card payment link"}
+                  {busy === "paylink" ? t("Creating…") : t("Create card payment link")}
                 </button>
               )
             )}
@@ -267,7 +269,7 @@ export default function ContractEditor({
         {c.status === "SIGNED" && staff && (
           <>
             <button className="btn-secondary" disabled={!!busy} onClick={() => run("paid", () => markContractPaid(c.id, !c.paidAt))}>
-              {c.paidAt ? "Mark as unpaid" : "Mark as paid"}
+              {c.paidAt ? t("Mark as unpaid") : t("Mark as paid")}
             </button>
           </>
         )}
@@ -281,7 +283,7 @@ export default function ContractEditor({
                 if (confirm("Cancel this contract? The signing link stops working.")) run("cancel", () => cancelContract(c.id));
               }}
             >
-              Cancel contract
+              {t("Cancel contract")}
             </button>
           </>
         )}
@@ -294,7 +296,7 @@ export default function ContractEditor({
                 run("del", () => deleteContract(c.id), () => router.push(quoteHref || "/"));
             }}
           >
-            Delete
+            {t("Delete")}
           </button>
         )}
       </div>
@@ -310,20 +312,20 @@ export default function ContractEditor({
         }}
       >
         <div className="card p-5 space-y-3 h-fit">
-          <div className="section-title">Client on the contract</div>
-          <Field label="Company" name="clientCompany" value={c.clientCompany} disabled={!editable} />
-          <Field label="Address (street, post code and town)" name="clientAddress" value={c.clientAddress} disabled={!editable} placeholder="Slovenska cesta 1, 1000 Ljubljana" />
-          <Field label="Registration no. (matična)" name="clientRegNo" value={c.clientRegNo} disabled={!editable} />
-          <Field label="Tax / VAT no. (davčna / ID za DDV)" name="clientVatId" value={c.clientVatId} disabled={!editable} />
-          <Field label="Signs for the client (name, role)" name="clientRepresentative" value={c.clientRepresentative} disabled={!editable} placeholder="Ana Novak, direktorica" />
-          <Field label="E-mail for signing" name="clientEmail" value={c.clientEmail} disabled={!editable} type="email" />
+          <div className="section-title">{t("Client on the contract")}</div>
+          <Field label={t("Company")} name="clientCompany" value={c.clientCompany} disabled={!editable} />
+          <Field label={t("Address (street, post code and town)")} name="clientAddress" value={c.clientAddress} disabled={!editable} placeholder={t("Slovenska cesta 1, 1000 Ljubljana")} />
+          <Field label={t("Registration no. (matična)")} name="clientRegNo" value={c.clientRegNo} disabled={!editable} />
+          <Field label={t("Tax / VAT no. (davčna / ID za DDV)")} name="clientVatId" value={c.clientVatId} disabled={!editable} />
+          <Field label={t("Signs for the client (name, role)")} name="clientRepresentative" value={c.clientRepresentative} disabled={!editable} placeholder={t("Ana Novak, direktorica")} />
+          <Field label={t("E-mail for signing")} name="clientEmail" value={c.clientEmail} disabled={!editable} type="email" />
           <p className="text-xs text-black/40">
-            Look the company up on bizi.si or ajpes.si. After changing these, use “Rebuild text” so the contract picks them up.
+            {t("Look the company up on bizi.si or ajpes.si. After changing these, use “Rebuild text” so the contract picks them up.")}
           </p>
         </div>
         <div className="card p-5">
           <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-            <Field label="Title" name="title" value={c.title} disabled={!editable} />
+            <Field label={t("Title")} name="title" value={c.title} disabled={!editable} />
           </div>
           <textarea
             name="body"
@@ -334,7 +336,7 @@ export default function ContractEditor({
           />
           {editable && (
             <div className="flex flex-wrap gap-2 mt-3">
-              <button className="btn-primary" disabled={!!busy}>{busy === "save" ? "Saving…" : dirty ? "Save changes" : "Save"}</button>
+              <button className="btn-primary" disabled={!!busy}>{busy === "save" ? t("Saving…") : dirty ? t("Save changes") : t("Save")}</button>
               <button
                 type="button"
                 className="btn-secondary"
@@ -344,10 +346,10 @@ export default function ContractEditor({
                     run("regen", () => regenerateContract(c.id, formData()));
                 }}
               >
-                {busy === "regen" ? "Rebuilding…" : "Rebuild text"}
+                {busy === "regen" ? t("Rebuilding…") : t("Rebuild text")}
               </button>
               {c.status === "APPROVED" && !staff && reviewRequired && (
-                <span className="text-xs text-black/45 self-center">Saving changes sends it back for review.</span>
+                <span className="text-xs text-black/45 self-center">{t("Saving changes sends it back for review.")}</span>
               )}
             </div>
           )}

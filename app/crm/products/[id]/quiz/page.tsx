@@ -4,10 +4,12 @@ import { prisma } from "@/lib/prisma";
 import { requireSales } from "@/lib/session";
 import { canAccessProduct } from "@/lib/access";
 import QuizForm from "./QuizForm";
+import { getT } from "@/lib/i18n-server";
 
 export const dynamic = "force-dynamic";
 
 export default async function QuizPage({ params }: { params: { id: string } }) {
+  const t = await getT();
   const user = await requireSales();
   if (!(await canAccessProduct(user, params.id))) notFound();
 
@@ -24,18 +26,18 @@ export default async function QuizPage({ params }: { params: { id: string } }) {
         ← {product.name}
       </Link>
       <div className="mt-3 mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">{product.name} — certification</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{product.name}{t(" — certification")}</h1>
         <p className="text-black/50 text-sm mt-1">
-          {questions.length} questions · pass mark {product.passScore}%.
+          {questions.length}{t(" questions · pass mark ")}{product.passScore}%.
           {cert?.passedAt ? ` ✅ You passed (best ${cert.bestScore}%) — you can retake it any time.` : ""}
           {!cert?.passedAt && cert?.attempts ? ` Attempts so far: ${cert.attempts}, best ${cert.bestScore}%.` : ""}
         </p>
         <p className="text-sm text-black/50 mt-1">
-          Tip: read the playbook first — the answers are all in there.
+          {t("Tip: read the playbook first — the answers are all in there.")}
         </p>
       </div>
       {questions.length === 0 ? (
-        <div className="card p-8 text-center text-sm text-black/40">This product doesn&apos;t have a quiz yet.</div>
+        <div className="card p-8 text-center text-sm text-black/40">{t("This product doesn't have a quiz yet.")}</div>
       ) : (
         <QuizForm
           productId={product.id}

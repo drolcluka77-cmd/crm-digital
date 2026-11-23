@@ -8,6 +8,7 @@ import { BILLINGS, BILLING_LABEL, BILLING_SUFFIX } from "@/lib/constants";
 import { createQuote, updateQuote } from "./actions";
 import { checkDiscounts } from "@/lib/guardrails";
 import Link from "next/link";
+import { useT } from "@/components/LocaleProvider";
 
 export type BuilderPlan = {
   id: string;
@@ -76,6 +77,7 @@ export default function QuoteBuilder({
   /** Seller's personal commission % (replaces the product rate when set). */
   commissionOverride?: number | null;
 }) {
+  const t = useT();
   const router = useRouter();
   const [customerId, setCustomerId] = useState(initialCustomerId || "");
   const [items, setItems] = useState<LineItem[]>(quote?.items || []);
@@ -224,9 +226,9 @@ export default function QuoteBuilder({
       <div className="lg:col-span-2 space-y-4">
         {mode === "create" && (
           <div className="card p-5">
-            <label className="label">Customer</label>
+            <label className="label">{t("Customer")}</label>
             <select className="input" value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
-              <option value="">Choose a customer…</option>
+              <option value="">{t("Choose a customer…")}</option>
               {customers.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.company ? `${c.company} — ${c.name}` : c.name}
@@ -239,9 +241,9 @@ export default function QuoteBuilder({
         {!readOnly && (
           <div className="card p-5">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="font-semibold text-sm">Your products</h2>
+              <h2 className="font-semibold text-sm">{t("Your products")}</h2>
               <button type="button" className="text-xs text-brand-600 hover:underline" onClick={() => addCustomLine()}>
-                + custom line
+                {t("+ custom line")}
               </button>
             </div>
             <div className="relative mb-3">
@@ -249,7 +251,7 @@ export default function QuoteBuilder({
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search products & plans…"
+                placeholder={t("Search products & plans…")}
                 className="input pl-9 text-sm"
               />
             </div>
@@ -277,21 +279,21 @@ export default function QuoteBuilder({
                       <div className="min-w-0 flex-1">
                         <div className="text-sm font-medium truncate">{p.name}</div>
                         <div className="text-xs text-black/40">
-                          {p.plans.length} plan{p.plans.length === 1 ? "" : "s"}
+                          {p.plans.length}{t(" plan")}{p.plans.length === 1 ? "" : "s"}
                           {(commissionOverride ?? p.commissionRate) > 0
                             ? ` · ${commissionOverride ?? p.commissionRate}% commission`
                             : ""}
                           {p.maxDiscount !== null ? ` · max ${p.maxDiscount}% off` : ""}
-                          {!p.canSell ? " · 🔒 quiz needed" : ""}
+                          {!p.canSell ? t(" · 🔒 quiz needed") : ""}
                         </div>
                       </div>
                       <span className="text-black/30 text-xs">{open ? "−" : "+"}</span>
                     </button>
                     {open && !p.canSell && (
                       <div className="border-t border-black/5 bg-amber-50 p-3 text-xs text-amber-800">
-                        Pass the certification quiz to quote this product.{" "}
+                        {t("Pass the certification quiz to quote this product.")}{" "}
                         <Link href={`/crm/products/${p.id}/quiz`} className="font-medium underline">
-                          Take the quiz →
+                          {t("Take the quiz →")}
                         </Link>
                       </div>
                     )}
@@ -319,7 +321,7 @@ export default function QuoteBuilder({
                           onClick={() => addCustomLine(p.id)}
                           className="w-full text-xs text-black/45 hover:text-brand-600 py-1"
                         >
-                          + custom line for {p.name}
+                          {t("+ custom line for ")}{p.name}
                         </button>
                       </div>
                     )}
@@ -328,7 +330,7 @@ export default function QuoteBuilder({
               })}
               {filteredProducts.length === 0 && (
                 <div className="text-center text-sm text-black/35 py-8">
-                  {products.length === 0 ? "No products assigned to you yet." : "No products found."}
+                  {products.length === 0 ? t("No products assigned to you yet.") : t("No products found.")}
                 </div>
               )}
             </div>
@@ -341,25 +343,25 @@ export default function QuoteBuilder({
         <div className="card">
           <div className="px-5 py-4 border-b border-black/5 flex items-center justify-between">
             <h2 className="font-semibold text-sm">
-              {mode === "edit" ? `Quote for ${quote?.customerName}` : "Quote lines"}
+              {mode === "edit" ? `Quote for ${quote?.customerName}` : t("Quote lines")}
             </h2>
             <span className="text-xs text-black/40">
-              {items.length} line{items.length === 1 ? "" : "s"}
+              {items.length}{t(" line")}{items.length === 1 ? "" : "s"}
             </span>
           </div>
 
           {items.length === 0 ? (
             <div className="px-5 py-12 text-center text-black/35 text-sm">
-              Pick a plan on the left, or add a custom line.
+              {t("Pick a plan on the left, or add a custom line.")}
             </div>
           ) : (
             <div className="divide-y divide-black/5">
               <div className="hidden md:grid grid-cols-[1fr_56px_96px_104px_88px_20px] gap-2 px-5 pt-3 text-[10px] uppercase tracking-wide text-black/35">
-                <span>Item</span>
-                <span className="text-center">Qty</span>
-                <span>Price €</span>
-                <span>Billing</span>
-                <span className="text-right">Line</span>
+                <span>{t("Item")}</span>
+                <span className="text-center">{t("Qty")}</span>
+                <span>{t("Price €")}</span>
+                <span>{t("Billing")}</span>
+                <span className="text-right">{t("Line")}</span>
                 <span />
               </div>
               {items.map((item) => (
@@ -373,14 +375,14 @@ export default function QuoteBuilder({
                       disabled={readOnly}
                       onChange={(e) => updateItem(item.key, { name: e.target.value })}
                       className="input text-sm py-2"
-                      placeholder="Item name"
+                      placeholder={t("Item name")}
                     />
                     <input
                       value={item.unitLabel || ""}
                       disabled={readOnly}
                       onChange={(e) => updateItem(item.key, { unitLabel: e.target.value || null })}
                       className="mt-1 w-full text-xs text-black/50 bg-transparent px-1 focus:outline-none"
-                      placeholder="per… (optional)"
+                      placeholder={t("per… (optional)")}
                     />
                   </div>
                   <input
@@ -408,7 +410,7 @@ export default function QuoteBuilder({
                   >
                     {BILLINGS.map((b) => (
                       <option key={b} value={b}>
-                        {BILLING_LABEL[b]}
+                        {t(BILLING_LABEL[b])}
                       </option>
                     ))}
                   </select>
@@ -437,7 +439,7 @@ export default function QuoteBuilder({
 
         <div className="card p-5 grid grid-cols-3 gap-4">
           <div>
-            <label className="label">Discount (%)</label>
+            <label className="label">{t("Discount (%)")}</label>
             <input
               type="number"
               min={0}
@@ -450,7 +452,7 @@ export default function QuoteBuilder({
             />
           </div>
           <div>
-            <label className="label">VAT (%)</label>
+            <label className="label">{t("VAT (%)")}</label>
             <input
               type="number"
               min={0}
@@ -462,7 +464,7 @@ export default function QuoteBuilder({
             />
           </div>
           <div>
-            <label className="label">Valid until</label>
+            <label className="label">{t("Valid until")}</label>
             <input
               type="date"
               disabled={readOnly}
@@ -472,34 +474,34 @@ export default function QuoteBuilder({
             />
           </div>
           <div className="col-span-3">
-            <label className="label">Notes & terms (shown on the quote)</label>
+            <label className="label">{t("Notes & terms (shown on the quote)")}</label>
             <textarea
               value={notes}
               disabled={readOnly}
               onChange={(e) => setNotes(e.target.value)}
               className="input min-h-[70px]"
-              placeholder="Onboarding included, minimum term 12 months, payment terms…"
+              placeholder={t("Onboarding included, minimum term 12 months, payment terms…")}
             />
           </div>
         </div>
 
         <div className="card p-5">
-          {breakdown.groups.length === 0 && <div className="text-sm text-black/40">No lines yet.</div>}
+          {breakdown.groups.length === 0 && <div className="text-sm text-black/40">{t("No lines yet.")}</div>}
           <div className="space-y-4">
             {breakdown.groups.map((g) => {
               const sfx = BILLING_SUFFIX[g.billing];
               return (
                 <div key={g.billing} className="space-y-1.5 text-sm">
                   {breakdown.groups.length > 1 && (
-                    <div className="section-title text-brand-600">{BILLING_LABEL[g.billing]}</div>
+                    <div className="section-title text-brand-600">{t(BILLING_LABEL[g.billing])}</div>
                   )}
-                  <Row label="Subtotal" value={formatMoney(g.subtotal) + sfx} />
+                  <Row label={t("Subtotal")} value={formatMoney(g.subtotal) + sfx} />
                   {discount > 0 && (
                     <Row label={`Discount (${discount}%)`} value={`-${formatMoney(g.discountAmount)}${sfx}`} />
                   )}
                   <Row label={`VAT (${vatRate}%)`} value={formatMoney(g.vatAmount) + sfx} />
                   <div className="flex justify-between text-base font-semibold pt-1.5 border-t border-black/5">
-                    <span>Total</span>
+                    <span>{t("Total")}</span>
                     <span>
                       {formatMoney(g.total)}
                       {sfx}
@@ -513,12 +515,12 @@ export default function QuoteBuilder({
           {items.length > 0 && (
             <div className="mt-4 rounded-xl bg-sand-50 px-4 py-3 flex flex-wrap items-center justify-between gap-2 text-sm">
               <span className="text-black/55">
-                First-year value (excl. VAT): <strong className="text-ink-900">{formatMoney(breakdown.annualNet)}</strong>
+                {t("First-year value (excl. VAT): ")}<strong className="text-ink-900">{formatMoney(breakdown.annualNet)}</strong>
               </span>
               {breakdown.commission > 0 && (
                 <span className="flex items-center gap-1.5 text-emerald-700 font-medium">
                   <CoinsIcon className="h-4 w-4" />
-                  Your commission ≈ {formatMoney(breakdown.commission)}
+                  {t("Your commission ≈ ")}{formatMoney(breakdown.commission)}
                 </span>
               )}
             </div>
@@ -526,15 +528,15 @@ export default function QuoteBuilder({
 
           {guard.needsApproval && !readOnly && (
             <div className="mt-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm px-4 py-3">
-              <div className="font-medium">Needs manager approval</div>
+              <div className="font-medium">{t("Needs manager approval")}</div>
               <ul className="list-disc pl-5 mt-1 text-xs space-y-0.5">
                 {guard.issues.map((i) => (
                   <li key={i.name}>
-                    {i.name}: {i.discount}% off list (your limit is {i.max}%)
+                    {i.name}: {i.discount}{t("% off list (your limit is ")}{i.max}%)
                   </li>
                 ))}
               </ul>
-              <div className="text-xs mt-1">You can save it — your manager is asked automatically.</div>
+              <div className="text-xs mt-1">{t("You can save it — your manager is asked automatically.")}</div>
             </div>
           )}
           {error && <div className="error-box mt-4">{error}</div>}
@@ -542,7 +544,7 @@ export default function QuoteBuilder({
 
           {!readOnly && (
             <button type="button" className="btn-primary w-full mt-4" disabled={busy} onClick={handleSave}>
-              {busy ? "Saving…" : mode === "create" ? "Save draft quote" : "Save changes"}
+              {busy ? t("Saving…") : mode === "create" ? t("Save draft quote") : t("Save changes")}
             </button>
           )}
         </div>

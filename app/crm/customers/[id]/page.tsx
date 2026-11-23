@@ -17,10 +17,12 @@ import WarmLeads from "../../WarmLeads";
 import CustomerDetailActions from "./CustomerDetailActions";
 import ActivityPanel from "./ActivityPanel";
 import StagePanel from "./StagePanel";
+import { getT } from "@/lib/i18n-server";
 
 export const dynamic = "force-dynamic";
 
 export default async function CustomerDetailPage({ params }: { params: { id: string } }) {
+  const t = await getT();
   const user = await requireSales();
 
   const customer = await prisma.customer.findUnique({
@@ -82,18 +84,18 @@ export default async function CustomerDetailPage({ params }: { params: { id: str
   return (
     <div>
       <Link href="/crm/customers" className="text-sm text-black/40 hover:text-black/60">
-        ← All customers
+        {t("← All customers")}
       </Link>
 
       <div className="flex flex-wrap items-start justify-between gap-4 mt-3 mb-6">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-2xl font-semibold tracking-tight">{customer.company || customer.name}</h1>
-            <Badge variant={customer.status}>{LEAD_STATUS_LABEL[customer.status]}</Badge>
+            <Badge variant={customer.status}>{t(LEAD_STATUS_LABEL[customer.status])}</Badge>
             {customer.leadType !== "OTHER" && (
-              <Badge variant={LEAD_TYPE_BADGE[customer.leadType] || "MUTED"}>{LEAD_TYPE_LABEL[customer.leadType]}</Badge>
+              <Badge variant={LEAD_TYPE_BADGE[customer.leadType] || "MUTED"}>{t(LEAD_TYPE_LABEL[customer.leadType])}</Badge>
             )}
-            {customer.freeMonth && <Badge variant="WARN">1st month free</Badge>}
+            {customer.freeMonth && <Badge variant="WARN">{t("1st month free")}</Badge>}
           </div>
           {customer.warmAssignedAt && !customer.warmAcceptedAt && (
             <div className="mt-3 max-w-xl">
@@ -162,7 +164,7 @@ export default async function CustomerDetailPage({ params }: { params: { id: str
         <div className="lg:col-span-2 space-y-6">
           {customer.note && (
             <div className="card p-5">
-              <div className="section-title mb-1.5">Note</div>
+              <div className="section-title mb-1.5">{t("Note")}</div>
               <p className="text-sm text-black/70 whitespace-pre-wrap">{customer.note}</p>
             </div>
           )}
@@ -191,7 +193,7 @@ export default async function CustomerDetailPage({ params }: { params: { id: str
           />
 
           <div className="card p-5">
-            <div className="section-title mb-3">Details</div>
+            <div className="section-title mb-3">{t("Details")}</div>
             <dl className="space-y-2 text-sm">
               {details
                 .filter(([, v]) => v)
@@ -205,9 +207,9 @@ export default async function CustomerDetailPage({ params }: { params: { id: str
           </div>
 
           <div className="card p-5">
-            <div className="section-title mb-3">Interested in</div>
+            <div className="section-title mb-3">{t("Interested in")}</div>
             {customer.interests.length === 0 ? (
-              <p className="text-sm text-black/40">No products selected — edit the customer to add some.</p>
+              <p className="text-sm text-black/40">{t("No products selected — edit the customer to add some.")}</p>
             ) : (
               <div className="space-y-2">
                 {customer.interests.map((i) => (
@@ -218,7 +220,7 @@ export default async function CustomerDetailPage({ params }: { params: { id: str
                   >
                     <span className="h-2.5 w-2.5 rounded-full" style={{ background: i.product.color || "#4f46e5" }} />
                     {i.product.name}
-                    <span className="ml-auto text-xs text-black/35">playbook →</span>
+                    <span className="ml-auto text-xs text-black/35">{t("playbook →")}</span>
                   </Link>
                 ))}
               </div>
@@ -226,9 +228,9 @@ export default async function CustomerDetailPage({ params }: { params: { id: str
           </div>
 
           <div className="card p-5">
-            <div className="section-title mb-3">Materials sent</div>
+            <div className="section-title mb-3">{t("Materials sent")}</div>
             {customer.shares.length === 0 ? (
-              <p className="text-sm text-black/40">Nothing sent yet.</p>
+              <p className="text-sm text-black/40">{t("Nothing sent yet.")}</p>
             ) : (
               <div className="space-y-2.5">
                 {customer.shares.map((s) => (
@@ -238,10 +240,10 @@ export default async function CustomerDetailPage({ params }: { params: { id: str
                       {s.views > 0 ? (
                         <span className="text-emerald-600 flex items-center gap-1">
                           <EyeIcon className="h-3.5 w-3.5" />
-                          Opened {s.views}× · last {timeAgo(s.lastViewedAt!)}
+                          {t("Opened ")}{s.views}{t("× · last ")}{timeAgo(s.lastViewedAt!)}
                         </span>
                       ) : (
-                        <span className="text-black/40">Not opened yet · sent {timeAgo(s.createdAt)}</span>
+                        <span className="text-black/40">{t("Not opened yet · sent ")}{timeAgo(s.createdAt)}</span>
                       )}
                     </div>
                   </div>
@@ -252,13 +254,13 @@ export default async function CustomerDetailPage({ params }: { params: { id: str
 
           <div className="card">
             <div className="px-5 py-4 border-b border-black/5 flex items-center justify-between">
-              <div className="section-title">Quotes</div>
+              <div className="section-title">{t("Quotes")}</div>
               <Link href={`/crm/quotes/new?customerId=${customer.id}`} className="text-xs text-brand-600 hover:underline">
-                + New quote
+                {t("+ New quote")}
               </Link>
             </div>
             {customer.quotes.length === 0 ? (
-              <div className="px-5 py-6 text-center text-black/40 text-sm">No quotes yet.</div>
+              <div className="px-5 py-6 text-center text-black/40 text-sm">{t("No quotes yet.")}</div>
             ) : (
               <div className="divide-y divide-black/5">
                 {customer.quotes.map((q) => {
@@ -273,10 +275,10 @@ export default async function CustomerDetailPage({ params }: { params: { id: str
                         <FileIcon className="h-4 w-4 text-brand-500 shrink-0" />
                         <div className="min-w-0">
                           <div className="text-sm font-medium truncate">{q.number}</div>
-                          <div className="text-xs text-black/40">{formatMoney(b.annualNet)} / 1st yr</div>
+                          <div className="text-xs text-black/40">{formatMoney(b.annualNet)}{t(" / 1st yr")}</div>
                         </div>
                       </div>
-                      <Badge variant={q.status}>{QUOTE_STATUS_LABEL[q.status]}</Badge>
+                      <Badge variant={q.status}>{t(QUOTE_STATUS_LABEL[q.status])}</Badge>
                     </Link>
                   );
                 })}

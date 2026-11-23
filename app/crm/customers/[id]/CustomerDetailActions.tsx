@@ -11,6 +11,7 @@ import SendMaterialsModal from "@/app/crm/SendMaterialsModal";
 import type { SellerMaterial, SellerTemplate } from "@/lib/seller";
 import { fillTemplate } from "@/lib/templates";
 import { TEMPLATE_PURPOSE_LABEL } from "@/lib/constants";
+import { useT } from "@/components/LocaleProvider";
 
 export default function CustomerDetailActions({
   customer,
@@ -29,6 +30,7 @@ export default function CustomerDetailActions({
   interestProductIds: string[];
   seller: { name: string; phone: string | null; hasBookingUrl: boolean };
 }) {
+  const t = useT();
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);
@@ -109,14 +111,14 @@ export default function CustomerDetailActions({
           setSent(false);
           setEmailOpen(true);
         }}
-        title={customer.email ? "Send an email" : "No email on file"}
+        title={customer.email ? t("Send an email") : t("No email on file")}
       >
         <MailIcon className="h-4 w-4" />
-        Email
+        {t("Email")}
       </button>
       <button className="btn-secondary" onClick={() => setSendOpen(true)}>
         <SendIcon className="h-4 w-4" />
-        Send materials
+        {t("Send materials")}
       </button>
       <button
         className="btn-secondary"
@@ -126,34 +128,34 @@ export default function CustomerDetailActions({
         }}
       >
         <PencilIcon className="h-4 w-4" />
-        Edit
+        {t("Edit")}
       </button>
       <Link href={`/crm/quotes/new?customerId=${customer.id}`} className="btn-primary">
         <PlusIcon className="h-4 w-4" />
-        New quote
+        {t("New quote")}
       </Link>
 
-      <Modal open={editOpen} onClose={() => setEditOpen(false)} title="Edit customer" wide>
+      <Modal open={editOpen} onClose={() => setEditOpen(false)} title={t("Edit customer")} wide>
         <CustomerForm
           customer={customer}
           products={products}
           busy={busy}
           error={error}
           onSubmit={handleUpdate}
-          submitLabel="Save changes"
+          submitLabel={t("Save changes")}
         />
         <button className="btn-danger w-full mt-3" onClick={handleDelete} type="button">
-          <TrashIcon className="h-4 w-4" /> Delete customer
+          <TrashIcon className="h-4 w-4" />{t(" Delete customer")}
         </button>
       </Modal>
 
-      <Modal open={emailOpen} onClose={() => setEmailOpen(false)} title={`Email ${customer.name}`}>
+      <Modal open={emailOpen} onClose={() => setEmailOpen(false)} title={t("Email {name}", { name: customer.name })}>
         {sent ? (
           <div className="text-center py-6">
-            <div className="text-emerald-600 font-medium mb-1">Email sent</div>
-            <p className="text-sm text-black/50">It&apos;s been added to the timeline.</p>
+            <div className="text-emerald-600 font-medium mb-1">{t("Email sent")}</div>
+            <p className="text-sm text-black/50">{t("It's been added to the timeline.")}</p>
             <button className="btn-secondary mt-4" onClick={() => setEmailOpen(false)}>
-              Close
+              {t("Close")}
             </button>
           </div>
         ) : (
@@ -168,24 +170,24 @@ export default function CustomerDetailActions({
             <input type="hidden" name="customerId" value={customer.id} />
             {sortedTemplates.length > 0 && (
               <div>
-                <label className="label">Start from a template</label>
+                <label className="label">{t("Start from a template")}</label>
                 <select className="input" defaultValue="" onChange={(e) => applyTemplate(e.target.value)}>
-                  <option value="">— write my own —</option>
-                  {sortedTemplates.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name} · {TEMPLATE_PURPOSE_LABEL[t.purpose]}
-                      {t.productName ? ` · ${t.productName}` : ""}
+                  <option value="">{t("— write my own —")}</option>
+                  {sortedTemplates.map((tpl) => (
+                    <option key={tpl.id} value={tpl.id}>
+                      {tpl.name} · {t(TEMPLATE_PURPOSE_LABEL[tpl.purpose])}
+                      {tpl.productName ? ` · ${tpl.productName}` : ""}
                     </option>
                   ))}
                 </select>
               </div>
             )}
             <div>
-              <label className="label">Subject</label>
+              <label className="label">{t("Subject")}</label>
               <input name="subject" required value={subject} onChange={(e) => setSubject(e.target.value)} className="input" />
             </div>
             <div>
-              <label className="label">Message</label>
+              <label className="label">{t("Message")}</label>
               <textarea
                 name="message"
                 required
@@ -194,7 +196,7 @@ export default function CustomerDetailActions({
                 onChange={(e) => setBody(e.target.value)}
               />
               <div className="flex flex-wrap justify-between gap-2 text-xs text-black/40 mt-1">
-                <span>Your signature is added automatically.</span>
+                <span>{t("Your signature is added automatically.")}</span>
                 {seller.hasBookingUrl ? (
                   <button
                     type="button"
@@ -204,22 +206,22 @@ export default function CustomerDetailActions({
                       setBody((b) => `${b}\n\nPick a time that suits you: ${link || "{{bookingLink}}"}`);
                     }}
                   >
-                    + insert my booking link
+                    {t("+ insert my booking link")}
                   </button>
                 ) : (
-                  <span>Add your booking page under Account to insert {"{{bookingLink}}"}.</span>
+                  <span>{t("Add your booking page under Account to insert ")}{t("{{bookingLink}}")}.</span>
                 )}
               </div>
             </div>
             <div className="grid sm:grid-cols-2 gap-2">
               <button type="submit" className="btn-primary w-full" disabled={busy}>
-                {busy ? "Sending…" : "Send email"}
+                {busy ? t("Sending…") : t("Send email")}
               </button>
               <button
                 type="button"
                 className="btn-secondary w-full"
                 disabled={busy}
-                title="Opens the message in your own e-mail app (use this for cold e-mails) and logs it here"
+                title={t("Opens the message in your own e-mail app (use this for cold e-mails) and logs it here")}
                 onClick={async (e) => {
                   const form = (e.currentTarget as HTMLButtonElement).form!;
                   setBusy(true);
@@ -232,11 +234,11 @@ export default function CustomerDetailActions({
                   router.refresh();
                 }}
               >
-                Open in my e-mail
+                {t("Open in my e-mail")}
               </button>
             </div>
             <p className="text-xs text-black/40">
-              Cold e-mails (first contact with a lead): use “Open in my e-mail”, so they go from your own mailbox.
+              {t("Cold e-mails (first contact with a lead): use “Open in my e-mail”, so they go from your own mailbox.")}
             </p>
           </form>
         )}

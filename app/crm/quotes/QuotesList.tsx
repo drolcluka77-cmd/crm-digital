@@ -6,6 +6,7 @@ import Badge from "@/components/Badge";
 import { PlusIcon, FileIcon } from "@/components/icons";
 import { formatMoney, formatDate } from "@/lib/format";
 import { QUOTE_STATUSES, QUOTE_STATUS_LABEL } from "@/lib/constants";
+import { useT } from "@/components/LocaleProvider";
 
 type Quote = {
   id: string;
@@ -20,6 +21,7 @@ type Quote = {
 };
 
 export default function QuotesList({ quotes }: { quotes: Quote[] }) {
+  const t = useT();
   const [tab, setTab] = useState("ALL");
   const filtered = useMemo(() => (tab === "ALL" ? quotes : quotes.filter((q) => q.status === tab)), [quotes, tab]);
   const now = Date.now();
@@ -28,21 +30,21 @@ export default function QuotesList({ quotes }: { quotes: Quote[] }) {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Quotes</h1>
-          <p className="text-black/50 text-sm mt-1">Values are first-year, excl. VAT.</p>
+          <h1 className="text-2xl font-semibold tracking-tight">{t("Quotes")}</h1>
+          <p className="text-black/50 text-sm mt-1">{t("Values are first-year, excl. VAT.")}</p>
         </div>
         <Link href="/crm/quotes/new" className="btn-primary">
           <PlusIcon className="h-4 w-4" />
-          New quote
+          {t("New quote")}
         </Link>
       </div>
 
       <div className="flex flex-wrap gap-2 mb-5">
-        {["ALL", ...QUOTE_STATUSES].map((t) => (
-          <button key={t} onClick={() => setTab(t)} className={tab === t ? "chip-active" : "chip"}>
-            {t === "ALL" ? "All" : QUOTE_STATUS_LABEL[t]}
+        {["ALL", ...QUOTE_STATUSES].map((s) => (
+          <button key={s} onClick={() => setTab(s)} className={tab === s ? "chip-active" : "chip"}>
+            {s === "ALL" ? t("All") : t(QUOTE_STATUS_LABEL[s])}
             <span className="ml-1.5 opacity-60">
-              {t === "ALL" ? quotes.length : quotes.filter((q) => q.status === t).length}
+              {s === "ALL" ? quotes.length : quotes.filter((q) => q.status === s).length}
             </span>
           </button>
         ))}
@@ -64,8 +66,8 @@ export default function QuotesList({ quotes }: { quotes: Quote[] }) {
                 <div className="min-w-0">
                   <div className="font-medium truncate">{q.customerName}</div>
                   <div className="text-xs text-black/40">
-                    {q.number} · {q.itemCount} line{q.itemCount === 1 ? "" : "s"} · {formatDate(q.createdAt)}
-                    {expired && <span className="text-rose-500"> · expired</span>}
+                    {q.number} · {q.itemCount}{t(" line")}{q.itemCount === 1 ? "" : "s"} · {formatDate(q.createdAt)}
+                    {expired && <span className="text-rose-500">{t(" · expired")}</span>}
                   </div>
                 </div>
               </div>
@@ -73,17 +75,17 @@ export default function QuotesList({ quotes }: { quotes: Quote[] }) {
                 <div className="text-right">
                   <div className="text-sm font-medium">{formatMoney(q.annualNet)}</div>
                   {q.commission > 0 && (
-                    <div className="text-[11px] text-emerald-600">{formatMoney(q.commission)} commission</div>
+                    <div className="text-[11px] text-emerald-600">{formatMoney(q.commission)}{t(" commission")}</div>
                   )}
                 </div>
-                <Badge variant={q.status}>{QUOTE_STATUS_LABEL[q.status]}</Badge>
+                <Badge variant={q.status}>{t(QUOTE_STATUS_LABEL[q.status])}</Badge>
               </div>
             </Link>
           );
         })}
         {filtered.length === 0 && (
           <div className="px-5 py-12 text-center text-black/40 text-sm">
-            No quotes {tab !== "ALL" ? `marked ${QUOTE_STATUS_LABEL[tab].toLowerCase()}` : "yet"}.
+            {t("No quotes ")}{tab !== "ALL" ? `marked ${t(QUOTE_STATUS_LABEL[tab]).toLowerCase()}` : t("yet")}.
           </div>
         )}
       </div>

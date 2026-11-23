@@ -7,10 +7,12 @@ import { getBuilderProducts } from "@/lib/builder";
 import { computeQuoteBreakdown } from "@/lib/format";
 import QuoteDetail from "./QuoteDetail";
 import { CONTRACT_STATUS_LABEL } from "@/lib/contracts";
+import { getT } from "@/lib/i18n-server";
 
 export const dynamic = "force-dynamic";
 
 export default async function QuoteDetailPage({ params }: { params: { id: string } }) {
+  const t = await getT();
   const user = await requireSales();
 
   const [quote, products, settings, me] = await Promise.all([
@@ -29,7 +31,7 @@ export default async function QuoteDetailPage({ params }: { params: { id: string
   return (
     <div>
       <Link href="/crm/quotes" className="text-sm text-black/40 hover:text-black/60">
-        ← All quotes
+        {t("← All quotes")}
       </Link>
       <div className="mt-3">
         <QuoteDetail

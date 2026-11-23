@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { logoutAction } from "@/app/login/actions";
 import { LayersIcon, LogOutIcon, XIcon } from "@/components/icons";
+import { useT } from "@/components/LocaleProvider";
 
 export type NavItem = {
   href: string;
@@ -39,6 +40,7 @@ export default function Sidebar({
   notificationsHref?: string;
   unread?: number;
 }) {
+  const t = useT();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
@@ -117,7 +119,7 @@ export default function Sidebar({
             className="flex items-center gap-2 text-sm text-white/60 hover:text-white transition-colors w-full px-1"
           >
             <LogOutIcon className="h-4 w-4" />
-            Sign out
+            {t("Sign out")}
           </button>
         </form>
       </div>
@@ -131,7 +133,7 @@ export default function Sidebar({
         <button
           onClick={() => setOpen(true)}
           className="h-10 w-10 -ml-2 flex items-center justify-center rounded-lg hover:bg-white/10"
-          aria-label="Open menu"
+          aria-label={t("Open menu")}
         >
           <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
             <path d="M4 7h16M4 12h16M4 17h16" />
@@ -139,7 +141,7 @@ export default function Sidebar({
         </button>
         <div className="font-semibold truncate px-2">{brand}</div>
         {notificationsHref ? (
-          <Link href={notificationsHref} className="relative h-10 w-10 -mr-2 flex items-center justify-center rounded-lg hover:bg-white/10" aria-label="Notifications">
+          <Link href={notificationsHref} className="relative h-10 w-10 -mr-2 flex items-center justify-center rounded-lg hover:bg-white/10" aria-label={t("Notifications")}>
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
               <path d="M6 9a6 6 0 1 1 12 0c0 5 2 6.5 2 6.5H4S6 14 6 9" />
               <path d="M10 19a2 2 0 0 0 4 0" />
@@ -162,7 +164,7 @@ export default function Sidebar({
           <aside className="relative w-72 max-w-[85vw] bg-ink-900 text-white/90 flex flex-col h-full">
             <div className="px-5 pt-5 pb-5 flex items-center justify-between gap-2">
               {logo}
-              <button onClick={() => setOpen(false)} className="text-white/60 hover:text-white" aria-label="Close menu">
+              <button onClick={() => setOpen(false)} className="text-white/60 hover:text-white" aria-label={t("Close menu")}>
                 <XIcon className="h-5 w-5" />
               </button>
             </div>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { quickUpdateCustomer, scheduleDemo, clearDemo } from "../actions";
 import { LEAD_STATUSES, LEAD_STATUS_LABEL } from "@/lib/constants";
 import { followUpLabel, formatDate, formatDateTime, timeAgo, toDateInput } from "@/lib/format";
+import { useT } from "@/components/LocaleProvider";
 
 function addDays(n: number) {
   const d = new Date();
@@ -25,6 +26,7 @@ export default function StagePanel({
   lastContactAt: string | null;
   demoAt: string | null;
 }) {
+  const t = useT();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const f = nextFollowUpAt ? followUpLabel(nextFollowUpAt) : null;
@@ -54,7 +56,7 @@ export default function StagePanel({
   return (
     <div className="card p-5 space-y-4">
       <div>
-        <div className="section-title mb-2">Stage</div>
+        <div className="section-title mb-2">{t("Stage")}</div>
         <select
           className="input"
           value={status}
@@ -63,14 +65,14 @@ export default function StagePanel({
         >
           {LEAD_STATUSES.map((s) => (
             <option key={s} value={s}>
-              {LEAD_STATUS_LABEL[s]}
+              {t(LEAD_STATUS_LABEL[s])}
             </option>
           ))}
         </select>
       </div>
 
       <div>
-        <div className="section-title mb-2">Next follow-up</div>
+        <div className="section-title mb-2">{t("Next follow-up")}</div>
         {f ? (
           <div
             className={`text-sm font-medium mb-2 ${
@@ -80,7 +82,7 @@ export default function StagePanel({
             {formatDate(nextFollowUpAt!)} · {f.text}
           </div>
         ) : (
-          <div className="text-sm text-black/40 mb-2">Not scheduled</div>
+          <div className="text-sm text-black/40 mb-2">{t("Not scheduled")}</div>
         )}
         <div className="flex flex-wrap gap-1.5">
           {[
@@ -107,19 +109,19 @@ export default function StagePanel({
           />
           {nextFollowUpAt && (
             <button className="text-xs text-black/40 hover:text-black/70 px-1" onClick={() => update({ nextFollowUpAt: null })}>
-              clear
+              {t("clear")}
             </button>
           )}
         </div>
       </div>
 
       <div>
-        <div className="section-title mb-2">Demo</div>
+        <div className="section-title mb-2">{t("Demo")}</div>
         {demoUpcoming ? (
           <div className="flex items-center justify-between gap-2 text-sm">
             <span className="font-medium text-violet-700">📅 {formatDateTime(demoAt!)}</span>
             <button className="text-xs text-black/40 hover:text-black/70" onClick={async () => { await clearDemo(customerId); router.refresh(); }}>
-              clear
+              {t("clear")}
             </button>
           </div>
         ) : (
@@ -134,12 +136,12 @@ export default function StagePanel({
               <>
                 <input
                   className="input py-1.5 text-sm"
-                  placeholder="Note (online / on site, who joins…)"
+                  placeholder={t("Note (online / on site, who joins…)")}
                   value={demoNote}
                   onChange={(e) => setDemoNote(e.target.value)}
                 />
                 <button className="btn-primary w-full py-1.5" disabled={busy} onClick={bookDemo}>
-                  Schedule demo
+                  {t("Schedule demo")}
                 </button>
               </>
             )}
@@ -149,7 +151,7 @@ export default function StagePanel({
       </div>
 
       <div className="text-xs text-black/40">
-        Last contact: {lastContactAt ? timeAgo(lastContactAt) : "never"}
+        {t("Last contact: ")}{lastContactAt ? timeAgo(lastContactAt) : t("never")}
       </div>
     </div>
   );

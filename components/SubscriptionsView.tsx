@@ -11,6 +11,7 @@ import { renewSubscription, cancelSubscription, reactivateSubscription } from "@
 import { followUpLabel, formatDate, formatMoney } from "@/lib/format";
 import { SUBSCRIPTION_STATUS_LABEL } from "@/lib/constants";
 import type { SubscriptionData } from "@/lib/subscriptions";
+import { useT } from "@/components/LocaleProvider";
 
 type Row = SubscriptionData["rows"][number];
 
@@ -24,6 +25,7 @@ export default function SubscriptionsView({
   /** Link prefix for customers, or null when the viewer can't open them. */
   customerBase: string | null;
 }) {
+  const t = useT();
   const router = useRouter();
   const [tab, setTab] = useState<"ACTIVE" | "CANCELLED">("ACTIVE");
   const [renewing, setRenewing] = useState<Row | null>(null);
@@ -58,19 +60,18 @@ export default function SubscriptionsView({
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Subscriptions</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t("Subscriptions")}</h1>
         <p className="text-black/50 text-sm mt-1">
-          Recurring revenue from won quotes. Record renewals here — renewal commission goes onto the seller&apos;s
-          statement for that month.
+          {t("Recurring revenue from won quotes. Record renewals here — renewal commission goes onto the seller's statement for that month.")}
         </p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatCard tone="dark" label="MRR" value={formatMoney(s.mrr)} sublabel={`ARR ${formatMoney(s.arr)}`} icon={<ChartIcon className="h-5 w-5" />} />
-        <StatCard label="Active" value={s.active} sublabel="subscriptions" icon={<CoinsIcon className="h-5 w-5" />} />
-        <StatCard label="Renewing in 30 days" value={s.dueSoon} sublabel="follow up early" icon={<ClockIcon className="h-5 w-5" />} />
+        <StatCard tone="dark" label={t("MRR")} value={formatMoney(s.mrr)} sublabel={`ARR ${formatMoney(s.arr)}`} icon={<ChartIcon className="h-5 w-5" />} />
+        <StatCard label={t("Active")} value={s.active} sublabel={t("subscriptions")} icon={<CoinsIcon className="h-5 w-5" />} />
+        <StatCard label={t("Renewing in 30 days")} value={s.dueSoon} sublabel={t("follow up early")} icon={<ClockIcon className="h-5 w-5" />} />
         <StatCard
-          label="Churn (90 days)"
+          label={t("Churn (90 days)")}
           value={`${s.churnRate90.toFixed(1)}%`}
           sublabel={`${s.churned90} cancelled`}
           icon={<XIcon className="h-5 w-5" />}
@@ -89,11 +90,11 @@ export default function SubscriptionsView({
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-xs text-black/40 border-b border-black/5">
-              <th className="px-5 py-3 font-medium">Customer</th>
-              {showSeller && <th className="px-3 py-3 font-medium">Seller</th>}
-              <th className="px-3 py-3 font-medium text-right">MRR</th>
-              <th className="px-3 py-3 font-medium">{tab === "ACTIVE" ? "Renews" : "Cancelled"}</th>
-              <th className="px-3 py-3 font-medium text-right">Renewal commission</th>
+              <th className="px-5 py-3 font-medium">{t("Customer")}</th>
+              {showSeller && <th className="px-3 py-3 font-medium">{t("Seller")}</th>}
+              <th className="px-3 py-3 font-medium text-right">{t("MRR")}</th>
+              <th className="px-3 py-3 font-medium">{tab === "ACTIVE" ? t("Renews") : t("Cancelled")}</th>
+              <th className="px-3 py-3 font-medium text-right">{t("Renewal commission")}</th>
               <th className="px-5 py-3" />
             </tr>
           </thead>
@@ -112,7 +113,7 @@ export default function SubscriptionsView({
                       <span className="font-medium">{r.customer}</span>
                     )}
                     <div className="text-xs text-black/40">
-                      {r.quoteNumber} · since {formatDate(r.startDate)} · {r.renewals} renewal{r.renewals === 1 ? "" : "s"}
+                      {r.quoteNumber}{t(" · since ")}{formatDate(r.startDate)} · {r.renewals}{t(" renewal")}{r.renewals === 1 ? "" : "s"}
                     </div>
                   </td>
                   {showSeller && <td className="px-3 py-3 text-black/60">{r.seller}</td>}
@@ -141,7 +142,7 @@ export default function SubscriptionsView({
                             setRenewing(r);
                           }}
                         >
-                          Renewed
+                          {t("Renewed")}
                         </button>
                         <button
                           className="btn-ghost py-1.5"
@@ -151,7 +152,7 @@ export default function SubscriptionsView({
                             setCancelling(r);
                           }}
                         >
-                          Cancel
+                          {t("Cancel")}
                         </button>
                       </>
                     ) : (
@@ -162,7 +163,7 @@ export default function SubscriptionsView({
                           router.refresh();
                         }}
                       >
-                        Reactivate
+                        {t("Reactivate")}
                       </button>
                     )}
                   </td>
@@ -173,8 +174,8 @@ export default function SubscriptionsView({
               <tr>
                 <td colSpan={6} className="px-5 py-10 text-center text-black/40">
                   {tab === "ACTIVE"
-                    ? "No active subscriptions yet. They appear automatically when a quote with monthly or yearly lines is accepted."
-                    : "No cancellations. 🎉"}
+                    ? t("No active subscriptions yet. They appear automatically when a quote with monthly or yearly lines is accepted.")
+                    : t("No cancellations. 🎉")}
                 </td>
               </tr>
             )}
@@ -186,14 +187,14 @@ export default function SubscriptionsView({
         <div className="space-y-4">
           {error && <div className="error-box">{error}</div>}
           <p className="text-sm text-black/55">
-            Renews for another {renewing?.termMonths} months. Change the yearly value if the price changed.
+            {t("Renews for another ")}{renewing?.termMonths}{t(" months. Change the yearly value if the price changed.")}
           </p>
           <div>
-            <label className="label">Yearly value (€, excl. VAT)</label>
+            <label className="label">{t("Yearly value (€, excl. VAT)")}</label>
             <input type="number" min="0" step="0.01" className="input" value={value} onChange={(e) => setValue(e.target.value)} />
           </div>
           <button className="btn-primary w-full" disabled={busy} onClick={doRenew}>
-            {busy ? "Saving…" : "Record renewal"}
+            {busy ? t("Saving…") : t("Record renewal")}
           </button>
         </div>
       </Modal>
@@ -202,11 +203,11 @@ export default function SubscriptionsView({
         <div className="space-y-4">
           {error && <div className="error-box">{error}</div>}
           <div>
-            <label className="label">Why did they cancel?</label>
-            <textarea className="input min-h-[80px]" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Price, switched provider, closed business…" />
+            <label className="label">{t("Why did they cancel?")}</label>
+            <textarea className="input min-h-[80px]" value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t("Price, switched provider, closed business…")} />
           </div>
           <button className="btn-danger w-full justify-center" disabled={busy} onClick={doCancel}>
-            {busy ? "Saving…" : "Mark as cancelled"}
+            {busy ? t("Saving…") : t("Mark as cancelled")}
           </button>
         </div>
       </Modal>

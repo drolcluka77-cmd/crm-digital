@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { claimProspect, lookupContact, rejectProspect, skipProspect, setMyLeadProducts, setMyLeadSegments } from "./actions";
+import { useT } from "@/components/LocaleProvider";
 
 type Lookup = {
   summary?: string | null;
@@ -64,6 +65,7 @@ export default function ProspectList({
   lookupReady: boolean;
   attribution: string;
 }) {
+  const t = useT();
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<Record<string, { error?: string; success?: string }>>({});
@@ -117,17 +119,16 @@ export default function ProspectList({
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Recommended leads</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t("Recommended leads")}</h1>
         <p className="text-black/50 text-sm mt-1">
-          New companies from the Slovenian Business Register picked for your products — up to {quota} a day for each
-          product. Find the contact, then claim the ones worth calling. Unclaimed leads go to another seller after{" "}
-          {expiryDays} days.
+          {t("New companies from the Slovenian Business Register picked for your products — up to ")}{quota}{t(" a day for each product. Find the contact, then claim the ones worth calling. Unclaimed leads go to another seller after")}{" "}
+          {expiryDays}{t(" days.")}
         </p>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <button onClick={() => setTab("ALL")} className={tab === "ALL" ? "chip-active" : "chip"}>
-          All <span className="ml-1.5 opacity-60">{prospects.length}</span>
+          {t("All ")}<span className="ml-1.5 opacity-60">{prospects.length}</span>
         </button>
         {active.map((g) => (
           <button key={g.key} onClick={() => setTab(g.key)} className={tab === g.key ? "chip-active" : "chip"}>
@@ -135,13 +136,13 @@ export default function ProspectList({
           </button>
         ))}
         <button className="text-sm text-brand-700 hover:underline ml-1" onClick={() => setChoosing((v) => !v)}>
-          {choosing ? "Close" : "Choose products…"}
+          {choosing ? t("Close") : t("Choose products…")}
         </button>
       </div>
 
       {choosing && (
         <div className="card p-4 mb-5">
-          <div className="text-sm font-medium mb-2">Which products do you want leads for?</div>
+          <div className="text-sm font-medium mb-2">{t("Which products do you want leads for?")}</div>
           <div className="grid sm:grid-cols-2 gap-1.5">
             {groups.map((g) => (
               <label key={g.key} className="text-sm flex items-center gap-2">
@@ -151,22 +152,22 @@ export default function ProspectList({
                   onChange={(e) => setChosen((c) => (e.target.checked ? [...c, g.key] : c.filter((x) => x !== g.key)))}
                 />
                 {g.name}
-                <span className="text-xs text-black/40">{g.available > 0 ? `${g.available} available` : "no leads yet"}</span>
+                <span className="text-xs text-black/40">{g.available > 0 ? `${g.available} available` : t("no leads yet")}</span>
               </label>
             ))}
           </div>
           {prefMsg && <div className="error-box mt-3">{prefMsg}</div>}
           <button className="btn-primary mt-3 py-1.5" disabled={busy === "prefs"} onClick={savePrefs}>
-            {busy === "prefs" ? "Saving…" : "Save"}
+            {busy === "prefs" ? t("Saving…") : t("Save")}
           </button>
         </div>
       )}
 
       {current && current.segments.length > 1 && (
         <div className="card p-4 mb-5">
-          <div className="text-sm font-medium">Industries</div>
+          <div className="text-sm font-medium">{t("Industries")}</div>
           <div className="text-xs text-black/45 mb-2.5">
-            Pick the industries you want to call this week, so you know which examples to give. No selection = all industries.
+            {t("Pick the industries you want to call this week, so you know which examples to give. No selection = all industries.")}
           </div>
           <div className="flex flex-wrap gap-1.5">
             <button
@@ -174,7 +175,7 @@ export default function ProspectList({
               disabled={busy === "seg"}
               onClick={() => saveSegments(current, [])}
             >
-              All industries
+              {t("All industries")}
             </button>
             {current.segments.map((s) => {
               const on = current.chosen.includes(s.name);
@@ -192,15 +193,15 @@ export default function ProspectList({
               );
             })}
           </div>
-          {busy === "seg" && <div className="text-xs text-black/45 mt-2">Updating your leads…</div>}
+          {busy === "seg" && <div className="text-xs text-black/45 mt-2">{t("Updating your leads…")}</div>}
         </div>
       )}
 
       {shown.length === 0 && (
         <div className="card p-10 text-center text-sm text-black/40">
           {tab !== "ALL" && (current?.available || 0) === 0
-            ? "No leads for this product yet — your manager can add keywords for it in Lead finder."
-            : "No recommended leads right now. New ones arrive every day."}
+            ? t("No leads for this product yet — your manager can add keywords for it in Lead finder.")
+            : t("No recommended leads right now. New ones arrive every day.")}
         </div>
       )}
 
@@ -233,22 +234,22 @@ export default function ProspectList({
 
               {p.soleTrader && (
                 <div className="mt-3 text-xs rounded-lg bg-amber-50 text-amber-800 px-3 py-2">
-                  Samostojni podjetnik (fizična oseba): pokličite ga, promocijske e-pošte pa ne pošiljajte brez soglasja.
+                  {t("Samostojni podjetnik (fizična oseba): pokličite ga, promocijske e-pošte pa ne pošiljajte brez soglasja.")}
                 </div>
               )}
 
               {(p.lookedUp || p.phone || p.email || p.website) && (
                 <div className="mt-4 grid sm:grid-cols-3 gap-3 text-sm">
                   <div>
-                    <div className="text-[11px] uppercase tracking-wide text-black/40">Phone</div>
+                    <div className="text-[11px] uppercase tracking-wide text-black/40">{t("Phone")}</div>
                     {p.phone ? <a href={`tel:${p.phone.replace(/\s/g, "")}`} className="font-medium text-brand-700">{p.phone}</a> : <span className="text-black/35">—</span>}
                   </div>
                   <div className="min-w-0">
-                    <div className="text-[11px] uppercase tracking-wide text-black/40">E-mail</div>
+                    <div className="text-[11px] uppercase tracking-wide text-black/40">{t("E-mail")}</div>
                     <div className="truncate">{p.email || <span className="text-black/35">—</span>}</div>
                   </div>
                   <div className="min-w-0">
-                    <div className="text-[11px] uppercase tracking-wide text-black/40">Website</div>
+                    <div className="text-[11px] uppercase tracking-wide text-black/40">{t("Website")}</div>
                     {p.website ? (
                       <a href={p.website} target="_blank" rel="noreferrer" className="truncate block text-brand-700 hover:underline">
                         {p.website.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}
@@ -262,26 +263,26 @@ export default function ProspectList({
 
               {l && (
                 <div className="mt-3 text-sm space-y-1.5">
-                  {p.activity && <div><span className="text-black/45">Dejavnost:</span> {p.activity}</div>}
+                  {p.activity && <div><span className="text-black/45">{t("Dejavnost:")}</span> {p.activity}</div>}
                   {l.summary && <div className="text-black/70">{l.summary}</div>}
                   {l.fit?.productName && (
                     <div className="text-black/70">
-                      <span className="text-black/45">Best fit:</span> {l.fit.productName}
+                      <span className="text-black/45">{t("Best fit:")}</span> {l.fit.productName}
                       {l.fit.score != null ? ` (${l.fit.score}/100)` : ""}
                       {l.fit.reason ? ` — ${l.fit.reason}` : ""}
                     </div>
                   )}
                   {l.google?.rating != null && (
                     <div className="text-black/55 text-xs">
-                      Google: {l.google.rating}★ · {l.google.reviews ?? 0} reviews{l.google.category ? ` · ${l.google.category}` : ""}
+                      {t("Google: ")}{l.google.rating}★ · {l.google.reviews ?? 0}{t(" reviews")}{l.google.category ? ` · ${l.google.category}` : ""}
                     </div>
                   )}
                   {(l.emailsFound?.length || 0) > 1 && (
-                    <div className="text-xs text-black/55">Other e-mails on the site: {l.emailsFound!.filter((e) => e !== p.email).join(", ")}</div>
+                    <div className="text-xs text-black/55">{t("Other e-mails on the site: ")}{l.emailsFound!.filter((e) => e !== p.email).join(", ")}</div>
                   )}
                   {(l.sources?.length || 0) > 0 && (
                     <div className="text-xs text-black/45 flex flex-wrap gap-x-2">
-                      Sources:
+                      {t("Sources:")}
                       {l.sources!.map((s) => (
                         <a key={s} href={s} target="_blank" rel="noreferrer" className="underline truncate max-w-[220px]">
                           {s.replace(/^https?:\/\/(www\.)?/, "")}
@@ -293,19 +294,19 @@ export default function ProspectList({
                 </div>
               )}
 
-              {m?.error && <div className="error-box mt-3">{m.error}</div>}
-              {m?.success && <div className="success-box mt-3">{m.success}</div>}
+              {m?.error && <div className="error-box mt-3">{t(m.error)}</div>}
+              {m?.success && <div className="success-box mt-3">{t(m.success)}</div>}
 
               {rejecting === p.id ? (
                 <div className="mt-4 flex flex-wrap items-center gap-2">
-                  <input className="input flex-1 min-w-[200px]" placeholder="Why? (optional)" value={reason} onChange={(e) => setReason(e.target.value)} />
+                  <input className="input flex-1 min-w-[200px]" placeholder={t("Why? (optional)")} value={reason} onChange={(e) => setReason(e.target.value)} />
                   <button className="btn-secondary py-1.5" onClick={() => run(p.id, "reject", () => rejectProspect(p.id, reason, false)).then(() => setRejecting(null))}>
-                    Not a fit
+                    {t("Not a fit")}
                   </button>
                   <button className="btn-secondary py-1.5 text-rose-700" onClick={() => run(p.id, "reject", () => rejectProspect(p.id, reason, true)).then(() => setRejecting(null))}>
-                    Do not contact
+                    {t("Do not contact")}
                   </button>
-                  <button className="text-sm text-black/45 px-2" onClick={() => setRejecting(null)}>Cancel</button>
+                  <button className="text-sm text-black/45 px-2" onClick={() => setRejecting(null)}>{t("Cancel")}</button>
                 </div>
               ) : (
                 <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -315,25 +316,25 @@ export default function ProspectList({
                       disabled={!!busy}
                       onClick={() => run(p.id, "lookup", () => lookupContact(p.id))}
                     >
-                      {busy === p.id + "lookup" ? "Searching…" : p.lookedUp ? "Search again" : "Find contact"}
+                      {busy === p.id + "lookup" ? t("Searching…") : p.lookedUp ? t("Search again") : t("Find contact")}
                     </button>
                   )}
-                  <a className="btn-secondary py-1.5" href={google(p)} target="_blank" rel="noreferrer">Google</a>
-                  <a className="btn-secondary py-1.5" href={maps(p)} target="_blank" rel="noreferrer">Maps</a>
+                  <a className="btn-secondary py-1.5" href={google(p)} target="_blank" rel="noreferrer">{t("Google")}</a>
+                  <a className="btn-secondary py-1.5" href={maps(p)} target="_blank" rel="noreferrer">{t("Maps")}</a>
                   <button
                     className={`${needsLookup ? "btn-secondary" : "btn-primary"} py-1.5`}
                     disabled={!!busy}
-                    title={needsLookup ? "Find the contact first, so the customer is saved with a phone and e-mail." : undefined}
+                    title={needsLookup ? t("Find the contact first, so the customer is saved with a phone and e-mail.") : undefined}
                     onClick={() => run(p.id, "claim", () => claimProspect(p.id))}
                   >
-                    {busy === p.id + "claim" ? "Claiming…" : "Claim"}
+                    {busy === p.id + "claim" ? t("Claiming…") : t("Claim")}
                   </button>
                   <span className="flex-1" />
                   <button className="text-sm text-black/45 hover:text-black/70 px-1" disabled={!!busy} onClick={() => run(p.id, "skip", () => skipProspect(p.id))}>
-                    Not for me
+                    {t("Not for me")}
                   </button>
                   <button className="text-sm text-black/45 hover:text-black/70 px-1" onClick={() => { setReason(""); setRejecting(p.id); }}>
-                    Remove…
+                    {t("Remove…")}
                   </button>
                 </div>
               )}
@@ -343,7 +344,7 @@ export default function ProspectList({
       </div>
 
       <p className="text-xs text-black/35 mt-6">
-        {attribution}. Claimed leads appear under <Link href="/crm/customers?stage=NEW" className="underline">Customers</Link>.
+        {attribution}{t(". Claimed leads appear under ")}<Link href="/crm/customers?stage=NEW" className="underline">{t("Customers")}</Link>.
       </p>
     </div>
   );

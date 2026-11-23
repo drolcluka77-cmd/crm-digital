@@ -6,10 +6,12 @@ import { getSellableProductIds } from "@/lib/access";
 import Badge from "@/components/Badge";
 import { PackageIcon, ChevronRightIcon } from "@/components/icons";
 import { formatPrice } from "@/lib/format";
+import { getT } from "@/lib/i18n-server";
 
 export const dynamic = "force-dynamic";
 
 export default async function MyProductsPage() {
+  const t = await getT();
   const user = await requireSales();
   const [products, sellable] = await Promise.all([getSellerProducts(user), getSellableProductIds(user)]);
 
@@ -38,15 +40,15 @@ export default async function MyProductsPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">My products</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t("My products")}</h1>
         <p className="text-black/50 text-sm mt-1">
-          What you can sell — open a product for its pitch, pricing, demo and materials.
+          {t("What you can sell — open a product for its pitch, pricing, demo and materials.")}
         </p>
       </div>
 
       {products.length === 0 ? (
         <div className="card p-10 text-center text-black/40 text-sm">
-          You haven&apos;t been given any products yet. Ask your sales manager to assign some.
+          {t("You haven't been given any products yet. Ask your sales manager to assign some.")}
         </div>
       ) : (
         <div className="space-y-8">
@@ -82,14 +84,14 @@ export default async function MyProductsPage() {
                       <div className="mt-auto pt-4 flex flex-wrap items-center gap-2 text-xs">
                         {p.plans[0] && (
                           <span className="font-semibold text-sm mr-auto">
-                            from {formatPrice(p.plans[0].price, p.plans[0].billing, p.plans[0].unitLabel)}
+                            {t("from ")}{formatPrice(p.plans[0].price, p.plans[0].billing, p.plans[0].unitLabel)}
                           </span>
                         )}
-                        {p.commissionRate > 0 && <Badge variant="WON">{p.commissionRate}% commission</Badge>}
-                        {!sellable.includes(p.id) && <Badge variant="WARN">🔒 Quiz needed</Badge>}
+                        {p.commissionRate > 0 && <Badge variant="WON">{p.commissionRate}{t("% commission")}</Badge>}
+                        {!sellable.includes(p.id) && <Badge variant="WARN">{t("🔒 Quiz needed")}</Badge>}
                       </div>
                       <div className="mt-3 pt-3 border-t border-black/5 flex items-center gap-3 text-xs text-black/45">
-                        <span>{mCount.get(p.id) || 0} materials</span>·<span>{lCount.get(p.id) || 0} of your leads</span>
+                        <span>{mCount.get(p.id) || 0}{t(" materials")}</span>·<span>{lCount.get(p.id) || 0}{t(" of your leads")}</span>
                         <ChevronRightIcon className="h-3.5 w-3.5 ml-auto" />
                       </div>
                     </div>

@@ -12,6 +12,7 @@ export type CurrentUser = {
   phone: string | null;
   active: boolean;
   managerId: string | null;
+  locale: "sl" | "en";
 };
 
 /** Returns the logged-in user, or null. Does not redirect. */
@@ -33,6 +34,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     phone: user.phone,
     active: user.active,
     managerId: user.managerId,
+    locale: user.locale === "en" ? "en" : "sl",
   };
 }
 

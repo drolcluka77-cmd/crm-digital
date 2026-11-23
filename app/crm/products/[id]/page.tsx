@@ -11,12 +11,14 @@ import { formatFileSize, formatPrice, materialHref } from "@/lib/format";
 import { LEAD_STATUS_LABEL, MATERIAL_TYPE_LABEL } from "@/lib/constants";
 import ProductActions from "./ProductActions";
 import CopyButton from "./CopyButton";
+import { getT } from "@/lib/i18n-server";
 
 export const dynamic = "force-dynamic";
 
 const lines = (v: string | null) => (v || "").split("\n").map((l) => l.trim()).filter(Boolean);
 
 export default async function ProductPlaybookPage({ params }: { params: { id: string } }) {
+  const t = await getT();
   const user = await requireSales();
   if (!(await canAccessProduct(user, params.id))) notFound();
 
@@ -58,7 +60,7 @@ export default async function ProductPlaybookPage({ params }: { params: { id: st
   return (
     <div>
       <Link href="/crm/products" className="text-sm text-black/40 hover:text-black/60">
-        ← My products
+        {t("← My products")}
       </Link>
 
       <div className="card overflow-hidden mt-3 mb-6">
@@ -69,9 +71,9 @@ export default async function ProductPlaybookPage({ params }: { params: { id: st
             <h1 className="text-2xl font-semibold tracking-tight">{product.name}</h1>
             {product.tagline && <p className="text-black/60 mt-1">{product.tagline}</p>}
             <div className="flex flex-wrap gap-2 mt-3">
-              {product.targetSegment && <Badge variant="INFO">For: {product.targetSegment}</Badge>}
+              {product.targetSegment && <Badge variant="INFO">{t("For: ")}{product.targetSegment}</Badge>}
               {product.commissionRate > 0 && (
-                <Badge variant="WON">You earn {product.commissionRate}% of first-year value</Badge>
+                <Badge variant="WON">{t("You earn ")}{product.commissionRate}{t("% of first-year value")}</Badge>
               )}
             </div>
           </div>
@@ -89,28 +91,28 @@ export default async function ProductPlaybookPage({ params }: { params: { id: st
       {!canSell && (
         <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 flex flex-wrap items-center justify-between gap-3">
           <div className="text-sm text-amber-800">
-            <div className="font-semibold">Certification needed before you can sell {product.name}</div>
-            Read the playbook below, then pass the {questionCount}-question quiz ({product.passScore}% to pass).
+            <div className="font-semibold">{t("Certification needed before you can sell ")}{product.name}</div>
+            {t("Read the playbook below, then pass the ")}{questionCount}{t("-question quiz (")}{product.passScore}{t("% to pass).")}
             {cert?.attempts ? ` Your best so far: ${cert.bestScore}%.` : ""}
           </div>
           <Link href={`/crm/products/${product.id}/quiz`} className="btn-primary">
-            Take the quiz
+            {t("Take the quiz")}
           </Link>
         </div>
       )}
       {canSell && cert?.passedAt && (
         <div className="mb-6 text-sm text-emerald-700">
-          ✅ Certified ({cert.bestScore}%) ·{" "}
+          {t("✅ Certified (")}{cert.bestScore}%) ·{" "}
           <Link href={`/crm/products/${product.id}/quiz`} className="underline">
-            retake quiz
+            {t("retake quiz")}
           </Link>
         </div>
       )}
       {canSell && !cert?.passedAt && questionCount > 0 && (
         <div className="mb-6 text-sm text-black/50">
-          Want to test yourself?{" "}
+          {t("Want to test yourself?")}{" "}
           <Link href={`/crm/products/${product.id}/quiz`} className="text-brand-600 underline">
-            Take the {questionCount}-question quiz
+            {t("Take the ")}{questionCount}{t("-question quiz")}
           </Link>
         </div>
       )}
@@ -120,7 +122,7 @@ export default async function ProductPlaybookPage({ params }: { params: { id: st
           {product.pitch && (
             <section className="card p-6">
               <div className="flex items-center justify-between mb-2">
-                <h2 className="font-semibold">Elevator pitch</h2>
+                <h2 className="font-semibold">{t("Elevator pitch")}</h2>
                 <CopyButton text={product.pitch} />
               </div>
               <p className="text-[15px] leading-relaxed text-black/75 whitespace-pre-wrap">{product.pitch}</p>
@@ -129,7 +131,7 @@ export default async function ProductPlaybookPage({ params }: { params: { id: st
 
           {product.description && (
             <section className="card p-6">
-              <h2 className="font-semibold mb-2">What it is</h2>
+              <h2 className="font-semibold mb-2">{t("What it is")}</h2>
               <p className="text-sm leading-relaxed text-black/70 whitespace-pre-wrap">{product.description}</p>
             </section>
           )}
@@ -138,7 +140,7 @@ export default async function ProductPlaybookPage({ params }: { params: { id: st
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {benefits.length > 0 && (
                 <section className="card p-6">
-                  <h2 className="font-semibold mb-3">Key benefits</h2>
+                  <h2 className="font-semibold mb-3">{t("Key benefits")}</h2>
                   <ul className="space-y-2">
                     {benefits.map((b) => (
                       <li key={b} className="flex gap-2.5 text-sm text-black/70">
@@ -151,7 +153,7 @@ export default async function ProductPlaybookPage({ params }: { params: { id: st
               )}
               {icp.length > 0 && (
                 <section className="card p-6">
-                  <h2 className="font-semibold mb-3">Ideal customer & questions to ask</h2>
+                  <h2 className="font-semibold mb-3">{t("Ideal customer & questions to ask")}</h2>
                   <ul className="space-y-2 list-disc pl-5 text-sm text-black/70">
                     {icp.map((b) => (
                       <li key={b}>{b}</li>
@@ -164,11 +166,11 @@ export default async function ProductPlaybookPage({ params }: { params: { id: st
 
           {objections.length > 0 && (
             <section className="card p-6">
-              <h2 className="font-semibold mb-3">Objection handling</h2>
+              <h2 className="font-semibold mb-3">{t("Objection handling")}</h2>
               <div className="space-y-3">
                 {objections.map((o, i) => (
                   <div key={i} className="rounded-xl bg-sand-50 px-4 py-3">
-                    <div className="text-sm font-medium">&ldquo;{o.q}&rdquo;</div>
+                    <div className="text-sm font-medium">{t("&ldquo;")}{o.q}{t("&rdquo;")}</div>
                     {o.a && <div className="text-sm text-black/60 mt-1">{o.a}</div>}
                   </div>
                 ))}
@@ -178,10 +180,10 @@ export default async function ProductPlaybookPage({ params }: { params: { id: st
 
           <section className="card">
             <div className="px-6 py-4 border-b border-black/5">
-              <h2 className="font-semibold">Materials</h2>
+              <h2 className="font-semibold">{t("Materials")}</h2>
             </div>
             {materials.length === 0 ? (
-              <div className="px-6 py-8 text-center text-sm text-black/40">No materials for this product yet.</div>
+              <div className="px-6 py-8 text-center text-sm text-black/40">{t("No materials for this product yet.")}</div>
             ) : (
               <div className="divide-y divide-black/5">
                 {materials.map((m) => (
@@ -192,19 +194,19 @@ export default async function ProductPlaybookPage({ params }: { params: { id: st
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-medium">{m.title}</span>
-                        {m.internalOnly && <Badge variant="WARN">Internal — don&apos;t send</Badge>}
+                        {m.internalOnly && <Badge variant="WARN">{t("Internal — don't send")}</Badge>}
                       </div>
                       <div className="text-xs text-black/40 mt-0.5">
-                        {MATERIAL_TYPE_LABEL[m.type]}
-                        {m.fileName ? ` · ${formatFileSize(m.fileSize)}` : " · link"}
+                        {t(MATERIAL_TYPE_LABEL[m.type])}
+                        {m.fileName ? ` · ${formatFileSize(m.fileSize)}` : t(" · link")}
                       </div>
                       {m.description && <p className="text-sm text-black/50 mt-0.5 line-clamp-2">{m.description}</p>}
                     </div>
-                    <a href={materialHref(m)} target="_blank" rel="noreferrer" className="btn-ghost" title="Open">
+                    <a href={materialHref(m)} target="_blank" rel="noreferrer" className="btn-ghost" title={t("Open")}>
                       <EyeIcon className="h-4 w-4" />
                     </a>
                     {m.fileName && (
-                      <a href={`/api/materials/${m.id}?download=1`} className="btn-ghost" title="Download">
+                      <a href={`/api/materials/${m.id}?download=1`} className="btn-ghost" title={t("Download")}>
                         <DownloadIcon className="h-4 w-4" />
                       </a>
                     )}
@@ -217,9 +219,9 @@ export default async function ProductPlaybookPage({ params }: { params: { id: st
 
         <div className="space-y-6">
           <section className="card p-5">
-            <h2 className="font-semibold mb-3">Plans & pricing</h2>
+            <h2 className="font-semibold mb-3">{t("Plans & pricing")}</h2>
             {product.plans.length === 0 ? (
-              <p className="text-sm text-black/40">No prices published yet.</p>
+              <p className="text-sm text-black/40">{t("No prices published yet.")}</p>
             ) : (
               <div className="space-y-3">
                 {product.plans.map((p) => (
@@ -232,21 +234,21 @@ export default async function ProductPlaybookPage({ params }: { params: { id: st
                     {p.description && <div className="text-xs text-black/55 mt-1">{p.description}</div>}
                   </div>
                 ))}
-                <p className="text-[11px] text-black/35">Prices excl. VAT.</p>
+                <p className="text-[11px] text-black/35">{t("Prices excl. VAT.")}</p>
               </div>
             )}
           </section>
 
           <section className="card">
             <div className="px-5 py-4 border-b border-black/5 flex items-center justify-between">
-              <h2 className="font-semibold">Your leads for this</h2>
+              <h2 className="font-semibold">{t("Your leads for this")}</h2>
               <Link href={`/crm/customers?product=${product.id}&stage=ALL`} className="text-xs text-brand-600 hover:underline">
-                All →
+                {t("All →")}
               </Link>
             </div>
             {leads.length === 0 ? (
               <div className="px-5 py-6 text-sm text-black/40 text-center">
-                No leads tagged with this product yet.
+                {t("No leads tagged with this product yet.")}
               </div>
             ) : (
               <div className="divide-y divide-black/5">
@@ -257,7 +259,7 @@ export default async function ProductPlaybookPage({ params }: { params: { id: st
                     className="px-5 py-3 flex items-center justify-between gap-2 hover:bg-sand-50"
                   >
                     <span className="text-sm font-medium truncate">{c.company || c.name}</span>
-                    <Badge variant={c.status}>{LEAD_STATUS_LABEL[c.status]}</Badge>
+                    <Badge variant={c.status}>{t(LEAD_STATUS_LABEL[c.status])}</Badge>
                   </Link>
                 ))}
               </div>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { submitQuiz, type QuizResult } from "../../actions";
+import { useT } from "@/components/LocaleProvider";
 
 export default function QuizForm({
   productId,
@@ -11,6 +12,7 @@ export default function QuizForm({
   productId: string;
   questions: { id: string; question: string; options: string[] }[];
 }) {
+  const t = useT();
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<QuizResult>(undefined);
@@ -30,16 +32,16 @@ export default function QuizForm({
         <div className={`card p-6 text-center ${result.passed ? "border-emerald-200" : ""}`}>
           <div className="text-4xl font-semibold">{result.score}%</div>
           <div className={`mt-1 font-medium ${result.passed ? "text-emerald-700" : "text-amber-700"}`}>
-            {result.passed ? "Passed — you can now quote this product." : `Not yet — you need ${result.passScore}%.`}
+            {result.passed ? t("Passed — you can now quote this product.") : `Not yet — you need ${result.passScore}%.`}
           </div>
           <div className="mt-4 flex justify-center gap-2">
             {result.passed ? (
               <Link href={`/crm/quotes/new?productId=${productId}`} className="btn-primary">
-                Make a quote
+                {t("Make a quote")}
               </Link>
             ) : (
               <Link href={`/crm/products/${productId}`} className="btn-secondary">
-                Review the playbook
+                {t("Review the playbook")}
               </Link>
             )}
             <button
@@ -50,7 +52,7 @@ export default function QuizForm({
                 setAttempt((a) => a + 1);
               }}
             >
-              Try again
+              {t("Try again")}
             </button>
           </div>
         </div>
@@ -61,7 +63,7 @@ export default function QuizForm({
               .map((r, i) => (
                 <div key={i} className="px-5 py-4 text-sm">
                   <div className="font-medium">{r.question}</div>
-                  <div className="text-emerald-700 mt-1">Correct answer: {r.correctAnswer}</div>
+                  <div className="text-emerald-700 mt-1">{t("Correct answer: ")}{r.correctAnswer}</div>
                   {r.explanation && <div className="text-black/55 mt-0.5">{r.explanation}</div>}
                 </div>
               ))}
@@ -73,7 +75,7 @@ export default function QuizForm({
 
   return (
     <div key={attempt} className="space-y-4">
-      {result?.error && <div className="error-box">{result.error}</div>}
+      {result?.error && <div className="error-box">{t(result.error)}</div>}
       {questions.map((q, qi) => (
         <div key={q.id} className="card p-5">
           <div className="font-medium mb-3">
@@ -98,7 +100,7 @@ export default function QuizForm({
         </div>
       ))}
       <button className="btn-primary w-full py-3" disabled={busy || answered < questions.length} onClick={submit}>
-        {busy ? "Checking…" : answered < questions.length ? `Answer all questions (${answered}/${questions.length})` : "Submit answers"}
+        {busy ? t("Checking…") : answered < questions.length ? `Answer all questions (${answered}/${questions.length})` : t("Submit answers")}
       </button>
     </div>
   );

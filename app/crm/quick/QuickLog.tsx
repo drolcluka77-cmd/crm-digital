@@ -7,6 +7,7 @@ import { addActivity } from "@/app/crm/customers/actions";
 import { ACTIVITY_TYPE_LABEL, LEAD_STATUSES, LEAD_STATUS_LABEL, MANUAL_ACTIVITY_TYPES } from "@/lib/constants";
 import { toDateInput } from "@/lib/format";
 import { SearchIcon, PhoneIcon } from "@/components/icons";
+import { useT } from "@/components/LocaleProvider";
 
 type C = { id: string; name: string; company: string | null; phone: string | null; status: string };
 
@@ -19,6 +20,7 @@ const FOLLOW = [
 ] as const;
 
 export default function QuickLog({ customers, initialCustomerId }: { customers: C[]; initialCustomerId?: string }) {
+  const t = useT();
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [customer, setCustomer] = useState<C | null>(customers.find((c) => c.id === initialCustomerId) || null);
@@ -67,11 +69,11 @@ export default function QuickLog({ customers, initialCustomerId }: { customers: 
   if (!customer) {
     return (
       <div className="max-w-xl mx-auto">
-        <h1 className="text-2xl font-semibold tracking-tight mb-1">Quick log</h1>
-        <p className="text-black/50 text-sm mb-4">Who did you just talk to?</p>
+        <h1 className="text-2xl font-semibold tracking-tight mb-1">{t("Quick log")}</h1>
+        <p className="text-black/50 text-sm mb-4">{t("Who did you just talk to?")}</p>
         {done && (
           <div className="success-box mb-4">
-            Logged for {done}. ✔
+            {t("Logged for ")}{done}. ✔
           </div>
         )}
         <div className="relative mb-3">
@@ -80,7 +82,7 @@ export default function QuickLog({ customers, initialCustomerId }: { customers: 
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Name, company or phone"
+            placeholder={t("Name, company or phone")}
             className="input pl-12 py-3.5 text-base"
           />
         </div>
@@ -98,7 +100,7 @@ export default function QuickLog({ customers, initialCustomerId }: { customers: 
                 <span className="block font-medium truncate">{c.company || c.name}</span>
                 <span className="block text-xs text-black/45 truncate">
                   {c.company ? `${c.name} · ` : ""}
-                  {LEAD_STATUS_LABEL[c.status]}
+                  {t(LEAD_STATUS_LABEL[c.status])}
                 </span>
               </span>
               <span className="text-black/30 text-lg">›</span>
@@ -106,9 +108,9 @@ export default function QuickLog({ customers, initialCustomerId }: { customers: 
           ))}
           {matches.length === 0 && (
             <div className="px-4 py-8 text-center text-sm text-black/40">
-              No match.{" "}
+              {t("No match.")}{" "}
               <Link href="/crm/customers" className="text-brand-600 underline">
-                Add a new customer
+                {t("Add a new customer")}
               </Link>
             </div>
           )}
@@ -120,30 +122,30 @@ export default function QuickLog({ customers, initialCustomerId }: { customers: 
   return (
     <div className="max-w-xl mx-auto">
       <button onClick={() => setCustomer(null)} className="text-sm text-black/45 mb-3">
-        ← Change customer
+        {t("← Change customer")}
       </button>
       <div className="card p-4 mb-4 flex items-center justify-between gap-3">
         <div className="min-w-0">
           <div className="font-semibold truncate">{customer.company || customer.name}</div>
-          <div className="text-xs text-black/45">{LEAD_STATUS_LABEL[customer.status]}</div>
+          <div className="text-xs text-black/45">{t(LEAD_STATUS_LABEL[customer.status])}</div>
         </div>
         {customer.phone && (
           <a href={`tel:${customer.phone}`} className="btn-secondary">
-            <PhoneIcon className="h-4 w-4" /> Call
+            <PhoneIcon className="h-4 w-4" />{t(" Call")}
           </a>
         )}
       </div>
 
       <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-4">
-        {MANUAL_ACTIVITY_TYPES.map((t) => (
+        {MANUAL_ACTIVITY_TYPES.map((ty) => (
           <button
-            key={t}
-            onClick={() => setType(t)}
+            key={ty}
+            onClick={() => setType(ty)}
             className={`rounded-xl py-3 text-sm font-medium border ${
-              type === t ? "bg-ink-900 text-white border-ink-900" : "bg-white border-black/10 text-black/65"
+              type === ty ? "bg-ink-900 text-white border-ink-900" : "bg-white border-black/10 text-black/65"
             }`}
           >
-            {ACTIVITY_TYPE_LABEL[t]}
+            {t(ACTIVITY_TYPE_LABEL[ty])}
           </button>
         ))}
       </div>
@@ -152,10 +154,10 @@ export default function QuickLog({ customers, initialCustomerId }: { customers: 
         value={body}
         onChange={(e) => setBody(e.target.value)}
         className="input min-h-[140px] text-base mb-4"
-        placeholder="What happened? What's next?"
+        placeholder={t("What happened? What's next?")}
       />
 
-      <div className="section-title mb-2">Follow up</div>
+      <div className="section-title mb-2">{t("Follow up")}</div>
       <div className="flex flex-wrap gap-2 mb-4">
         {FOLLOW.map(([label, days]) => (
           <button
@@ -163,27 +165,27 @@ export default function QuickLog({ customers, initialCustomerId }: { customers: 
             onClick={() => setFollow(days)}
             className={`${follow === days ? "chip-active" : "chip"} py-2 px-4`}
           >
-            {label}
+            {t(label)}
           </button>
         ))}
       </div>
 
-      <div className="section-title mb-2">Stage</div>
+      <div className="section-title mb-2">{t("Stage")}</div>
       <select value={status} onChange={(e) => setStatus(e.target.value)} className="input py-3 mb-5">
-        <option value="">Keep “{LEAD_STATUS_LABEL[customer.status]}”</option>
+        <option value="">{t("Keep “")}{t(LEAD_STATUS_LABEL[customer.status])}”</option>
         {LEAD_STATUSES.filter((s) => s !== customer.status).map((s) => (
           <option key={s} value={s}>
-            {LEAD_STATUS_LABEL[s]}
+            {t(LEAD_STATUS_LABEL[s])}
           </option>
         ))}
       </select>
 
       {error && <div className="error-box mb-3">{error}</div>}
       <button className="btn-primary w-full py-3.5 text-base" disabled={busy || !body.trim()} onClick={save}>
-        {busy ? "Saving…" : `Save ${ACTIVITY_TYPE_LABEL[type].toLowerCase()}`}
+        {busy ? t("Saving…") : t("Save {what}", { what: t(ACTIVITY_TYPE_LABEL[type]).toLowerCase() })}
       </button>
       <Link href={`/crm/customers/${customer.id}`} className="block text-center text-sm text-black/45 mt-4">
-        Open full customer page
+        {t("Open full customer page")}
       </Link>
     </div>
   );

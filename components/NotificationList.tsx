@@ -5,6 +5,7 @@ import Link from "next/link";
 import { markAllNotificationsRead } from "@/app/notifications/actions";
 import { NOTIFICATION_TYPE_LABEL } from "@/lib/constants";
 import { timeAgo } from "@/lib/format";
+import { useT } from "@/components/LocaleProvider";
 
 type N = {
   id: string;
@@ -17,6 +18,7 @@ type N = {
 };
 
 export default function NotificationList({ items }: { items: N[] }) {
+  const t = useT();
   // Opening the page marks everything as read (the list still shows what was new).
   useEffect(() => {
     if (items.some((n) => !n.read)) markAllNotificationsRead();
@@ -25,10 +27,9 @@ export default function NotificationList({ items }: { items: N[] }) {
   return (
     <div className="max-w-3xl">
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Notifications</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t("Notifications")}</h1>
         <p className="text-black/50 text-sm mt-1">
-          Client activity, approvals, new leads and payouts. Important ones are also emailed (you can turn that off
-          under your account settings).
+          {t("Client activity, approvals, new leads and payouts. Important ones are also emailed (you can turn that off under your account settings).")}
         </p>
       </div>
       <div className="card divide-y divide-black/5">
@@ -53,7 +54,7 @@ export default function NotificationList({ items }: { items: N[] }) {
             <div key={n.id}>{content}</div>
           );
         })}
-        {items.length === 0 && <div className="px-5 py-12 text-center text-sm text-black/40">Nothing yet.</div>}
+        {items.length === 0 && <div className="px-5 py-12 text-center text-sm text-black/40">{t("Nothing yet.")}</div>}
       </div>
     </div>
   );

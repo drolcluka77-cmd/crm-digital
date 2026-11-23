@@ -7,6 +7,7 @@ import {
   SOURCE_SUGGESTIONS,
 } from "@/lib/constants";
 import { toDateInput } from "@/lib/format";
+import { useT } from "@/components/LocaleProvider";
 
 export type CustomerFormValues = {
   id: string;
@@ -45,6 +46,7 @@ export default function CustomerForm({
   submitLabel: string;
   extraHidden?: Record<string, string>;
 }) {
+  const t = useT();
   return (
     <form
       className="space-y-5"
@@ -59,20 +61,20 @@ export default function CustomerForm({
         Object.entries(extraHidden).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
 
       <fieldset className="space-y-4">
-        <legend className="section-title mb-2">Company</legend>
+        <legend className="section-title mb-2">{t("Company")}</legend>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="label">Company / organisation</label>
-            <input name="company" defaultValue={customer?.company || ""} className="input" placeholder="Hotel Lipa d.o.o." />
+            <label className="label">{t("Company / organisation")}</label>
+            <input name="company" defaultValue={customer?.company || ""} className="input" placeholder={t("Hotel Lipa d.o.o.")} />
           </div>
           <div>
-            <label className="label">Segment</label>
+            <label className="label">{t("Segment")}</label>
             <input
               name="segment"
               list="segments"
               defaultValue={customer?.segment || ""}
               className="input"
-              placeholder="Hotel, hospital, building manager…"
+              placeholder={t("Hotel, hospital, building manager…")}
             />
             <datalist id="segments">
               {SEGMENT_SUGGESTIONS.map((s) => (
@@ -83,63 +85,63 @@ export default function CustomerForm({
         </div>
         <div className="grid grid-cols-3 gap-4">
           <div>
-            <label className="label">Size</label>
+            <label className="label">{t("Size")}</label>
             <input
               name="size"
               defaultValue={customer?.size || ""}
               className="input"
-              placeholder="12 buildings / 300 beds"
+              placeholder={t("12 buildings / 300 beds")}
             />
           </div>
           <div>
-            <label className="label">City</label>
+            <label className="label">{t("City")}</label>
             <input name="city" defaultValue={customer?.city || ""} className="input" />
           </div>
           <div>
-            <label className="label">Country</label>
-            <input name="country" defaultValue={customer?.country || ""} className="input" placeholder="Slovenia" />
+            <label className="label">{t("Country")}</label>
+            <input name="country" defaultValue={customer?.country || ""} className="input" placeholder={t("Slovenia")} />
           </div>
         </div>
         <div>
-          <label className="label">Website</label>
-          <input name="website" defaultValue={customer?.website || ""} className="input" placeholder="example.com" />
+          <label className="label">{t("Website")}</label>
+          <input name="website" defaultValue={customer?.website || ""} className="input" placeholder={t("example.com")} />
         </div>
       </fieldset>
 
       <fieldset className="space-y-4">
-        <legend className="section-title mb-2">Contact person</legend>
+        <legend className="section-title mb-2">{t("Contact person")}</legend>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="label">Name *</label>
+            <label className="label">{t("Name *")}</label>
             <input name="name" required defaultValue={customer?.name} className="input" />
           </div>
           <div>
-            <label className="label">Job title / role</label>
+            <label className="label">{t("Job title / role")}</label>
             <input
               name="jobTitle"
               defaultValue={customer?.jobTitle || ""}
               className="input"
-              placeholder="Facility manager, owner, CFO…"
+              placeholder={t("Facility manager, owner, CFO…")}
             />
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="label">Email</label>
+            <label className="label">{t("Email")}</label>
             <input name="email" type="email" defaultValue={customer?.email || ""} className="input" />
           </div>
           <div>
-            <label className="label">Phone</label>
+            <label className="label">{t("Phone")}</label>
             <input name="phone" defaultValue={customer?.phone || ""} className="input" />
           </div>
         </div>
       </fieldset>
 
       <fieldset className="space-y-4">
-        <legend className="section-title mb-2">Opportunity</legend>
+        <legend className="section-title mb-2">{t("Opportunity")}</legend>
         {products.length > 0 && (
           <div>
-            <label className="label">Interested in</label>
+            <label className="label">{t("Interested in")}</label>
             <div className="flex flex-wrap gap-2">
               {products.map((p) => (
                 <label
@@ -160,23 +162,23 @@ export default function CustomerForm({
         )}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="label">Stage</label>
+            <label className="label">{t("Stage")}</label>
             <select name="status" defaultValue={customer?.status || "NEW"} className="input">
               {LEAD_STATUSES.map((s) => (
                 <option key={s} value={s}>
-                  {LEAD_STATUS_LABEL[s]}
+                  {t(LEAD_STATUS_LABEL[s])}
                 </option>
               ))}
             </select>
           </div>
           <div>
-            <label className="label">Lead source</label>
+            <label className="label">{t("Lead source")}</label>
             <input
               name="source"
               list="sources"
               defaultValue={customer?.source || ""}
               className="input"
-              placeholder="Cold call, referral…"
+              placeholder={t("Cold call, referral…")}
             />
             <datalist id="sources">
               {SOURCE_SUGGESTIONS.map((s) => (
@@ -187,7 +189,7 @@ export default function CustomerForm({
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="label">Estimated value (€ / first year)</label>
+            <label className="label">{t("Estimated value (€ / first year)")}</label>
             <input
               name="estimatedValue"
               type="number"
@@ -198,7 +200,7 @@ export default function CustomerForm({
             />
           </div>
           <div>
-            <label className="label">Next follow-up</label>
+            <label className="label">{t("Next follow-up")}</label>
             <input
               name="nextFollowUpAt"
               type="date"
@@ -208,18 +210,18 @@ export default function CustomerForm({
           </div>
         </div>
         <div>
-          <label className="label">Note</label>
+          <label className="label">{t("Note")}</label>
           <textarea
             name="note"
             defaultValue={customer?.note || ""}
             className="input min-h-[80px]"
-            placeholder="Their pain points, current tools, decision makers, budget, timing…"
+            placeholder={t("Their pain points, current tools, decision makers, budget, timing…")}
           />
         </div>
       </fieldset>
 
       <button type="submit" className="btn-primary w-full" disabled={busy}>
-        {busy ? "Saving…" : submitLabel}
+        {busy ? t("Saving…") : submitLabel}
       </button>
     </form>
   );

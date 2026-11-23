@@ -6,6 +6,7 @@ import Modal from "@/components/Modal";
 import { DownloadIcon } from "@/components/icons";
 import { parseCsv, guessMapping, LEAD_FIELDS, type LeadField } from "@/lib/csv";
 import type { LeadRow } from "@/lib/leads";
+import { useT } from "@/components/LocaleProvider";
 
 type ImportResult = { error?: string; created?: number; skipped?: string[] };
 
@@ -26,6 +27,7 @@ export default function CsvImport({
   hint?: string;
   buttonClass?: string;
 }) {
+  const t = useT();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [headers, setHeaders] = useState<string[]>([]);
@@ -101,7 +103,7 @@ export default function CsvImport({
         {result ? (
           <div className="space-y-4">
             <div className="success-box">
-              Imported {result.created} lead{result.created === 1 ? "" : "s"}.
+              {t("Imported ")}{result.created}{t(" lead")}{result.created === 1 ? "" : "s"}.
               {result.skipped && result.skipped.length > 0 && ` Skipped ${result.skipped.length}.`}
             </div>
             {result.skipped && result.skipped.length > 0 && (
@@ -112,7 +114,7 @@ export default function CsvImport({
               </ul>
             )}
             <button className="btn-primary w-full" onClick={() => setOpen(false)}>
-              Done
+              {t("Done")}
             </button>
           </div>
         ) : (
@@ -126,18 +128,18 @@ export default function CsvImport({
                 className="block flex-1 text-sm text-black/60 rounded-xl border border-black/10 bg-white px-3.5 py-2.5"
               />
               <button type="button" className="text-xs text-brand-600 hover:underline" onClick={downloadSample}>
-                Download a template
+                {t("Download a template")}
               </button>
             </div>
             <p className="text-xs text-black/40">
-              In Excel: File → Save As → CSV. Duplicate emails (already in the CRM) are skipped automatically.
+              {t("In Excel: File → Save As → CSV. Duplicate emails (already in the CRM) are skipped automatically.")}
             </p>
             {error && <div className="error-box">{error}</div>}
 
             {headers.length > 0 && (
               <>
                 <div>
-                  <div className="section-title mb-2">Match the columns</div>
+                  <div className="section-title mb-2">{t("Match the columns")}</div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {headers.map((h, i) => (
                       <div key={i} className="flex items-center gap-2 text-sm">
@@ -151,7 +153,7 @@ export default function CsvImport({
                             setMapping((m) => m.map((v, j) => (j === i ? (e.target.value as LeadField | "") : v)))
                           }
                         >
-                          <option value="">— ignore —</option>
+                          <option value="">{t("— ignore —")}</option>
                           {LEAD_FIELDS.map(([f, l]) => (
                             <option key={f} value={f}>
                               {l}
@@ -163,16 +165,16 @@ export default function CsvImport({
                   </div>
                 </div>
                 <div>
-                  <div className="section-title mb-2">Preview ({rows.length} rows)</div>
+                  <div className="section-title mb-2">{t("Preview (")}{rows.length}{t(" rows)")}</div>
                   <div className="overflow-x-auto rounded-xl border border-black/10">
                     <table className="w-full text-xs">
                       <thead>
                         <tr className="bg-sand-50 text-left">
-                          <th className="px-3 py-2">Company</th>
-                          <th className="px-3 py-2">Contact</th>
-                          <th className="px-3 py-2">Email</th>
-                          <th className="px-3 py-2">Phone</th>
-                          <th className="px-3 py-2">City</th>
+                          <th className="px-3 py-2">{t("Company")}</th>
+                          <th className="px-3 py-2">{t("Contact")}</th>
+                          <th className="px-3 py-2">{t("Email")}</th>
+                          <th className="px-3 py-2">{t("Phone")}</th>
+                          <th className="px-3 py-2">{t("City")}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -189,9 +191,9 @@ export default function CsvImport({
                     </table>
                   </div>
                 </div>
-                {!hasName && <div className="error-box">Map at least a Contact name or Company column.</div>}
+                {!hasName && <div className="error-box">{t("Map at least a Contact name or Company column.")}</div>}
                 <button className="btn-primary w-full" disabled={busy || !hasName} onClick={doImport}>
-                  {busy ? "Importing…" : `Import ${rows.length} lead${rows.length === 1 ? "" : "s"}`}
+                  {busy ? t("Importing…") : `Import ${rows.length} lead${rows.length === 1 ? "" : "s"}`}
                 </button>
               </>
             )}

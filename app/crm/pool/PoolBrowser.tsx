@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { claimLead } from "./actions";
+import { useT } from "@/components/LocaleProvider";
 
 type Pool = {
   id: string;
@@ -14,6 +15,7 @@ type Pool = {
 };
 
 export default function PoolBrowser({ pools }: { pools: Pool[] }) {
+  const t = useT();
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ error?: string; success?: string } | null>(null);
@@ -30,23 +32,22 @@ export default function PoolBrowser({ pools }: { pools: Pool[] }) {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Lead pool</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t("Lead pool")}</h1>
         <p className="text-black/50 text-sm mt-1">
-          Unassigned leads your managers have opened up for claiming. Claim one and it becomes your customer — contact
-          details appear once it&apos;s yours.
+          {t("Unassigned leads your managers have opened up for claiming. Claim one and it becomes your customer — contact details appear once it's yours.")}
         </p>
       </div>
-      {msg?.error && <div className="error-box mb-4">{msg.error}</div>}
+      {msg?.error && <div className="error-box mb-4">{t(msg.error)}</div>}
       {msg?.success && (
         <div className="success-box mb-4">
-          {msg.success}{" "}
+          {t(msg.success)}{" "}
           <Link href="/crm/customers?stage=NEW" className="underline">
-            Open your new leads →
+            {t("Open your new leads →")}
           </Link>
         </div>
       )}
       {pools.length === 0 && (
-        <div className="card p-10 text-center text-sm text-black/40">No open lead pools right now.</div>
+        <div className="card p-10 text-center text-sm text-black/40">{t("No open lead pools right now.")}</div>
       )}
       <div className="space-y-6">
         {pools.map((p) => (
@@ -54,7 +55,7 @@ export default function PoolBrowser({ pools }: { pools: Pool[] }) {
             <div className="px-5 py-4 border-b border-black/5">
               <div className="font-semibold">{p.name}</div>
               <div className="text-xs text-black/45">
-                {p.leads.length} available{p.claimLimit ? ` · max ${p.claimLimit} open per seller` : ""}
+                {p.leads.length}{t(" available")}{p.claimLimit ? ` · max ${p.claimLimit} open per seller` : ""}
                 {p.description ? ` · ${p.description}` : ""}
               </div>
             </div>
@@ -68,11 +69,11 @@ export default function PoolBrowser({ pools }: { pools: Pool[] }) {
                     </div>
                   </div>
                   <button className="btn-secondary py-1.5 shrink-0" disabled={busy === l.id} onClick={() => claim(l.id)}>
-                    {busy === l.id ? "Claiming…" : "Claim"}
+                    {busy === l.id ? t("Claiming…") : t("Claim")}
                   </button>
                 </div>
               ))}
-              {p.leads.length === 0 && <div className="px-5 py-6 text-sm text-black/40 text-center">All taken.</div>}
+              {p.leads.length === 0 && <div className="px-5 py-6 text-sm text-black/40 text-center">{t("All taken.")}</div>}
             </div>
           </div>
         ))}

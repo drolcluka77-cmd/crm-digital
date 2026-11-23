@@ -17,46 +17,50 @@ import {
   MailIcon,
   PlayIcon,
 } from "@/components/icons";
+import { getT } from "@/lib/i18n-server";
+import { LocaleProvider } from "@/components/LocaleProvider";
 
 const ic = "h-[18px] w-[18px]";
 
 export default async function CrmLayout({ children }: { children: React.ReactNode }) {
+  const t = await getT();
   const user = await requireSales();
   const [settings, unread] = await Promise.all([getSettings(), unreadCount(user.id)]);
 
   const sections: NavSection[] = [
     {
       items: [
-        { href: "/crm", label: "Today", icon: <GridIcon className={ic} /> },
-        { href: "/crm/quick", label: "Quick log", icon: <PencilIcon className={ic} /> },
-        { href: "/crm/timesheet", label: "Timesheet", icon: <ClockIcon className={ic} /> },
-        { href: "/crm/notifications", label: "Notifications", icon: <MailIcon className={ic} />, badge: unread },
+        { href: "/crm", label: t("Today"), icon: <GridIcon className={ic} /> },
+        { href: "/crm/quick", label: t("Quick log"), icon: <PencilIcon className={ic} /> },
+        { href: "/crm/timesheet", label: t("Timesheet"), icon: <ClockIcon className={ic} /> },
+        { href: "/crm/notifications", label: t("Notifications"), icon: <MailIcon className={ic} />, badge: unread },
       ],
     },
     {
-      heading: "Sell",
+      heading: t("Sell"),
       items: [
-        { href: "/crm/products", label: "My products", icon: <PackageIcon className={ic} /> },
-        { href: "/crm/customers", label: "Customers", icon: <UsersIcon className={ic} /> },
-        { href: "/crm/prospects", label: "Recommended leads", icon: <SparkIcon className={ic} /> },
-        { href: "/crm/pool", label: "Lead pool", icon: <SparkIcon className={ic} /> },
-        { href: "/crm/quotes", label: "Quotes", icon: <FileIcon className={ic} /> },
-        { href: "/crm/contracts", label: "Contracts", icon: <FileIcon className={ic} /> },
-        { href: "/crm/library", label: "Sales library", icon: <FolderIcon className={ic} /> },
-        { href: "/crm/ugc", label: "UGC creator", icon: <PlayIcon className={ic} /> },
+        { href: "/crm/products", label: t("My products"), icon: <PackageIcon className={ic} /> },
+        { href: "/crm/customers", label: t("Customers"), icon: <UsersIcon className={ic} /> },
+        { href: "/crm/prospects", label: t("Recommended leads"), icon: <SparkIcon className={ic} /> },
+        { href: "/crm/pool", label: t("Lead pool"), icon: <SparkIcon className={ic} /> },
+        { href: "/crm/quotes", label: t("Quotes"), icon: <FileIcon className={ic} /> },
+        { href: "/crm/contracts", label: t("Contracts"), icon: <FileIcon className={ic} /> },
+        { href: "/crm/library", label: t("Sales library"), icon: <FolderIcon className={ic} /> },
+        { href: "/crm/ugc", label: t("UGC creator"), icon: <PlayIcon className={ic} /> },
       ],
     },
     {
-      heading: "Earn",
+      heading: t("Earn"),
       items: [
-        { href: "/crm/subscriptions", label: "Subscriptions", icon: <ChartIcon className={ic} /> },
-        { href: "/crm/commission", label: "My commission", icon: <CoinsIcon className={ic} /> },
+        { href: "/crm/subscriptions", label: t("Subscriptions"), icon: <ChartIcon className={ic} /> },
+        { href: "/crm/commission", label: t("My commission"), icon: <CoinsIcon className={ic} /> },
       ],
     },
-    { items: [{ href: "/crm/account", label: "Account", icon: <SettingsIcon className={ic} /> }] },
+    { items: [{ href: "/crm/account", label: t("Account"), icon: <SettingsIcon className={ic} /> }] },
   ];
 
   return (
+    <LocaleProvider locale={user.locale}>
     <div className="lg:flex min-h-screen bg-sand-50">
       <Sidebar
         sections={sections}
@@ -70,5 +74,6 @@ export default async function CrmLayout({ children }: { children: React.ReactNod
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-5 lg:py-8">{children}</div>
       </main>
     </div>
+    </LocaleProvider>
   );
 }

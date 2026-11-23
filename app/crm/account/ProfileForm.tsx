@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { updateMyProfile } from "./actions";
+import { useT } from "@/components/LocaleProvider";
 
 export default function ProfileForm({
   phone,
@@ -14,6 +15,7 @@ export default function ProfileForm({
   emailNotifications: boolean;
   showBooking?: boolean;
 }) {
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ error?: string; success?: string } | null>(null);
 
@@ -28,40 +30,39 @@ export default function ProfileForm({
       }}
     >
       <div>
-        <h2 className="font-semibold">Profile & notifications</h2>
-        <p className="text-sm text-black/45">Your phone appears in email signatures and on quotes.</p>
+        <h2 className="font-semibold">{t("Profile & notifications")}</h2>
+        <p className="text-sm text-black/45">{t("Your phone appears in email signatures and on quotes.")}</p>
       </div>
-      {msg?.error && <div className="error-box">{msg.error}</div>}
-      {msg?.success && <div className="success-box">{msg.success}</div>}
+      {msg?.error && <div className="error-box">{t(msg.error)}</div>}
+      {msg?.success && <div className="success-box">{t(msg.success)}</div>}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="label">Phone</label>
+          <label className="label">{t("Phone")}</label>
           <input name="phone" defaultValue={phone || ""} className="input" placeholder="+386 40 000 000" />
         </div>
         {showBooking && (
           <div>
-            <label className="label">Your booking page</label>
+            <label className="label">{t("Your booking page")}</label>
             <input
               name="bookingUrl"
               defaultValue={bookingUrl || ""}
               className="input"
-              placeholder="https://calendly.com/you/demo"
+              placeholder={t("https://calendly.com/you/demo")}
             />
           </div>
         )}
       </div>
       {showBooking && (
         <p className="text-xs text-black/45">
-          Calendly, Cal.com, Google Calendar booking page… Use <code>{"{{bookingLink}}"}</code> in an email and each
-          client gets a tracked link to it — you&apos;re notified when they open it.
+          {t("Calendly, Cal.com, Google Calendar booking page… Use ")}<code>{t("{{bookingLink}}")}</code>{t(" in an email and each client gets a tracked link to it — you're notified when they open it.")}
         </p>
       )}
       <label className="flex items-center gap-2.5 text-sm">
         <input type="checkbox" name="emailNotifications" defaultChecked={emailNotifications} />
-        Email me about important events (client opened a quote, demo booked, approvals, new leads)
+        {t("Email me about important events (client opened a quote, demo booked, approvals, new leads)")}
       </label>
       <button type="submit" className="btn-primary" disabled={busy}>
-        {busy ? "Saving…" : "Save"}
+        {busy ? t("Saving…") : t("Save")}
       </button>
     </form>
   );

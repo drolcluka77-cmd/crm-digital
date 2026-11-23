@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { deleteWorkLog, saveWorkLog } from "./actions";
+import { useT } from "@/components/LocaleProvider";
 
 type Counts = { calls: number; emails: number; meetings: number; leadsClaimed: number };
 type Entry = {
@@ -43,6 +44,7 @@ export default function TimesheetClient({
   counts: Record<string, Counts>;
   entries: Entry[];
 }) {
+  const t = useT();
   const router = useRouter();
   const [editing, setEditing] = useState<Entry | null>(null);
   const [day, setDay] = useState(today);
@@ -81,10 +83,9 @@ export default function TimesheetClient({
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Timesheet</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t("Timesheet")}</h1>
         <p className="text-black/50 text-sm mt-1">
-          Log your hours and what you did each day you work. Calls, e-mails and meetings are filled in from what you
-          logged in the CRM — correct them if needed.
+          {t("Log your hours and what you did each day you work. Calls, e-mails and meetings are filled in from what you logged in the CRM — correct them if needed.")}
         </p>
       </div>
 
@@ -103,17 +104,17 @@ export default function TimesheetClient({
         }}
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="font-medium">{editing ? `Edit ${dayLabel(editing.day)}` : "Log a day"}</div>
+          <div className="font-medium">{editing ? `Edit ${dayLabel(editing.day)}` : t("Log a day")}</div>
           {editing && (
             <button type="button" className="text-sm text-black/45" onClick={() => setEditing(null)}>
-              Cancel editing
+              {t("Cancel editing")}
             </button>
           )}
         </div>
         {editing && <input type="hidden" name="id" value={editing.id} />}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <label className="text-sm">
-            <span className="label">Date</span>
+            <span className="label">{t("Date")}</span>
             <input
               type="date"
               name="day"
@@ -125,57 +126,57 @@ export default function TimesheetClient({
             />
           </label>
           <label className="text-sm">
-            <span className="label">From</span>
+            <span className="label">{t("From")}</span>
             <input type="time" name="startTime" className="input" defaultValue={v.startTime} required />
           </label>
           <label className="text-sm">
-            <span className="label">To</span>
+            <span className="label">{t("To")}</span>
             <input type="time" name="endTime" className="input" defaultValue={v.endTime} required />
           </label>
           <label className="text-sm">
-            <span className="label">Break (min)</span>
+            <span className="label">{t("Break (min)")}</span>
             <input type="number" name="breakMinutes" min={0} max={240} className="input" defaultValue={v.breakMinutes} />
           </label>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <label className="text-sm">
-            <span className="label">Calls made</span>
+            <span className="label">{t("Calls made")}</span>
             <input type="number" name="calls" min={0} className="input" defaultValue={v.calls} />
           </label>
           <label className="text-sm">
-            <span className="label">Reached decision maker</span>
+            <span className="label">{t("Reached decision maker")}</span>
             <input type="number" name="conversations" min={0} className="input" defaultValue={v.conversations} />
           </label>
           <label className="text-sm">
-            <span className="label">Meetings booked</span>
+            <span className="label">{t("Meetings booked")}</span>
             <input type="number" name="meetings" min={0} className="input" defaultValue={v.meetings} />
           </label>
           <label className="text-sm">
-            <span className="label">E-mails sent</span>
+            <span className="label">{t("E-mails sent")}</span>
             <input type="number" name="emails" min={0} className="input" defaultValue={v.emails} />
           </label>
         </div>
         {!editing && crm && (
           <div className="text-xs text-black/45">
-            Logged in the CRM on this day: {crm.calls} calls · {crm.emails} e-mails · {crm.meetings} meetings booked ·{" "}
-            {crm.leadsClaimed} leads claimed
+            {t("Logged in the CRM on this day: ")}{crm.calls}{t(" calls · ")}{crm.emails}{t(" e-mails · ")}{crm.meetings}{t(" meetings booked ·")}{" "}
+            {crm.leadsClaimed}{t(" leads claimed")}
           </div>
         )}
         <label className="text-sm block">
-          <span className="label">What did you do?</span>
+          <span className="label">{t("What did you do?")}</span>
           <textarea
             name="notes"
             rows={4}
             className="input"
             defaultValue={v.notes}
-            placeholder="e.g. Called dentists in Ljubljana (Picked), 2 interested — sent the AI report e-mail; booked a meeting with Zobna ordinacija X for Thursday 10:00."
+            placeholder={t("e.g. Called dentists in Ljubljana (Picked), 2 interested — sent the AI report e-mail; booked a meeting with Zobna ordinacija X for Thursday 10:00.")}
             required
           />
         </label>
-        {msg?.error && <div className="error-box">{msg.error}</div>}
-        {msg?.success && <div className="success-box">{msg.success}</div>}
+        {msg?.error && <div className="error-box">{t(msg.error)}</div>}
+        {msg?.success && <div className="success-box">{t(msg.success)}</div>}
         <button className="btn-primary" disabled={busy}>
-          {busy ? "Saving…" : editing ? "Save changes" : "Save day"}
+          {busy ? t("Saving…") : editing ? t("Save changes") : t("Save day")}
         </button>
       </form>
 
@@ -192,14 +193,14 @@ export default function TimesheetClient({
           </button>
         </div>
         <div className="text-sm text-black/60">
-          <b>{hours(totals.minutes)} h</b> in {totals.days.size} day{totals.days.size === 1 ? "" : "s"} · {totals.calls} calls ·{" "}
-          {totals.meetings} meetings
+          <b>{hours(totals.minutes)} h</b>{t(" in ")}{totals.days.size}{t(" day")}{totals.days.size === 1 ? "" : "s"} · {totals.calls}{t(" calls ·")}{" "}
+          {totals.meetings}{t(" meetings")}
           {totals.minutes > 0 ? ` · ${(totals.calls / (totals.minutes / 60)).toFixed(1)} calls/h` : ""}
         </div>
       </div>
 
       {entries.length === 0 ? (
-        <div className="card p-8 text-center text-sm text-black/40">Nothing logged this month yet.</div>
+        <div className="card p-8 text-center text-sm text-black/40">{t("Nothing logged this month yet.")}</div>
       ) : (
         <div className="space-y-3">
           {entries.map((e) => {
@@ -213,11 +214,11 @@ export default function TimesheetClient({
                       {e.breakMinutes ? ` (break ${e.breakMinutes} min)` : ""} · <b>{hours(e.minutes)} h</b>
                     </div>
                     <div className="text-sm text-black/60 mt-0.5">
-                      {e.calls} calls · {e.conversations} reached · {e.meetings} meetings · {e.emails} e-mails
+                      {e.calls}{t(" calls · ")}{e.conversations}{t(" reached · ")}{e.meetings}{t(" meetings · ")}{e.emails}{t(" e-mails")}
                       {c ? (
                         <span className="text-black/40">
                           {" "}
-                          (CRM: {c.calls} calls, {c.meetings} meetings)
+                          {t("(CRM: ")}{c.calls}{t(" calls, ")}{c.meetings}{t(" meetings)")}
                         </span>
                       ) : null}
                     </div>
@@ -225,12 +226,12 @@ export default function TimesheetClient({
                   <div className="flex items-center gap-2">
                     {e.approved ? (
                       <span className="text-xs rounded-full bg-emerald-50 text-emerald-700 px-2.5 py-1">
-                        Approved{e.approvedBy ? ` by ${e.approvedBy}` : ""}
+                        {t("Approved")}{e.approvedBy ? ` by ${e.approvedBy}` : ""}
                       </span>
                     ) : (
                       <>
                         <button className="text-sm text-brand-700 hover:underline" onClick={() => { setEditing(e); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
-                          Edit
+                          {t("Edit")}
                         </button>
                         <button
                           className="text-sm text-black/40 hover:text-rose-700"
@@ -241,14 +242,14 @@ export default function TimesheetClient({
                             router.refresh();
                           }}
                         >
-                          Delete
+                          {t("Delete")}
                         </button>
                       </>
                     )}
                   </div>
                 </div>
                 <div className="text-sm text-black/75 mt-2 whitespace-pre-wrap">{e.notes}</div>
-                {e.managerNote && <div className="text-xs mt-2 rounded-lg bg-amber-50 text-amber-800 px-3 py-2">Manager: {e.managerNote}</div>}
+                {e.managerNote && <div className="text-xs mt-2 rounded-lg bg-amber-50 text-amber-800 px-3 py-2">{t("Manager: ")}{e.managerNote}</div>}
               </div>
             );
           })}

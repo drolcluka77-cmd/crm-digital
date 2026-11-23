@@ -7,6 +7,7 @@ import { sendMaterials } from "@/app/crm/customers/actions";
 import { MATERIAL_TYPE_LABEL } from "@/lib/constants";
 import { formatFileSize } from "@/lib/format";
 import type { SellerMaterial } from "@/lib/seller";
+import { useT } from "@/components/LocaleProvider";
 
 type CustomerOption = { id: string; name: string; company: string | null; email: string | null };
 
@@ -31,6 +32,7 @@ export default function SendMaterialsModal({
   fixedCustomer?: CustomerOption;
   preselected?: string[];
 }) {
+  const t = useT();
   const router = useRouter();
   const sendable = materials.filter((m) => !m.internalOnly);
   const [customerId, setCustomerId] = useState(fixedCustomer?.id || "");
@@ -69,15 +71,15 @@ export default function SendMaterialsModal({
   }
 
   return (
-    <Modal open={open} onClose={close} title="Send materials to a client" wide>
+    <Modal open={open} onClose={close} title={t("Send materials to a client")} wide>
       {done ? (
         <div className="text-center py-6">
           <div className="text-emerald-600 font-medium mb-1">{done}</div>
           <p className="text-sm text-black/50">
-            You&apos;ll see on the customer&apos;s timeline when they open it.
+            {t("You'll see on the customer's timeline when they open it.")}
           </p>
           <button className="btn-secondary mt-4" onClick={close}>
-            Close
+            {t("Close")}
           </button>
         </div>
       ) : (
@@ -96,7 +98,7 @@ export default function SendMaterialsModal({
             <input type="hidden" name="customerId" value={fixedCustomer.id} />
           ) : (
             <div>
-              <label className="label">Customer</label>
+              <label className="label">{t("Customer")}</label>
               <select
                 name="customerId"
                 className="input"
@@ -104,7 +106,7 @@ export default function SendMaterialsModal({
                 onChange={(e) => setCustomerId(e.target.value)}
                 required
               >
-                <option value="">Choose a customer…</option>
+                <option value="">{t("Choose a customer…")}</option>
                 {(customers || []).map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.company ? `${c.company} — ${c.name}` : c.name}
@@ -115,9 +117,9 @@ export default function SendMaterialsModal({
           )}
 
           <div>
-            <label className="label">What to send</label>
+            <label className="label">{t("What to send")}</label>
             {sendable.length === 0 ? (
-              <div className="text-sm text-black/40">No client-ready materials available yet.</div>
+              <div className="text-sm text-black/40">{t("No client-ready materials available yet.")}</div>
             ) : (
               <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
                 {grouped.map(([group, list]) => (
@@ -146,8 +148,8 @@ export default function SendMaterialsModal({
                           <span className="min-w-0 flex-1">
                             <span className="block font-medium truncate">{m.title}</span>
                             <span className="block text-xs text-black/40">
-                              {MATERIAL_TYPE_LABEL[m.type]}
-                              {m.fileName ? ` · ${formatFileSize(m.fileSize)}` : " · link"}
+                              {t(MATERIAL_TYPE_LABEL[m.type])}
+                              {m.fileName ? ` · ${formatFileSize(m.fileSize)}` : t(" · link")}
                             </span>
                           </span>
                         </label>
@@ -161,18 +163,18 @@ export default function SendMaterialsModal({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="label">To</label>
+              <label className="label">{t("To")}</label>
               <input
                 name="to"
                 type="email"
                 required
                 defaultValue={customer?.email || ""}
                 className="input"
-                placeholder="client@company.com"
+                placeholder={t("client@company.com")}
               />
             </div>
             <div>
-              <label className="label">Subject</label>
+              <label className="label">{t("Subject")}</label>
               <input
                 name="subject"
                 required
@@ -182,7 +184,7 @@ export default function SendMaterialsModal({
             </div>
           </div>
           <div>
-            <label className="label">Message</label>
+            <label className="label">{t("Message")}</label>
             <textarea
               name="message"
               required
@@ -192,10 +194,10 @@ export default function SendMaterialsModal({
           </div>
           <label className="flex items-center gap-2 text-sm text-black/60">
             <input type="checkbox" name="attachFiles" />
-            Also attach the files (up to 10 MB in total; larger files are sent as links)
+            {t("Also attach the files (up to 10 MB in total; larger files are sent as links)")}
           </label>
           <button type="submit" className="btn-primary w-full" disabled={busy || selected.size === 0}>
-            {busy ? "Sending…" : `Send ${selected.size || ""} item${selected.size === 1 ? "" : "s"}`}
+            {busy ? t("Sending…") : `Send ${selected.size || ""} item${selected.size === 1 ? "" : "s"}`}
           </button>
         </form>
       )}
