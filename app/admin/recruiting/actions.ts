@@ -9,6 +9,8 @@ import { getBaseUrl } from "@/lib/url";
 import { escapeHtml } from "@/lib/format";
 import { deletePrivateFile } from "@/lib/upload";
 import { CANDIDATE_STAGES, sendInvite, firstName } from "@/lib/recruiting";
+import { DEFAULT_REJECT_BODY, DEFAULT_REJECT_SUBJECT } from "@/lib/recruiting-labels";
+import { getSettings } from "@/lib/settings";
 
 export type ActionResult = { error?: string; success?: string; tempPassword?: string } | void;
 
@@ -80,21 +82,67 @@ export async function inviteMany(ids: string[]): Promise<ActionResult> {
   return errors.length ? { error: `${sent} sent, ${errors.length} failed: ${errors[0]}` } : { success: `${sent} invitation${sent === 1 ? "" : "s"} sent.` };
 }
 
-export async function rejectCandidate(id: string, sendNote: boolean): Promise<ActionResult> {
-  await requireStaff();
+async function rejectOne(
+  id: string,
+  mail: { subject: string; body: string; senderName: string; company: string } | null
+): Promise<string | null> {
   const c = await prisma.candidate.findUnique({ where: { id } });
-  if (!c) return { error: "Not found." };
-  if (sendNote) {
-    const text = `Pozdravljeni ${firstName(c.name)},\n\nhvala za vaš čas in zanimanje za delo pri nas. Tokrat smo se odločili za druge kandidate. Želimo vam veliko uspeha in vas lepo pozdravljamo.\n\nAURELIA GROUP d.o.o.`;
+  if (!c) return "Not found.";
+  if (mail) {
+    const fill = (t: string) =>
+      t
+        .replace(/{{\s*firstName\s*}}/g, firstName(c.name))
+        .replace(/{{\s*senderName\s*}}/g, mail.senderName)
+        .replace(/{{\s*company\s*}}/g, mail.company);
+    const text = fill(mail.body);
     try {
-      await sendEmail({ to: c.email, subject: "Vaša prijava", text, html: `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.55">${escapeHtml(text).replace(/\n/g, "<br>")}</div>` });
+      await sendEmail({
+        to: c.email,
+        subject: fill(mail.subject),
+        text,
+        html: `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.55">${escapeHtml(text).replace(/\n/g, "<br>")}</div>`,
+      });
     } catch (e: any) {
-      return { error: `Couldn't send the e-mail: ${e?.message || e}` };
+      return `${c.email}: ${e?.message || e}`;
     }
   }
   await prisma.candidate.update({ where: { id }, data: { stage: "REJECTED", closedAt: new Date() } });
+  return null;
+}
+
+async function rejectMail(subject?: string, body?: string) {
+  const user = await requireStaff();
+  const settings = await getSettings();
+  return {
+    subject: subject?.trim() || DEFAULT_REJECT_SUBJECT,
+    body: body?.trim() || DEFAULT_REJECT_BODY,
+    senderName: user.name,
+    company: settings.companyName,
+  };
+}
+
+export async function rejectCandidate(id: string, sendNote: boolean, subject?: string, body?: string): Promise<ActionResult> {
+  await requireStaff();
+  const err = await rejectOne(id, sendNote ? await rejectMail(subject, body) : null);
   revalidate(id);
+  if (err) return { error: `Couldn't send the e-mail: ${err}` };
   return { success: sendNote ? "Marked as not selected and the candidate was told." : "Marked as not selected." };
+}
+
+/** Several candidates at once: mark as not selected and (optionally) send each the e-mail. */
+export async function rejectMany(ids: string[], sendNote: boolean, subject?: string, body?: string): Promise<ActionResult> {
+  await requireStaff();
+  const mail = sendNote ? await rejectMail(subject, body) : null;
+  let done = 0;
+  const errors: string[] = [];
+  for (const id of ids.slice(0, 200)) {
+    const err = await rejectOne(id, mail);
+    if (err) errors.push(err);
+    else done++;
+  }
+  revalidate();
+  if (errors.length) return { error: `${done} done, ${errors.length} failed: ${errors[0]}` };
+  return { success: `${done} candidate${done === 1 ? "" : "s"} marked as not selected${sendNote ? " and e-mailed" : ""}.` };
 }
 
 /** GDPR: erase a candidate (on request). */

@@ -4,7 +4,8 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CANDIDATE_STAGE_LABEL } from "@/lib/recruiting-labels";
-import { inviteMany, saveRecruitingSettings } from "./actions";
+import { inviteMany, rejectMany, saveRecruitingSettings } from "./actions";
+import { DEFAULT_REJECT_BODY, DEFAULT_REJECT_SUBJECT } from "@/lib/recruiting-labels";
 
 type C = {
   id: string;
@@ -48,6 +49,9 @@ export default function RecruitingManager({
   const [msg, setMsg] = useState<{ error?: string; success?: string } | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejSubject, setRejSubject] = useState(DEFAULT_REJECT_SUBJECT);
+  const [rejBody, setRejBody] = useState(DEFAULT_REJECT_BODY);
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { ALL: candidates.length, OPEN: 0 };
@@ -76,6 +80,7 @@ export default function RecruitingManager({
   }
 
   const notInvited = rows.filter((r) => selected.has(r.id) && !r.invitedAt).map((r) => r.id);
+  const openSelected = candidates.filter((r) => selected.has(r.id) && !["HIRED", "REJECTED"].includes(r.stage));
 
   return (
     <div>
@@ -177,7 +182,66 @@ export default function RecruitingManager({
             {busy === "invite" ? "Sending…" : `Invite ${notInvited.length} not yet invited`}
           </button>
         )}
+        {openSelected.length > 0 && (
+          <button className="btn-secondary py-1.5" disabled={!!busy} onClick={() => setRejectOpen((v) => !v)}>
+            Not selected… ({openSelected.length})
+          </button>
+        )}
+        {selected.size > 0 && (
+          <button className="text-sm text-black/45 hover:text-black/70" onClick={() => setSelected(new Set())}>
+            Clear selection
+          </button>
+        )}
       </div>
+
+      {rejectOpen && openSelected.length > 0 && (
+        <div className="card p-5 mb-5 space-y-3">
+          <div className="font-medium">Mark {openSelected.length} as not selected</div>
+          <div className="text-xs text-black/50">
+            {openSelected.map((c) => c.name).join(", ")}
+          </div>
+          <label className="text-sm block">
+            <span className="label">Subject</span>
+            <input className="input" value={rejSubject} onChange={(e) => setRejSubject(e.target.value)} />
+          </label>
+          <label className="text-sm block">
+            <span className="label">Message — {"{{firstName}}"}, {"{{senderName}}"} and {"{{company}}"} are filled in for each candidate</span>
+            <textarea className="input" rows={14} value={rejBody} onChange={(e) => setRejBody(e.target.value)} />
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <button
+              className="btn-primary"
+              disabled={!!busy}
+              onClick={() => {
+                if (!confirm(`Send this e-mail to ${openSelected.length} candidate(s) and mark them as not selected?`)) return;
+                act("reject", () => rejectMany(openSelected.map((c) => c.id), true, rejSubject, rejBody)).then((r: any) => {
+                  if (!r?.error) {
+                    setRejectOpen(false);
+                    setSelected(new Set());
+                  }
+                });
+              }}
+            >
+              {busy === "reject" ? "Sending…" : `Send e-mail and mark ${openSelected.length} as not selected`}
+            </button>
+            <button
+              className="btn-secondary"
+              disabled={!!busy}
+              onClick={() =>
+                act("reject", () => rejectMany(openSelected.map((c) => c.id), false)).then((r: any) => {
+                  if (!r?.error) {
+                    setRejectOpen(false);
+                    setSelected(new Set());
+                  }
+                })
+              }
+            >
+              Mark without e-mail
+            </button>
+            <button className="text-sm text-black/45 px-2" onClick={() => setRejectOpen(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
 
       <div className="card overflow-x-auto">
         <table className="w-full text-sm">
