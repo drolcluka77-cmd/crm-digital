@@ -55,7 +55,7 @@ export const RECRUITING_POSITIONS: Record<string, RecruitingPosition> = {
     label: "Google & AI visibility assistant",
     title: "Asistent/ka za Google profile in AI vidnost podjetij",
     intro:
-      "Mr. Picked pomaga lokalnim podjetjem (restavracije, hoteli, avtoservisi …), da jih najdejo Google in AI asistenti, kot sta ChatGPT in Gemini. Iščemo natančno in samostojno osebo, ki bo urejala Google profile in vpise podjetij, pripravljala objave in mesečna poročila. Delo od doma, prilagodljiv urnik, uvajanje zagotovljeno.",
+      "Mr. Picked pomaga lokalnim podjetjem (restavracije, hoteli, avtoservisi …), da jih najdejo Google in AI asistenti, kot sta ChatGPT in Gemini. Iščemo natančno in samostojno osebo, ki bo urejala Google profile in vpise podjetij, pripravljala objave in mesečna poročila. Delo od doma, prilagodljiv urnik, uvajanje zagotovljeno. Obseg: do 60 ur na mesec. Plačilo: 12 €/uro neto.",
     experienceLabel: "Izkušnje z Googlovimi orodji, družbenimi omrežji ali marketingom",
     experienceHint: "Npr. urejanje Google profila, Instagram strani, spletne strani, študij marketinga — izkušnje niso pogoj.",
     inviteSubject: "Povabilo na uvodni pogovor — asistent/ka za Google profile in AI vidnost",
@@ -71,9 +71,9 @@ Kaj boste delali:
 • pripravljali in objavljali objave na Google profilih,
 • preverjali, kaj AI orodja povedo o podjetjih, in pripravljali mesečna poročila.
 
-Delo je od doma, urnik je prilagodljiv, na začetku vas uvedemo v delo.
+Delo je od doma, urnik je prilagodljiv, na začetku vas uvedemo v delo. Obseg je do 60 ur na mesec, plačilo 12 € na uro neto (prek študentskega servisa).
 
-Naslednji korak je kratek uvodni pogovor (video klic). Predstavimo vam delo, obseg in plačilo ter odgovorimo na vaša vprašanja. Termin, ki vam ustreza, izberite tukaj:
+Naslednji korak je kratek uvodni pogovor (video klic). Predstavimo vam delo podrobneje in odgovorimo na vaša vprašanja. Termin, ki vam ustreza, izberite tukaj:
 {{calendlyLink}}
 POMEMBNO: termini so po slovenskem času (CET). Preden potrdite termin, na strani za rezervacijo preverite, da je pod koledarjem izbran časovni pas »Central European Time«. Če je izbran drug pas (npr. UK), bo ura sestanka drugačna od tiste, ki ste jo izbrali.
 
