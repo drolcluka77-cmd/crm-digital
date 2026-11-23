@@ -4,6 +4,7 @@ import { unreadCount } from "@/lib/notifications";
 import Sidebar, { type NavSection } from "@/components/Sidebar";
 import {
   GridIcon,
+  ClockIcon,
   UsersIcon,
   FileIcon,
   FolderIcon,
@@ -28,6 +29,7 @@ export default async function CrmLayout({ children }: { children: React.ReactNod
       items: [
         { href: "/crm", label: "Today", icon: <GridIcon className={ic} /> },
         { href: "/crm/quick", label: "Quick log", icon: <PencilIcon className={ic} /> },
+        { href: "/crm/timesheet", label: "Timesheet", icon: <ClockIcon className={ic} /> },
         { href: "/crm/notifications", label: "Notifications", icon: <MailIcon className={ic} />, badge: unread },
       ],
     },

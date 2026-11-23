@@ -202,6 +202,7 @@ export const NOTIFICATION_TYPE_LABEL: Record<string, string> = {
   CERTIFIED: "Certification",
   RENEWAL_DUE: "Renewal due",
   NEW_CANDIDATE: "New job application",
+  WORKLOG: "Timesheet",
   CONTRACT_REVIEW: "Contract to review",
   CONTRACT_REVIEWED: "Contract reviewed",
   CONTRACT_VIEWED: "Contract opened",

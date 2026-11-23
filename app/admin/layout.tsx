@@ -7,6 +7,7 @@ import { ROLE_LABEL } from "@/lib/constants";
 import Sidebar, { type NavSection } from "@/components/Sidebar";
 import {
   GridIcon,
+  ClockIcon,
   UsersIcon,
   PackageIcon,
   FolderIcon,
@@ -73,6 +74,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         { href: "/admin/team", label: isAdmin ? "Team" : "My team", icon: <UsersIcon className={ic} /> },
         { href: "/admin/access", label: "Product access", icon: <ShieldIcon className={ic} /> },
         { href: "/admin/recruiting", label: "Recruiting", icon: <UsersIcon className={ic} /> },
+        { href: "/admin/timesheets", label: "Timesheets", icon: <ClockIcon className={ic} /> },
       ],
     },
     {

@@ -46,6 +46,8 @@ model User {
   quotes         Quote[]            @relation("QuoteSeller")
   approvedQuotes Quote[]            @relation("QuoteApprover")
   contracts         Contract[]     @relation("ContractSeller")
+  workLogs          WorkLog[]      @relation("WorkLogUser")
+  approvedWorkLogs  WorkLog[]      @relation("WorkLogApprover")
   reviewedContracts Contract[]     @relation("ContractReviewer")
   activities     Activity[]
   shares         MaterialShare[]
@@ -775,4 +777,30 @@ model Contract {
   @@index([status])
   @@index([userId])
   @@index([revolutOrderId])
+}
+
+// ─── Timesheet: hours and work done per day (hourly-paid sellers) ─────
+
+model WorkLog {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation("WorkLogUser", fields: [userId], references: [id], onDelete: Cascade)
+  day            String // YYYY-MM-DD (Ljubljana time)
+  startTime      String // HH:MM
+  endTime        String // HH:MM
+  breakMinutes   Int       @default(0)
+  minutes        Int // worked minutes (end − start − break)
+  calls          Int       @default(0) // reported by the seller
+  conversations  Int       @default(0) // calls where they reached the decision maker
+  meetings       Int       @default(0) // meetings booked
+  emails         Int       @default(0)
+  notes          String // what was done
+  approvedById   String?
+  approvedBy     User?     @relation("WorkLogApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  approvedAt     DateTime?
+  managerNote    String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([userId, day])
 }
