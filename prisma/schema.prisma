@@ -385,6 +385,7 @@ model Settings {
   legalRepresentative  String? // who signs for the company, e.g. "Luka Drolc, direktor"
   legalEmail           String?
   contractTemplate     String? // null = the built-in template
+  contractTemplatePicked String? // Mr. Picked packages; null = the built-in Mr. Picked template
   contractReviewRequired Boolean @default(true) // a manager/admin approves before it goes out
   proformaDueDays      Int     @default(8)
   revolutWebhookId     String?

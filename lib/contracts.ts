@@ -1,3 +1,4 @@
+import { isPickedQuote, PICKED_CONTRACT_TEMPLATE } from "@/lib/contract-picked";
 import { createHash, randomBytes, randomInt } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/settings";
@@ -168,7 +169,11 @@ export async function buildContractBody(number: string, quote: QuoteForContract,
     rok_placila: String(s.proformaDueDays || 8),
     opombe: quote.notes?.trim() ? `\n9. POSEBNI DOGOVORI\n\n${quote.notes.trim()}\n` : "",
   };
-  const template = s.contractTemplate?.trim() || DEFAULT_CONTRACT_TEMPLATE;
+  const picked = isPickedQuote(quote.items);
+  if (values.opombe && picked) values.opombe = values.opombe.replace("\n9. POSEBNI DOGOVORI", "\n11. POSEBNI DOGOVORI");
+  const template = picked
+    ? s.contractTemplatePicked?.trim() || PICKED_CONTRACT_TEMPLATE
+    : s.contractTemplate?.trim() || DEFAULT_CONTRACT_TEMPLATE;
   return template.replace(/{{\s*(\w+)\s*}}/g, (m, k) => (k in values ? values[k] : m));
 }
 

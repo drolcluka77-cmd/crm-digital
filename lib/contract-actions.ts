@@ -276,6 +276,7 @@ export async function saveContractSettings(fd: FormData): Promise<ContractResult
   const user = await requireUser();
   if (user.role !== "ADMIN") return { error: "Only an admin can change contract settings." };
   const template = String(fd.get("contractTemplate") ?? "").replace(/\r\n/g, "\n").trim();
+  const templatePicked = String(fd.get("contractTemplatePicked") ?? "").replace(/\r\n/g, "\n").trim();
   await prisma.settings.update({
     where: { id: 1 },
     data: {
@@ -293,6 +294,7 @@ export async function saveContractSettings(fd: FormData): Promise<ContractResult
       contractReviewRequired: fd.get("contractReviewRequired") === "on",
       proformaDueDays: Math.max(1, Math.min(60, Math.round(Number(fd.get("proformaDueDays")) || 8))),
       contractTemplate: template && fd.get("useDefaultTemplate") !== "on" ? template : null,
+      contractTemplatePicked: templatePicked && fd.get("useDefaultPicked") !== "on" ? templatePicked : null,
     },
   });
   revalidatePath("/admin/contracts");

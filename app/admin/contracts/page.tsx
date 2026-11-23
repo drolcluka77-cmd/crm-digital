@@ -1,3 +1,4 @@
+import { PICKED_CONTRACT_TEMPLATE } from "@/lib/contract-picked";
 import { requireStaff } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
 import { getManagedSellerIds } from "@/lib/access";
@@ -54,8 +55,10 @@ export default async function AdminContractsPage() {
             contractReviewRequired: s.contractReviewRequired,
             proformaDueDays: s.proformaDueDays,
             contractTemplate: s.contractTemplate,
+            contractTemplatePicked: s.contractTemplatePicked,
           }}
           defaultTemplate={DEFAULT_CONTRACT_TEMPLATE}
+          defaultPicked={PICKED_CONTRACT_TEMPLATE}
           revolut={{ enabled: revolutEnabled(), webhook: !!s.revolutWebhookId }}
         />
       )}

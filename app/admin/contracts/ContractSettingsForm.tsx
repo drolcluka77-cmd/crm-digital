@@ -19,6 +19,7 @@ type S = {
   contractReviewRequired: boolean;
   proformaDueDays: number;
   contractTemplate: string | null;
+  contractTemplatePicked: string | null;
 };
 
 const PLACEHOLDERS =
@@ -27,10 +28,12 @@ const PLACEHOLDERS =
 export default function ContractSettingsForm({
   s,
   defaultTemplate,
+  defaultPicked,
   revolut,
 }: {
   s: S;
   defaultTemplate: string;
+  defaultPicked: string;
   revolut: { enabled: boolean; webhook: boolean };
 }) {
   const router = useRouter();
@@ -38,6 +41,7 @@ export default function ContractSettingsForm({
   const [msg, setMsg] = useState<{ error?: string; success?: string } | null>(null);
   const [vatPayer, setVatPayer] = useState(s.legalVatPayer);
   const [useDefault, setUseDefault] = useState(!s.contractTemplate);
+  const [useDefaultPicked, setUseDefaultPicked] = useState(!s.contractTemplatePicked);
 
   const f = (label: string, name: keyof S, placeholder?: string) => (
     <label className="text-sm">
@@ -127,7 +131,7 @@ export default function ContractSettingsForm({
       <div>
         <label className="text-sm flex items-center gap-2 mb-2">
           <input type="checkbox" name="useDefaultTemplate" checked={useDefault} onChange={(e) => setUseDefault(e.target.checked)} />
-          Use the built-in contract template
+          Use the built-in contract template (Unbusyness and everything that isn't Mr. Picked)
         </label>
         <textarea
           name="contractTemplate"
@@ -137,6 +141,20 @@ export default function ContractSettingsForm({
           className={`input font-mono text-[12px] ${useDefault ? "opacity-60" : ""}`}
         />
         <p className="text-xs text-black/40 mt-1">Placeholders: {PLACEHOLDERS}</p>
+      </div>
+
+      <div>
+        <label className="text-sm flex items-center gap-2 mb-2">
+          <input type="checkbox" name="useDefaultPicked" checked={useDefaultPicked} onChange={(e) => setUseDefaultPicked(e.target.checked)} />
+          Use the built-in Mr. Picked contract (used automatically when the quote has Picked packages)
+        </label>
+        <textarea
+          name="contractTemplatePicked"
+          rows={18}
+          readOnly={useDefaultPicked}
+          defaultValue={s.contractTemplatePicked || defaultPicked}
+          className={`input font-mono text-[12px] ${useDefaultPicked ? "opacity-60" : ""}`}
+        />
       </div>
       {msg?.error && <div className="error-box">{msg.error}</div>}
       {msg?.success && <div className="success-box">{msg.success}</div>}
