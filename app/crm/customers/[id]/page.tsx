@@ -187,7 +187,8 @@ export default async function CustomerDetailPage({ params }: { params: { id: str
         </div>
 
         <div className="space-y-4">
-          {(customer.geoClient || customer.status === "WON" || customer.contracts.length > 0) && (
+          {(customer.geoClient ||
+            (customer.interests.some((i) => /picked/i.test(i.product.name)) && (customer.status === "WON" || customer.contracts.length > 0))) && (
             <GeoPanel
               customerId={customer.id}
               geo={
