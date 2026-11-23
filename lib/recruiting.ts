@@ -111,7 +111,7 @@ export async function notifyNewCandidate(c: { id: string; name: string; source: 
 export async function recruitingDailyJob() {
   const settings = await getSettings();
   const out = { reminders: 0, deleted: 0, errors: [] as string[] };
-  if (settings.recruitingCalendlyUrl) {
+  if (settings.recruitingCalendlyUrl && settings.recruitingAutoReminder) {
     const due = await prisma.candidate.findMany({
       where: { stage: "INVITED", reminderAt: null, bookedAt: null, invitedAt: { lt: new Date(Date.now() - 3 * 86_400_000) } },
     });

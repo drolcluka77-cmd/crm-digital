@@ -20,6 +20,7 @@ export default async function RecruitingPage({ searchParams }: { searchParams: {
       settings={{
         calendly: settings.recruitingCalendlyUrl || "",
         autoInvite: settings.recruitingAutoInvite,
+        autoReminder: settings.recruitingAutoReminder,
         subject: settings.recruitingInviteSubject || DEFAULT_INVITE_SUBJECT,
         body: settings.recruitingInviteBody || DEFAULT_INVITE_BODY,
         retention: settings.recruitingRetentionMonths,

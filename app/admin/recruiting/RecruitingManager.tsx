@@ -37,7 +37,7 @@ export default function RecruitingManager({
 }: {
   notice?: string | null;
   formUrl: string;
-  settings: { calendly: string; autoInvite: boolean; subject: string; body: string; retention: number };
+  settings: { calendly: string; autoInvite: boolean; autoReminder: boolean; subject: string; body: string; retention: number };
   candidates: C[];
 }) {
   const router = useRouter();
@@ -135,6 +135,9 @@ export default function RecruitingManager({
           </div>
           <label className="text-sm flex items-center gap-2">
             <input type="checkbox" name="autoInvite" defaultChecked={settings.autoInvite} /> Send the invitation automatically when someone applies
+          </label>
+          <label className="text-sm flex items-center gap-2">
+            <input type="checkbox" name="autoReminder" defaultChecked={settings.autoReminder} /> Send one reminder 3 days after the invitation if no meeting was booked (turn off if candidates book in ways the CRM doesn’t see)
           </label>
           <label className="text-sm">
             <span className="label">Invitation subject</span>

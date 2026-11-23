@@ -386,6 +386,7 @@ model Settings {
   // Recruiting
   recruitingCalendlyUrl     String?  @default("https://calendly.com/drolcluka77/30min")
   recruitingAutoInvite      Boolean  @default(true)
+  recruitingAutoReminder    Boolean  @default(false) // one reminder 3 days after the invitation
   recruitingInviteSubject   String?
   recruitingInviteBody      String?
   recruitingRetentionMonths Int      @default(6)

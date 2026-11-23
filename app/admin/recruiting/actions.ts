@@ -27,6 +27,7 @@ export async function saveRecruitingSettings(fd: FormData): Promise<ActionResult
     data: {
       recruitingCalendlyUrl: url || null,
       recruitingAutoInvite: fd.get("autoInvite") === "on",
+      recruitingAutoReminder: fd.get("autoReminder") === "on",
       recruitingInviteSubject: String(fd.get("subject") || "").trim() || null,
       recruitingInviteBody: String(fd.get("body") || "").trim() || null,
       recruitingRetentionMonths: months,
