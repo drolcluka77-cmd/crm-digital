@@ -156,7 +156,12 @@ export async function saveHandover(customerId: string, fd: FormData, submit: boo
     await geoLog(c.id, user, "HANDOVER_SAVED", existing ? "Predaja posodobljena." : "Osnutek predaje ustvarjen.");
   }
   revalidateClient(c.id, customerId);
-  return { success: submit ? "Predano v izvedbo. Administrator bo dodelil GEO asistenta." : "Osnutek shranjen.", id: c.id };
+  return {
+    success: submit
+      ? `Predano v izvedbo. Administrator bo dodelil ${line === "UNBUSYNESS" ? "forward deployment engineerja" : "GEO asistenta"}.`
+      : "Osnutek shranjen.",
+    id: c.id,
+  };
 }
 
 // ─── Admin: assign, status, day 90, cancel ───────────────────────────────
