@@ -7,6 +7,7 @@ import { escapeHtml, formatMoney, computeQuoteBreakdown } from "@/lib/format";
 import { OPEN_LEAD_STATUSES } from "@/lib/constants";
 import { expireRecommendations, importFromAjpes } from "@/lib/prospects";
 import { recruitingDailyJob } from "@/lib/recruiting";
+import { geoDailyJob } from "@/lib/geo";
 import { expireWarmLeads } from "@/lib/warm-leads";
 import { generateWeeklyIdeas, mondayOf } from "@/lib/ugc-ai";
 import { deletePrivateFile } from "@/lib/upload";
@@ -189,6 +190,14 @@ export async function GET(req: NextRequest) {
     errors.push(`Recruiting: ${e?.message || e}`);
   }
 
+  // GEO delivery: monthly tasks, status moves (day 90), "waiting for client" reminders.
+  let geo: { tasks: number; advanced: number; reminders: number } | null = null;
+  try {
+    geo = await geoDailyJob(now);
+  } catch (e: any) {
+    errors.push(`GEO: ${e?.message || e}`);
+  }
+
   // Warm leads nobody accepted in time → next seller.
   let warmMoved = 0;
   try {
@@ -240,6 +249,7 @@ export async function GET(req: NextRequest) {
     weeklySummaries: weeklySent,
     leadFinder,
     recruiting,
+    geo,
     warmMoved,
     ugcIdeas,
     ugcFilesRemoved: old.length,

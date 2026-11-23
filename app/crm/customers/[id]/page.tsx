@@ -17,6 +17,7 @@ import WarmLeads from "../../WarmLeads";
 import CustomerDetailActions from "./CustomerDetailActions";
 import ActivityPanel from "./ActivityPanel";
 import StagePanel from "./StagePanel";
+import GeoPanel from "./GeoPanel";
 import { getT } from "@/lib/i18n-server";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +34,8 @@ export default async function CustomerDetailPage({ params }: { params: { id: str
       activities: { include: { user: { select: { name: true } } }, orderBy: { createdAt: "desc" }, take: 100 },
       shares: { include: { material: { select: { title: true } } }, orderBy: { createdAt: "desc" } },
       ugcCreator: { select: { name: true } },
+      geoClient: { include: { assistant: { select: { name: true } }, _count: { select: { tasks: true } } } },
+      contracts: { where: { status: "SIGNED" }, select: { id: true } },
     },
   });
   if (!customer || customer.ownerId !== user.id) notFound();
@@ -184,6 +187,22 @@ export default async function CustomerDetailPage({ params }: { params: { id: str
         </div>
 
         <div className="space-y-4">
+          {(customer.geoClient || customer.status === "WON" || customer.contracts.length > 0) && (
+            <GeoPanel
+              customerId={customer.id}
+              geo={
+                customer.geoClient
+                  ? {
+                      id: customer.geoClient.id,
+                      status: customer.geoClient.status,
+                      assistant: customer.geoClient.assistant?.name ?? null,
+                      tasksDone: await prisma.geoTask.count({ where: { clientId: customer.geoClient.id, status: { in: ["DONE", "NOT_POSSIBLE"] } } }),
+                      tasksTotal: customer.geoClient._count.tasks,
+                    }
+                  : null
+              }
+            />
+          )}
           <StagePanel
             customerId={customer.id}
             status={customer.status}

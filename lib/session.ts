@@ -40,7 +40,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 
 /** Where each role lands after login. */
 export function homeFor(role: Role): string {
-  return role === "SALES" ? "/crm" : "/admin";
+  return role === "SALES" ? "/crm" : role === "GEO" ? "/izvedba" : "/admin";
 }
 
 /** Use at the top of any page/layout that requires a logged-in user. */
@@ -53,7 +53,7 @@ export async function requireUser(): Promise<CurrentUser> {
 /** Admins and sales managers — the management console (/admin). */
 export async function requireStaff(): Promise<CurrentUser> {
   const user = await requireUser();
-  if (user.role !== "ADMIN" && user.role !== "MANAGER") redirect("/crm");
+  if (user.role !== "ADMIN" && user.role !== "MANAGER") redirect(homeFor(user.role));
   return user;
 }
 
@@ -67,6 +67,13 @@ export async function requireAdmin(): Promise<CurrentUser> {
 /** Sellers' CRM (/crm). Admins & managers are sent to the console. */
 export async function requireSales(): Promise<CurrentUser> {
   const user = await requireUser();
-  if (user.role !== "SALES") redirect("/admin");
+  if (user.role !== "SALES") redirect(homeFor(user.role));
+  return user;
+}
+
+/** GEO delivery area (/izvedba): GEO assistants, admins and managers. */
+export async function requireGeoArea(): Promise<CurrentUser> {
+  const user = await requireUser();
+  if (!["GEO", "ADMIN", "MANAGER"].includes(user.role)) redirect(homeFor(user.role));
   return user;
 }

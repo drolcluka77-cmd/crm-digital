@@ -80,6 +80,9 @@ model User {
   ugcClicks       UgcClick[]
   payments         Payment[] @relation("PaymentSeller")
   paymentsRecorded Payment[] @relation("PaymentRecordedBy")
+  geoClientsSold     GeoClient[] @relation("GeoSeller")
+  geoClientsAssigned GeoClient[] @relation("GeoAssistant")
+  geoTasks           GeoTask[]   @relation("GeoTaskAssignee")
 }
 
 // ─── Catalog ─────────────────────────────────────────────────────────────
@@ -252,6 +255,7 @@ model Customer {
   interests     CustomerProduct[]
   shares        MaterialShare[]
   subscriptions Subscription[]
+  geoClient     GeoClient?
 }
 
 // Which products a lead is interested in.
@@ -805,4 +809,157 @@ model WorkLog {
   updatedAt      DateTime  @updatedAt
 
   @@index([userId, day])
+}
+
+
+// ─── GEO delivery (Mr. Picked): handover from seller, company card, accesses, tasks ──
+
+// One per signed customer. Created by the seller's handover form; worked by the GEO assistant.
+model GeoClient {
+  id             String    @id @default(cuid())
+  customerId     String    @unique
+  customer       Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  contractId     String?
+  sellerId       String?
+  seller         User?     @relation("GeoSeller", fields: [sellerId], references: [id], onDelete: SetNull)
+  assistantId    String?
+  assistant      User?     @relation("GeoAssistant", fields: [assistantId], references: [id], onDelete: SetNull)
+  // DRAFT | HANDED_OVER | KICKOFF | ACCESS | BASELINE | FIX | MAINTENANCE | DAY90 | CANCELLED (see lib/geo.ts)
+  status         String    @default("DRAFT")
+  statusAt       DateTime  @default(now())
+
+  // Handover form (seller)
+  company        String
+  industry       String? // see GEO_INDUSTRIES
+  package        String? // VISIBLE | RECOMMENDED | CONCIERGE
+  addons         Json      @default("[]") // ["VIDEOS","REVIEWS","WHATSAPP","WEBSITE"]
+  monthlyPrice   Float?
+  setupFee       Float?
+  startDate      DateTime?
+  contactName    String?
+  contactPhone   String?
+  contactEmail   String?
+  webManager     String? // who runs the website
+  customerValue  Float? // value of one new customer (€)
+  mainProblem    String?
+  languages      Json      @default("[]") // ["SL","EN",…]
+  promised       String?
+  specialNotes   String?
+  handedOverAt   DateTime?
+  approvedAt     DateTime?
+
+  // Company card (assistant) — the single source the code and listings are built from
+  card           Json      @default("{}")
+  cardUpdatedAt  DateTime?
+  cardUpdatedBy  String?
+
+  day90DoneAt    DateTime?
+  freeMonth4     Boolean   @default(false)
+  cancelledAt    DateTime?
+  endsAt         DateTime? // last day of the 60-day notice
+  lastCheck      Json? // last website verification result
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  accesses     GeoAccess[]
+  tasks        GeoTask[]
+  measurements GeoMeasurement[]
+  logs         GeoLog[]
+
+  @@index([status])
+  @@index([assistantId])
+}
+
+model GeoAccess {
+  id        String    @id @default(cuid())
+  clientId  String
+  client    GeoClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  platform  String // see GEO_PLATFORMS
+  status    String    @default("NOT_REQUESTED") // NOT_REQUESTED | REQUESTED | APPROVED | PROBLEM
+  method    String? // e.g. "manager on info@mrpicked.eu"
+  note      String?
+  updatedAt DateTime  @updatedAt
+
+  @@index([clientId])
+}
+
+// Admin-editable task templates per package / add-on.
+model GeoTaskTemplate {
+  id            String   @id @default(cuid())
+  key           String? // code hooks, e.g. "website-code", "kickoff-card", "baseline"
+  packages      Json     @default("[]") // ["VISIBLE","RECOMMENDED","CONCIERGE","ADDON_VIDEOS",…]
+  title         String
+  description   String? // checklist, one step per line
+  phase         String   @default("START") // START | FIX | MONTHLY | QUARTERLY | DAY90
+  recurrence    String   @default("ONCE") // ONCE | MONTHLY | QUARTERLY
+  dueDay        Int      @default(7) // ONCE: days after start; MONTHLY/QUARTERLY: day of month (0 = last day)
+  needsApproval Boolean  @default(false)
+  technical     Boolean  @default(false)
+  sortOrder     Int      @default(0)
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+}
+
+model GeoTask {
+  id            String    @id @default(cuid())
+  clientId      String
+  client        GeoClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  templateId    String?
+  key           String?
+  period        String? // "2026-12" for monthly tasks (dedupe)
+  title         String
+  description   String?
+  phase         String    @default("START")
+  dueDate       DateTime?
+  assigneeId    String?
+  assignee      User?     @relation("GeoTaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  needsApproval Boolean   @default(false)
+  technical     Boolean   @default(false)
+  // OPEN | IN_PROGRESS | WAITING_CLIENT | WAITING_APPROVAL | DONE | NOT_POSSIBLE
+  status        String    @default("OPEN")
+  note          String?
+  waitingSince  DateTime?
+  remindedAt    DateTime?
+  doneAt        DateTime?
+  approvedById  String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([clientId])
+  @@index([assigneeId, status])
+  @@index([clientId, templateId, period])
+}
+
+model GeoMeasurement {
+  id          String    @id @default(cuid())
+  clientId    String
+  client      GeoClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  month       Int // 0 = baseline
+  measuredAt  DateTime  @default(now())
+  answers     Int?
+  mentions    Int?
+  score       Float? // % of AI answers that mention the business
+  mapRanks    Json      @default("[]") // [{ query, rank }]
+  wrongFacts  Json      @default("[]") // ["Old opening hours on Bing", …]
+  reportUrl   String?
+  note        String?
+  createdById String?
+  createdAt   DateTime  @default(now())
+
+  @@index([clientId])
+}
+
+// Who changed what (card, status, tasks).
+model GeoLog {
+  id        String    @id @default(cuid())
+  clientId  String
+  client    GeoClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  userId    String?
+  userName  String?
+  action    String
+  detail    String?
+  createdAt DateTime  @default(now())
+
+  @@index([clientId])
 }

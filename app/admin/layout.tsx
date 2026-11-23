@@ -32,10 +32,16 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     unreadCount(user.id),
     getManagedSellerIds(user),
   ]);
-  const [pendingApprovals, pendingUgc, pendingContracts] = await Promise.all([
+  const [pendingApprovals, pendingUgc, pendingContracts, geoPending] = await Promise.all([
     prisma.quote.count({ where: { userId: { in: sellerIds }, approvalStatus: "PENDING" } }),
     prisma.ugcVideo.count({ where: { creatorId: { in: sellerIds }, status: "SUBMITTED" } }),
     prisma.contract.count({ where: { status: "IN_REVIEW", ...(isAdmin ? {} : { userId: { in: sellerIds } }) } }),
+    isAdmin
+      ? Promise.all([
+          prisma.geoClient.count({ where: { status: "HANDED_OVER" } }),
+          prisma.geoTask.count({ where: { status: "WAITING_APPROVAL" } }),
+        ]).then(([a, b]) => a + b)
+      : Promise.resolve(0),
   ]);
 
   const sections: NavSection[] = [
@@ -66,6 +72,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         { href: "/admin/subscriptions", label: "Subscriptions", icon: <ChartIcon className={ic} /> },
         { href: "/admin/payments", label: "Payments", icon: <CoinsIcon className={ic} /> },
         { href: "/admin/commissions", label: "Commissions", icon: <CoinsIcon className={ic} /> },
+        { href: "/admin/geo", label: "GEO delivery", icon: <GridIcon className={ic} />, badge: geoPending },
       ],
     },
     {
