@@ -285,7 +285,8 @@ export async function createRecurringTasks(clientId: string, now = new Date()) {
       if (!asStrings(t.packages).some((g) => groups.includes(g))) continue;
       if (t.recurrence === "QUARTERLY" && (k === 0 || k % 3 !== 0)) continue;
       const due = dayInMonth(first.getUTCFullYear(), first.getUTCMonth(), t.dueDay);
-      if (due < start) continue; // the first month only gets what's still ahead
+      // The first month only gets what's still ahead of the handover (no tasks born overdue).
+      if (due < start || (k === 0 && c.approvedAt && due < new Date(c.approvedAt.getTime() - DAY))) continue;
       if (c.endsAt && due > c.endsAt) continue; // cancelled: nothing after the notice period
       const exists = await prisma.geoTask.findFirst({ where: { clientId, templateId: t.id, period }, select: { id: true } });
       if (exists) continue;
