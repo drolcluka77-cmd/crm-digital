@@ -20,6 +20,7 @@ type Cand = {
   experience: string | null;
   motivation: string | null;
   source: string | null;
+  position: string;
   cvName: string | null;
   hasCv: boolean;
   stage: string;
@@ -169,6 +170,7 @@ export default function CandidateDetail({
             <Field label="Can start" value={c.from} />
             <Field label="Where" value={c.workMode} />
             <Field label="Languages" value={c.languages} />
+            <Field label="Position" value={c.position} />
             <Field label="Source" value={c.source} />
           </div>
           <Field label="Experience" value={c.experience} />

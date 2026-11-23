@@ -8,6 +8,7 @@ import { notify } from "@/lib/notify";
 import { deletePrivateFile } from "@/lib/upload";
 
 export { CANDIDATE_STAGES, CANDIDATE_STAGE_LABEL, OPEN_CANDIDATE_STAGES } from "@/lib/recruiting-labels";
+import { positionOf } from "@/lib/recruiting-labels";
 
 export const DEFAULT_INVITE_SUBJECT = "Povabilo na uvodni pogovor — prodaja digitalnih produktov";
 export const DEFAULT_INVITE_BODY = `Pozdravljeni {{firstName}},
@@ -33,7 +34,7 @@ AURELIA GROUP d.o.o.`;
 const REMINDER_SUBJECT = "Vas delo pri nas še zanima?";
 const REMINDER_BODY = `Pozdravljeni {{firstName}},
 
-pred nekaj dnevi smo vam poslali povabilo na kratek uvodni pogovor o delu pri prodaji digitalnih produktov. Če vas delo še zanima, si termin izberite tukaj:
+pred nekaj dnevi smo vam poslali povabilo na kratek uvodni pogovor o delu pri nas. Če vas delo še zanima, si termin izberite tukaj:
 {{calendlyLink}}
 POMEMBNO: termini so po slovenskem času (CET). Preden potrdite termin, na strani za rezervacijo preverite, da je pod koledarjem izbran časovni pas »Central European Time«. Če je izbran drug pas (npr. UK), bo ura sestanka drugačna od tiste, ki ste jo izbrali.
 
@@ -78,10 +79,11 @@ export async function sendInvite(candidateId: string) {
   const [settings, c] = await Promise.all([getSettings(), prisma.candidate.findUnique({ where: { id: candidateId } })]);
   if (!c) throw new Error("Candidate not found");
   if (!settings.recruitingCalendlyUrl) throw new Error("Add your Calendly link under Recruiting → Settings first.");
+  const pos = positionOf(c.position);
   await sendCandidateEmail(
     c,
-    settings.recruitingInviteSubject || DEFAULT_INVITE_SUBJECT,
-    settings.recruitingInviteBody || DEFAULT_INVITE_BODY
+    pos.inviteSubject || settings.recruitingInviteSubject || DEFAULT_INVITE_SUBJECT,
+    pos.inviteBody || settings.recruitingInviteBody || DEFAULT_INVITE_BODY
   );
   await prisma.candidate.update({
     where: { id: c.id },
@@ -95,11 +97,11 @@ export async function recruiters() {
   return staff.map((s) => s.id);
 }
 
-export async function notifyNewCandidate(c: { id: string; name: string; source: string | null }) {
+export async function notifyNewCandidate(c: { id: string; name: string; source: string | null; position?: string | null }) {
   await notify(await recruiters(), {
     type: "NEW_CANDIDATE",
     title: `New application: ${c.name}`,
-    body: c.source ? `Source: ${c.source}` : null,
+    body: [positionOf(c.position).label, c.source ? `Source: ${c.source}` : null].filter(Boolean).join(" · "),
     link: `/admin/recruiting/${c.id}`,
   });
 }

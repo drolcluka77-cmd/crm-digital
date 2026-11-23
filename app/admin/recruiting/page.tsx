@@ -4,6 +4,7 @@ import { getSettings } from "@/lib/settings";
 import { getBaseUrl } from "@/lib/url";
 import { DEFAULT_INVITE_BODY, DEFAULT_INVITE_SUBJECT } from "@/lib/recruiting";
 import RecruitingManager from "./RecruitingManager";
+import { RECRUITING_POSITIONS } from "@/lib/recruiting-labels";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,11 @@ export default async function RecruitingPage({ searchParams }: { searchParams: {
     <RecruitingManager
       notice={searchParams.gone ? "That candidate no longer exists — the application was deleted." : null}
       formUrl={`${getBaseUrl()}/prijava?vir=studentski-servis`}
+      positions={Object.entries(RECRUITING_POSITIONS).map(([key, p]) => ({
+        key,
+        label: p.label,
+        url: `${getBaseUrl()}/prijava?pozicija=${key}&vir=studentski-servis`,
+      }))}
       settings={{
         calendly: settings.recruitingCalendlyUrl || "",
         autoInvite: settings.recruitingAutoInvite,
@@ -35,6 +41,7 @@ export default async function RecruitingPage({ searchParams }: { searchParams: {
         hours: c.hoursPerWeek,
         workMode: c.workMode,
         source: c.source,
+        position: c.position,
         stage: c.stage,
         rating: c.rating,
         hasCv: !!c.cvKey,

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CANDIDATE_STAGE_LABEL } from "@/lib/recruiting-labels";
+import { CANDIDATE_STAGE_LABEL, RECRUITING_POSITIONS } from "@/lib/recruiting-labels";
 import { inviteMany, rejectMany, saveRecruitingSettings } from "./actions";
 import { DEFAULT_REJECT_BODY, DEFAULT_REJECT_SUBJECT } from "@/lib/recruiting-labels";
 
@@ -17,6 +17,7 @@ type C = {
   hours: string | null;
   workMode: string | null;
   source: string | null;
+  position: string;
   stage: string;
   rating: number | null;
   hasCv: boolean;
@@ -33,36 +34,40 @@ const fmtTime = (d: string) => new Date(d).toLocaleString("sl-SI", { day: "numer
 export default function RecruitingManager({
   notice,
   formUrl,
+  positions,
   settings,
   candidates,
 }: {
   notice?: string | null;
   formUrl: string;
+  positions: { key: string; label: string; url: string }[];
   settings: { calendly: string; autoInvite: boolean; autoReminder: boolean; subject: string; body: string; retention: number };
   candidates: C[];
 }) {
   const router = useRouter();
   const [stage, setStage] = useState("OPEN");
+  const [position, setPosition] = useState("ALL");
   const [q, setQ] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ error?: string; success?: string } | null>(null);
   const [showSettings, setShowSettings] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejSubject, setRejSubject] = useState(DEFAULT_REJECT_SUBJECT);
   const [rejBody, setRejBody] = useState(DEFAULT_REJECT_BODY);
 
+  const inPosition = candidates.filter((c) => position === "ALL" || c.position === position);
   const counts = useMemo(() => {
-    const c: Record<string, number> = { ALL: candidates.length, OPEN: 0 };
-    for (const x of candidates) {
+    const c: Record<string, number> = { ALL: inPosition.length, OPEN: 0 };
+    for (const x of inPosition) {
       c[x.stage] = (c[x.stage] || 0) + 1;
       if (!["HIRED", "REJECTED"].includes(x.stage)) c.OPEN++;
     }
     return c;
-  }, [candidates]);
+  }, [inPosition]);
 
-  const rows = candidates.filter((c) => {
+  const rows = inPosition.filter((c) => {
     if (stage === "OPEN" && ["HIRED", "REJECTED"].includes(c.stage)) return false;
     if (!["OPEN", "ALL"].includes(stage) && c.stage !== stage) return false;
     const s = q.trim().toLowerCase();
@@ -97,22 +102,27 @@ export default function RecruitingManager({
         </button>
       </div>
 
-      <div className="card p-4 mb-5 flex flex-wrap items-center gap-3">
-        <div className="text-sm min-w-0 flex-1">
-          <div className="text-xs uppercase tracking-wide text-black/40 mb-0.5">Application form link (put it in the job ad)</div>
-          <code className="text-[13px] break-all">{formUrl}</code>
-        </div>
-        <button
-          className="btn-secondary py-1.5"
-          onClick={() => {
-            navigator.clipboard.writeText(formUrl);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1500);
-          }}
-        >
-          {copied ? "Copied" : "Copy"}
-        </button>
-        <a className="btn-secondary py-1.5" href={formUrl} target="_blank" rel="noreferrer">Open form</a>
+      <div className="card p-4 mb-5 space-y-3">
+        <div className="text-xs uppercase tracking-wide text-black/40">Application form links (put the right one in each job ad)</div>
+        {positions.map((p) => (
+          <div key={p.key} className="flex flex-wrap items-center gap-3">
+            <div className="text-sm min-w-0 flex-1">
+              <div className="font-medium">{p.label}</div>
+              <code className="text-[13px] break-all text-black/60">{p.url}</code>
+            </div>
+            <button
+              className="btn-secondary py-1.5"
+              onClick={() => {
+                navigator.clipboard.writeText(p.url);
+                setCopied(p.key);
+                setTimeout(() => setCopied(null), 1500);
+              }}
+            >
+              {copied === p.key ? "Copied" : "Copy"}
+            </button>
+            <a className="btn-secondary py-1.5" href={p.url} target="_blank" rel="noreferrer">Open form</a>
+          </div>
+        ))}
       </div>
 
       {notice && !msg && <div className="error-box mb-4">{notice}</div>}
@@ -145,7 +155,7 @@ export default function RecruitingManager({
             <input type="checkbox" name="autoReminder" defaultChecked={settings.autoReminder} /> Send one reminder 3 days after the invitation if no meeting was booked (turn off if candidates book in ways the CRM doesn’t see)
           </label>
           <label className="text-sm">
-            <span className="label">Invitation subject</span>
+            <span className="label">Invitation subject (sales position; other positions have their own text)</span>
             <input name="subject" defaultValue={settings.subject} className="input" />
           </label>
           <label className="text-sm">
@@ -160,6 +170,17 @@ export default function RecruitingManager({
             <button className="btn-primary" disabled={!!busy}>{busy === "settings" ? "Saving…" : "Save"}</button>
           </div>
         </form>
+      )}
+
+      {positions.length > 1 && (
+        <div className="flex flex-wrap gap-2 mb-3">
+          {[{ key: "ALL", label: "All positions" }, ...positions].map((p) => (
+            <button key={p.key} onClick={() => setPosition(p.key)} className={position === p.key ? "chip-active" : "chip"}>
+              {p.label}
+              <span className="ml-1.5 opacity-60">{p.key === "ALL" ? candidates.length : candidates.filter((c) => c.position === p.key).length}</span>
+            </button>
+          ))}
+        </div>
       )}
 
       <div className="flex flex-wrap gap-2 mb-4">
@@ -272,7 +293,7 @@ export default function RecruitingManager({
                   <Link href={`/admin/recruiting/${c.id}`} className="font-medium hover:underline">{c.name}</Link>
                   {c.rating ? <span className="ml-2 text-amber-500 text-xs">{"★".repeat(c.rating)}</span> : null}
                   <div className="text-xs text-black/45">{[c.email, c.phone, c.city].filter(Boolean).join(" · ")}</div>
-                  <div className="text-xs text-black/35">{[c.status, c.source, c.hasCv ? "CV" : null].filter(Boolean).join(" · ")}</div>
+                  <div className="text-xs text-black/35">{[RECRUITING_POSITIONS[c.position]?.label || c.position, c.status, c.source, c.hasCv ? "CV" : null].filter(Boolean).join(" · ")}</div>
                 </td>
                 <td className="px-3 py-3 text-xs text-black/60">{[c.hours, c.workMode].filter(Boolean).join(" · ") || "—"}</td>
                 <td className="px-3 py-3 text-xs">

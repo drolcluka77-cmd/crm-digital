@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { savePrivateFile, deletePrivateFile } from "@/lib/upload";
 import { getSettings } from "@/lib/settings";
 import { newCandidateToken, notifyNewCandidate, sendInvite } from "@/lib/recruiting";
+import { positionKey } from "@/lib/recruiting-labels";
 
 export type ApplyResult = { error?: string; ok?: boolean; invited?: boolean };
 
@@ -45,6 +46,7 @@ export async function apply(fd: FormData): Promise<ApplyResult> {
     experience: str(fd, "experience", 1500),
     motivation: str(fd, "motivation", 1500),
     source: str(fd, "source", 60),
+    position: positionKey(str(fd, "position", 40)),
     consentAt: new Date(),
     consentIp: ip,
   };
@@ -57,16 +59,21 @@ export async function apply(fd: FormData): Promise<ApplyResult> {
     if (existing?.cvKey) await deletePrivateFile(existing.cvKey);
   }
 
-  // Applying again updates the same candidate (one e-mail = one candidate).
+  // Applying again updates the same candidate (one e-mail = one candidate). Applying for a different
+  // position counts as a new application: it starts over and gets that position's invitation.
+  const newPosition = !!existing && existing.position !== data.position;
+  const restart = newPosition
+    ? { stage: "NEW", invitedAt: null, reminderAt: null, clickedAt: null, bookedAt: null, closedAt: null }
+    : {};
   const c = existing
-    ? await prisma.candidate.update({ where: { id: existing.id }, data: { ...data, ...cvData } })
+    ? await prisma.candidate.update({ where: { id: existing.id }, data: { ...data, ...cvData, ...restart } })
     : await prisma.candidate.create({ data: { ...data, ...cvData, email, token: newCandidateToken() } });
 
-  if (!existing) await notifyNewCandidate(c);
+  if (!existing || newPosition) await notifyNewCandidate(c);
 
   const settings = await getSettings();
   let invited = false;
-  if (settings.recruitingAutoInvite && settings.recruitingCalendlyUrl && (!existing || !existing.invitedAt)) {
+  if (settings.recruitingAutoInvite && settings.recruitingCalendlyUrl && (!existing || newPosition || !existing.invitedAt)) {
     try {
       await sendInvite(c.id);
       invited = true;

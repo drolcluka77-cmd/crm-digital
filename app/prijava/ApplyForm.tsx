@@ -4,10 +4,16 @@ import { useState } from "react";
 import { apply } from "./actions";
 
 export default function ApplyForm({
+  position,
+  experienceLabel,
+  experienceHint,
   source,
   retentionMonths,
   companyName,
 }: {
+  position: string;
+  experienceLabel: string;
+  experienceHint: string;
   source: string | null;
   retentionMonths: number;
   companyName: string;
@@ -43,6 +49,7 @@ export default function ApplyForm({
   return (
     <form onSubmit={onSubmit} className="card p-6 sm:p-7 space-y-4">
       <input type="hidden" name="source" value={source || ""} />
+      <input type="hidden" name="position" value={position} />
       <input type="text" name="website" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden="true" />
 
       <div className="grid sm:grid-cols-2 gap-4">
@@ -101,8 +108,8 @@ export default function ApplyForm({
         <input name="languages" className="input" placeholder="npr. slovenščina, angleščina, nemščina" />
       </label>
       <label className="block">
-        <span className="label">Izkušnje s prodajo ali delom s strankami</span>
-        <textarea name="experience" rows={3} className="input" placeholder="Na kratko — izkušnje niso pogoj." />
+        <span className="label">{experienceLabel}</span>
+        <textarea name="experience" rows={3} className="input" placeholder={experienceHint} />
       </label>
       <label className="block">
         <span className="label">Zakaj vas zanima to delo?</span>

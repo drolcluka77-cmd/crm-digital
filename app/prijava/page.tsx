@@ -1,16 +1,19 @@
 import type { Metadata } from "next";
 import { getSettings } from "@/lib/settings";
 import ApplyForm from "./ApplyForm";
+import { positionKey, positionOf } from "@/lib/recruiting-labels";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Prijava — prodaja digitalnih produktov",
-  description: "Prijavite se za delo pri prodaji digitalnih produktov.",
-};
+export async function generateMetadata({ searchParams }: { searchParams: { pozicija?: string } }): Promise<Metadata> {
+  const pos = positionOf(searchParams.pozicija);
+  return { title: `Prijava — ${pos.title}`, description: pos.intro.slice(0, 160) };
+}
 
-export default async function ApplyPage({ searchParams }: { searchParams: { vir?: string } }) {
+export default async function ApplyPage({ searchParams }: { searchParams: { vir?: string; pozicija?: string } }) {
   const settings = await getSettings();
+  const key = positionKey(searchParams.pozicija);
+  const pos = positionOf(key);
   const source =
     searchParams.vir === "studentski-servis" || searchParams.vir === "ss"
       ? "Študentski servis"
@@ -25,15 +28,11 @@ export default async function ApplyPage({ searchParams }: { searchParams: { vir?
           ) : (
             <div className="text-xs font-semibold tracking-[0.18em] uppercase text-brand-600 mb-2">{settings.companyName}</div>
           )}
-          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Prodaja digitalnih produktov</h1>
-          <p className="text-black/60 mt-2 leading-relaxed">
-            Iščemo prodajalce, ki bodo podjetjem v Sloveniji predstavljali sodobne digitalne rešitve — Unbusyness in
-            Picked. Dobite prodajne liste, scenarije klicev in CRM s priporočenimi kontakti. Delo od doma ali v
-            Ljubljani.
-          </p>
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">{pos.title}</h1>
+          <p className="text-black/60 mt-2 leading-relaxed">{pos.intro}</p>
           <p className="text-black/60 mt-2">Izpolnite obrazec — povabilo na kratek uvodni pogovor prejmete takoj po e-pošti.</p>
         </div>
-        <ApplyForm source={source} retentionMonths={settings.recruitingRetentionMonths} companyName={settings.companyName} />
+        <ApplyForm position={key} experienceLabel={pos.experienceLabel} experienceHint={pos.experienceHint} source={source} retentionMonths={settings.recruitingRetentionMonths} companyName={settings.companyName} />
       </div>
     </div>
   );

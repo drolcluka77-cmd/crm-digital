@@ -608,6 +608,7 @@ model Candidate {
   cvKey         String? // private storage key
   cvName        String?
   source        String? // e.g. "Študentski servis" (?vir= on the form link)
+  position      String    @default("sales") // see RECRUITING_POSITIONS (?pozicija= on the form link)
   consentAt     DateTime
   consentIp     String?
   stage         String    @default("NEW") // NEW | INVITED | BOOKED | INTERVIEWED | ONBOARDING | HIRED | REJECTED

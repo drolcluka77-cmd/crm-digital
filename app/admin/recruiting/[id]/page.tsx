@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/session";
 import CandidateDetail from "./CandidateDetail";
+import { RECRUITING_POSITIONS } from "@/lib/recruiting-labels";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,7 @@ export default async function CandidatePage({ params }: { params: { id: string }
         experience: c.experience,
         motivation: c.motivation,
         source: c.source,
+        position: RECRUITING_POSITIONS[c.position]?.label || c.position,
         cvName: c.cvName,
         hasCv: !!c.cvKey,
         stage: c.stage,
