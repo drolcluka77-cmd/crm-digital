@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireGeoArea } from "@/lib/session";
-import { GEO_PACKAGE_LABEL, GEO_STATUS_LABEL } from "@/lib/geo-labels";
+import { DELIVERY_LINE_LABEL, GEO_PACKAGE_LABEL, GEO_STATUS_LABEL } from "@/lib/geo-labels";
 
 export const dynamic = "force-dynamic";
 
 export default async function GeoClientsPage() {
   const user = await requireGeoArea();
-  const mine = user.role === "GEO";
+  const mine = user.role === "GEO" || user.role === "FDE";
   const clients = await prisma.geoClient.findMany({
     where: mine ? { assistantId: user.id } : { status: { not: "DRAFT" } },
     include: { assistant: { select: { name: true } } },
@@ -28,7 +28,7 @@ export default async function GeoClientsPage() {
           <thead>
             <tr className="text-left text-xs text-black/40 border-b border-black/5">
               <th className="px-4 py-2 font-medium">Podjetje</th>
-              <th className="px-3 py-2 font-medium">Paket</th>
+              <th className="px-3 py-2 font-medium">Izvedba</th>
               <th className="px-3 py-2 font-medium">Status</th>
               {!mine && <th className="px-3 py-2 font-medium">Asistent</th>}
               <th className="px-3 py-2 font-medium">Zamujene</th>
@@ -42,7 +42,10 @@ export default async function GeoClientsPage() {
                     {c.company}
                   </Link>
                 </td>
-                <td className="px-3 py-3">{GEO_PACKAGE_LABEL[c.package || ""] || "—"}</td>
+                <td className="px-3 py-3">
+                  {DELIVERY_LINE_LABEL[c.line] || c.line}
+                  {c.line === "PICKED" && c.package ? ` · ${GEO_PACKAGE_LABEL[c.package] || c.package}` : ""}
+                </td>
                 <td className="px-3 py-3">{GEO_STATUS_LABEL[c.status]}</td>
                 {!mine && <td className="px-3 py-3">{c.assistant?.name || <span className="text-amber-600">ni dodeljen</span>}</td>}
                 <td className="px-3 py-3">{late.get(c.id) ? <span className="text-rose-600 font-medium">{late.get(c.id)}</span> : "—"}</td>

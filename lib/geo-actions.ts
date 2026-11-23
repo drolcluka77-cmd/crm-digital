@@ -18,8 +18,14 @@ import {
   GEO_ACTIVE_STATUSES,
   GEO_PLATFORM_LABEL,
   GEO_TASK_STATUS_LABEL,
-  missingHandoverFields,
+  missingHandoverFor,
+  DELIVERY_LINE_ROLE,
+  DELIVERY_LINE_LABEL,
+  UNB_PROPERTY_TYPES,
+  UNB_BOOKING_CHANNELS,
+  UNB_GUEST_CHANNELS,
   type GeoCard,
+  type UnbDetails,
 } from "@/lib/geo-labels";
 import {
   advanceGeoClient,
@@ -57,19 +63,20 @@ async function clientForWork(user: CurrentUser, clientId: string) {
   const c = await prisma.geoClient.findUnique({ where: { id: clientId } });
   if (!c) return null;
   if (isStaff(user)) return c;
-  if (user.role === "GEO" && c.assistantId === user.id) return c;
+  if ((user.role === "GEO" || user.role === "FDE") && c.assistantId === user.id) return c;
   return null;
 }
 
 // ─── Seller: handover ─────────────────────────────────────────────────────
 
-export async function saveHandover(customerId: string, fd: FormData, submit: boolean): Promise<GeoResult> {
+export async function saveHandover(customerId: string, fd: FormData, submit: boolean, line = "PICKED"): Promise<GeoResult> {
   const user = await requireUser();
-  const customer = await prisma.customer.findUnique({ where: { id: customerId }, include: { geoClient: true } });
+  if (!DELIVERY_LINE_LABEL[line]) return { error: "Neznana vrsta izvedbe." };
+  const customer = await prisma.customer.findUnique({ where: { id: customerId }, include: { geoClients: { where: { line } } } });
   if (!customer) return { error: "Stranke ni mogoče najti." };
   if (user.role === "SALES" && customer.ownerId !== user.id) return { error: "To ni vaša stranka." };
   if (!["SALES", "ADMIN", "MANAGER"].includes(user.role)) return { error: "Ni dovoljeno." };
-  const existing = customer.geoClient;
+  const existing = customer.geoClients[0] ?? null;
   if (existing && existing.status !== "DRAFT" && !isStaff(user))
     return { error: "Stranka je že predana. Po predaji lahko dodajate samo zapiske." };
 
@@ -78,7 +85,26 @@ export async function saveHandover(customerId: string, fd: FormData, submit: boo
   const startRaw = str(fd, "startDate");
   const addons = fd.getAll("addons").map(String).filter((a) => (GEO_ADDONS as readonly string[]).includes(a));
   const languages = fd.getAll("languages").map(String).filter((a) => (GEO_LANGUAGES as readonly string[]).includes(a));
+  const pick = (k: string, allowed: Record<string, string>) => fd.getAll(k).map(String).filter((v) => v in allowed);
+  const details: UnbDetails | undefined =
+    line === "UNBUSYNESS"
+      ? {
+          ...((existing?.details as UnbDetails) || {}),
+          propertyType: str(fd, "propertyType") && str(fd, "propertyType")! in UNB_PROPERTY_TYPES ? str(fd, "propertyType")! : undefined,
+          units: num(fd, "units"),
+          locations: str(fd, "locations", 300) || undefined,
+          bookingChannels: pick("bookingChannels", UNB_BOOKING_CHANNELS),
+          guestChannels: pick("guestChannels", UNB_GUEST_CHANNELS),
+          pms: str(fd, "pms", 200) || undefined,
+          whoAnswers: str(fd, "whoAnswers", 500) || undefined,
+          pilotGoal: str(fd, "pilotGoal", 1000) || undefined,
+          pilotDays: num(fd, "pilotDays") || 30,
+          priceAfterPilot: num(fd, "priceAfterPilot"),
+        }
+      : undefined;
   const data = {
+    line,
+    ...(details ? { details: details as any, package: "PILOT", industry: "LODGING" } : {}),
     company: str(fd, "company", 200) || customer.company || customer.name,
     industry: industry && (GEO_INDUSTRIES as readonly string[]).includes(industry) ? industry : null,
     package: pkg && (GEO_PACKAGES as readonly string[]).includes(pkg) ? pkg : null,
@@ -98,8 +124,13 @@ export async function saveHandover(customerId: string, fd: FormData, submit: boo
   };
   if (data.startDate && isNaN(data.startDate.getTime())) return { error: "Datum začetka ni pravilen." };
 
+  if (line === "UNBUSYNESS") {
+    delete (data as any).package;
+    delete (data as any).industry;
+    Object.assign(data, { package: "PILOT", industry: "LODGING", monthlyPrice: details?.priceAfterPilot ?? null });
+  }
   if (submit) {
-    const missing = missingHandoverFields(data);
+    const missing = missingHandoverFor(line, { ...data, details });
     if (missing.length) return { error: `Manjka: ${missing.join(", ")}.` };
   }
   const contract = await prisma.contract.findFirst({
@@ -117,8 +148,8 @@ export async function saveHandover(customerId: string, fd: FormData, submit: boo
     await geoLog(c.id, user, "HANDOVER", "Prodajalec je oddal predajo.");
     await notify(await geoAdmins(), {
       type: "GEO",
-      title: `Nova predaja v izvedbo: ${c.company}`,
-      body: "Dodeli GEO asistenta.",
+      title: `Nova predaja v izvedbo (${DELIVERY_LINE_LABEL[line]}): ${c.company}`,
+      body: line === "UNBUSYNESS" ? "Dodeli forward deployment engineerja." : "Dodeli GEO asistenta.",
       link: "/admin/geo",
     });
   } else {
@@ -138,9 +169,12 @@ export async function assignAssistant(clientId: string, assistantId: string): Pr
     prisma.user.findUnique({ where: { id: assistantId } }),
   ]);
   if (!c) return { error: "Stranke ni mogoče najti." };
-  if (!a || !a.active || !["GEO", "ADMIN"].includes(a.role)) return { error: "Izberite GEO asistenta." };
+  const role = DELIVERY_LINE_ROLE[c.line] || "GEO";
+  if (!a || !a.active || ![role, "ADMIN"].includes(a.role))
+    return { error: c.line === "UNBUSYNESS" ? "Izberite forward deployment engineerja." : "Izberite GEO asistenta." };
   if (c.status === "DRAFT") return { error: "Prodajalec predaje še ni oddal." };
-  if (missingHandoverFields(c).length) return { error: `Predaji manjka: ${missingHandoverFields(c).join(", ")}.` };
+  const missingH = missingHandoverFor(c.line, c);
+  if (missingH.length) return { error: `Predaji manjka: ${missingH.join(", ")}.` };
 
   const previous = c.assistantId;
   await prisma.geoClient.update({ where: { id: clientId }, data: { assistantId, approvedAt: c.approvedAt ?? new Date() } });
@@ -150,7 +184,7 @@ export async function assignAssistant(clientId: string, assistantId: string): Pr
       data: { assigneeId: assistantId },
     });
   }
-  await ensureAccessRows(clientId, c.industry);
+  await ensureAccessRows(clientId, c.industry, c.line, c.details);
   const once = await createOnceTasks(clientId);
   await geoLog(clientId, user, "ASSIGN", `Asistent: ${a.name}`);
   await advanceGeoClient(clientId, user);
@@ -158,7 +192,7 @@ export async function assignAssistant(clientId: string, assistantId: string): Pr
   await notify([assistantId], {
     type: "GEO",
     title: `Nova stranka: ${c.company}`,
-    body: `Uvodni klic in kartica podjetja v 3 dneh.${once + rec ? ` Ustvarjenih nalog: ${once + rec}.` : ""}`,
+    body: `${c.line === "UNBUSYNESS" ? "Uvodni klic z lastnikom v 2 dneh." : "Uvodni klic in kartica podjetja v 3 dneh."}${once + rec ? ` Ustvarjenih nalog: ${once + rec}.` : ""}`,
     link: `/izvedba/stranke/${clientId}`,
   });
   revalidateClient(clientId, c.customerId);
@@ -490,4 +524,28 @@ export async function deleteGeoTemplate(id: string): Promise<GeoResult> {
   await prisma.geoTaskTemplate.delete({ where: { id } });
   revalidatePath("/admin/geo/templates");
   return { success: "Deleted." };
+}
+
+/** Admin: end of an Unbusyness pilot — the client continues as a paying customer, or the pilot ends. */
+export async function closePilot(clientId: string, outcome: "CONVERTED" | "ENDED", note: string): Promise<GeoResult> {
+  const user = await requireUser();
+  if (user.role !== "ADMIN") return { error: "Samo administrator." };
+  const c = await prisma.geoClient.findUnique({ where: { id: clientId } });
+  if (!c || c.line !== "UNBUSYNESS") return { error: "Pilota ni mogoče najti." };
+  const details = { ...((c.details as UnbDetails) || {}), outcome, outcomeNote: note.trim() || undefined };
+  await prisma.geoClient.update({ where: { id: clientId }, data: { details: details as any, status: "DONE", statusAt: new Date() } });
+  await prisma.geoTask.updateMany({
+    where: { clientId, key: "pilot-review", status: { notIn: ["DONE", "NOT_POSSIBLE"] } },
+    data: { status: "DONE", doneAt: new Date(), approvedById: user.id },
+  });
+  await geoLog(clientId, user, "PILOT_CLOSED", outcome === "CONVERTED" ? `Nadaljuje kot plačljiva stranka.${note ? ` ${note}` : ""}` : `Pilot končan brez nadaljevanja.${note ? ` ${note}` : ""}`);
+  if (c.sellerId)
+    await notify([c.sellerId], {
+      type: "GEO",
+      title: outcome === "CONVERTED" ? `Pilot uspešen: ${c.company} — pripravi ponudbo` : `Pilot končan: ${c.company}`,
+      body: note.trim() || undefined,
+      link: `/crm/customers/${c.customerId}`,
+    });
+  revalidateClient(clientId, c.customerId);
+  return { success: outcome === "CONVERTED" ? "Pilot zaključen — prodajalec je obveščen, da pripravi ponudbo." : "Pilot zaključen." };
 }

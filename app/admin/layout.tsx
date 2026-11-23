@@ -72,7 +72,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         { href: "/admin/subscriptions", label: "Subscriptions", icon: <ChartIcon className={ic} /> },
         { href: "/admin/payments", label: "Payments", icon: <CoinsIcon className={ic} /> },
         { href: "/admin/commissions", label: "Commissions", icon: <CoinsIcon className={ic} /> },
-        { href: "/admin/geo", label: "GEO delivery", icon: <GridIcon className={ic} />, badge: geoPending },
+        { href: "/admin/geo", label: "Delivery", icon: <GridIcon className={ic} />, badge: geoPending },
       ],
     },
     {

@@ -6,7 +6,7 @@ import {
   GEO_PLATFORM_LABEL,
   GEO_STATUS_LABEL,
   missingCardFields,
-  missingHandoverFields,
+  missingHandoverFor,
   type GeoCard,
 } from "@/lib/geo-labels";
 
@@ -176,9 +176,80 @@ export const DEFAULT_GEO_TEMPLATES: Tpl[] = [
   },
 ];
 
-/** Creates the default templates once (when the table is empty). */
+const U = ["UNBUSYNESS_PILOT"];
+/** Unbusyness pilot (forward deployment engineer). Days count from the pilot start date. */
+export const DEFAULT_UNB_TEMPLATES: Tpl[] = [
+  {
+    packages: U,
+    title: "Uvodni klic z lastnikom: cilj pilota, kdo zdaj odgovarja gostom, nujni primeri",
+    description: "Potrdi cilj pilota iz predaje in kako ga bomo merili.\nKdo in kdaj zdaj odgovarja gostom, koliko sporočil je na teden.\nKontakt za nujne primere in kdaj AI preda pogovor človeku.",
+    phase: "START",
+    dueDay: 2,
+  },
+  {
+    packages: U,
+    title: "Zberi podatke: enote, hišni red, navodila za prihod, Wi-Fi, parkiranje, pogosta vprašanja gostov",
+    description: "Seznam enot z naslovi in kapaciteto.\nHišni red, check-in/out, navodila za prihod in ključe.\n20 najpogostejših vprašanj gostov z odgovori lastnika.",
+    phase: "START",
+    dueDay: 4,
+  },
+  {
+    packages: U,
+    title: "Dostopi: kanali sporočil gostov in sistem za rezervacije (povabila, brez gesel)",
+    description: "Vsak dostop zabeleži v zavihku Dostopi.",
+    phase: "START",
+    dueDay: 4,
+  },
+  { packages: U, title: "Nastavi Unbusyness: enote, baza znanja, jeziki, ton odgovorov", phase: "SETUP", dueDay: 9 },
+  { packages: U, title: "Poveži kanale sporočil in rezervacij", phase: "SETUP", dueDay: 10, technical: true },
+  { packages: U, title: "Pravila predaje lastniku: kdaj AI vpraša človeka, nujni primeri, ure", phase: "SETUP", dueDay: 10 },
+  {
+    packages: U,
+    title: "Interni test: 20 tipičnih vprašanj gostov v vseh jezikih, popravki odgovorov",
+    phase: "TEST",
+    dueDay: 12,
+  },
+  { packages: U, title: "Test z lastnikom in njegova potrditev za zagon", phase: "TEST", dueDay: 14, needsApproval: true },
+  { packages: U, title: "Zagon pilota in obvestilo lastniku (kaj spremljamo, kako nas doseže)", phase: "PILOT", dueDay: 15 },
+  { packages: U, title: "Tedenski pregled pogovorov in popravki baze znanja (1. teden)", phase: "PILOT", dueDay: 22 },
+  { packages: U, title: "Tedenski pregled pogovorov in popravki baze znanja (2. teden)", phase: "PILOT", dueDay: 29 },
+  { packages: U, title: "Tedenski pregled pogovorov in popravki baze znanja (3. teden)", phase: "PILOT", dueDay: 36 },
+  {
+    packages: U,
+    title: "Meritve pilota: št. pogovorov, delež brez človeka, odzivni čas, ocena lastnika",
+    phase: "PILOT",
+    dueDay: 43,
+  },
+  {
+    key: "pilot-review",
+    packages: U,
+    title: "Sestanek ob koncu pilota: rezultati in predlog za nadaljevanje (s prodajalcem)",
+    phase: "REVIEW",
+    dueDay: 45,
+    needsApproval: true,
+  },
+];
+
+const tplRow = (t: Tpl, i: number) => ({
+  key: t.key ?? null,
+  packages: t.packages,
+  title: t.title,
+  description: t.description ?? null,
+  phase: t.phase,
+  recurrence: t.recurrence ?? "ONCE",
+  dueDay: t.dueDay,
+  needsApproval: !!t.needsApproval,
+  technical: !!t.technical,
+  sortOrder: i,
+});
+
+/** Creates the default templates once per line (when that line has none yet). */
 export async function ensureGeoTemplates() {
-  if ((await prisma.geoTaskTemplate.count()) > 0) return;
+  const all = await prisma.geoTaskTemplate.findMany({ select: { packages: true } });
+  if (!all.some((t) => asStrings(t.packages).includes("UNBUSYNESS_PILOT"))) {
+    await prisma.geoTaskTemplate.createMany({ data: DEFAULT_UNB_TEMPLATES.map((t, i) => tplRow(t, 500 + i)) });
+  }
+  if (all.length > 0) return;
   await prisma.geoTaskTemplate.createMany({
     data: DEFAULT_GEO_TEMPLATES.map((t, i) => ({
       key: t.key ?? null,
@@ -205,7 +276,8 @@ export function asStrings(v: unknown): string[] {
 }
 
 /** Template groups that apply to a client: its package plus add-ons. */
-export function clientGroups(c: { package: string | null; addons: unknown }): string[] {
+export function clientGroups(c: { package: string | null; addons: unknown; line?: string }): string[] {
+  if (c.line === "UNBUSYNESS") return ["UNBUSYNESS_PILOT"];
   return [c.package || "VISIBLE", ...asStrings(c.addons).map((a) => `ADDON_${a}`)];
 }
 
@@ -313,14 +385,33 @@ export async function createRecurringTasks(clientId: string, now = new Date()) {
 
 const DEFAULT_ACCESS = ["GOOGLE", "WEBSITE", "BING", "APPLE", "FACEBOOK", "INSTAGRAM"];
 
-export async function ensureAccessRows(clientId: string, industry: string | null) {
+export async function ensureAccessRows(clientId: string, industry: string | null, line = "PICKED", details: unknown = {}) {
   const have = await prisma.geoAccess.findMany({ where: { clientId }, select: { platform: true } });
-  const want = [...DEFAULT_ACCESS, ...(industry === "RESTAURANT" || industry === "LODGING" || industry === "ACTIVITIES" ? ["TRIPADVISOR"] : [])];
+  let want = [...DEFAULT_ACCESS, ...(industry === "RESTAURANT" || industry === "LODGING" || industry === "ACTIVITIES" ? ["TRIPADVISOR"] : [])];
+  if (line === "UNBUSYNESS") {
+    const d = (details || {}) as { bookingChannels?: string[]; guestChannels?: string[] };
+    want = [
+      ...((d.bookingChannels || []).includes("AIRBNB") ? ["AIRBNB"] : []),
+      ...((d.bookingChannels || []).includes("BOOKING") ? ["BOOKING"] : []),
+      "PMS",
+      ...((d.guestChannels || []).includes("WHATSAPP") ? ["WHATSAPP"] : []),
+      ...((d.guestChannels || []).includes("EMAIL") ? ["EMAIL"] : []),
+    ];
+  }
   const missing = want.filter((p) => !have.some((h) => h.platform === p));
   if (missing.length) await prisma.geoAccess.createMany({ data: missing.map((platform) => ({ clientId, platform })) });
 }
 
 // ─── Status machine ───────────────────────────────────────────────────────
+
+/** All tasks of a phase are closed (and there is at least one). */
+async function phaseDone(clientId: string, phase: string) {
+  const [any, open] = await Promise.all([
+    prisma.geoTask.count({ where: { clientId, phase } }),
+    prisma.geoTask.count({ where: { clientId, phase, status: { notIn: ["DONE", "NOT_POSSIBLE"] } } }),
+  ]);
+  return any > 0 && open === 0;
+}
 
 async function setStatus(clientId: string, from: string, to: string, by: { id: string; name: string } | null, why?: string) {
   await prisma.geoClient.update({ where: { id: clientId }, data: { status: to, statusAt: new Date() } });
@@ -338,10 +429,21 @@ export async function advanceGeoClient(clientId: string, by: { id: string; name:
     let next: string | null = null;
     switch (c.status) {
       case "HANDED_OVER":
-        if (c.assistantId && missingHandoverFields(c).length === 0) next = "KICKOFF";
+        if (c.assistantId && missingHandoverFor(c.line, c).length === 0) next = "KICKOFF";
         break;
       case "KICKOFF":
-        if (missingCardFields(asCard(c.card), c.package).length === 0) next = "ACCESS";
+        if (c.line === "UNBUSYNESS") {
+          if (await phaseDone(clientId, "START")) next = "SETUP";
+        } else if (missingCardFields(asCard(c.card), c.package).length === 0) next = "ACCESS";
+        break;
+      case "SETUP":
+        if (await phaseDone(clientId, "SETUP")) next = "TEST";
+        break;
+      case "TEST":
+        if (await phaseDone(clientId, "TEST")) next = "PILOT";
+        break;
+      case "PILOT":
+        if (await phaseDone(clientId, "PILOT")) next = "REVIEW";
         break;
       case "ACCESS":
         if (c.accesses.some((a) => a.platform === "GOOGLE" && a.status === "APPROVED")) next = "BASELINE";

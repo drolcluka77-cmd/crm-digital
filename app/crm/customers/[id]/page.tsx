@@ -18,6 +18,7 @@ import CustomerDetailActions from "./CustomerDetailActions";
 import ActivityPanel from "./ActivityPanel";
 import StagePanel from "./StagePanel";
 import GeoPanel from "./GeoPanel";
+import { lineForProductName } from "@/lib/geo-labels";
 import { getT } from "@/lib/i18n-server";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +35,7 @@ export default async function CustomerDetailPage({ params }: { params: { id: str
       activities: { include: { user: { select: { name: true } } }, orderBy: { createdAt: "desc" }, take: 100 },
       shares: { include: { material: { select: { title: true } } }, orderBy: { createdAt: "desc" } },
       ugcCreator: { select: { name: true } },
-      geoClient: { include: { assistant: { select: { name: true } }, _count: { select: { tasks: true } } } },
+      geoClients: { include: { assistant: { select: { name: true } }, _count: { select: { tasks: true } } } },
       contracts: { where: { status: "SIGNED" }, select: { id: true } },
     },
   });
@@ -50,6 +51,27 @@ export default async function CustomerDetailPage({ params }: { params: { id: str
 
   // Suggest materials of the products this lead is interested in.
   const interestIds = customer.interests.map((i) => i.productId);
+  // Delivery after the sale, per product line: Mr. Picked once won/signed, Unbusyness pilots any time.
+  const lines = Array.from(new Set(customer.interests.map((i) => lineForProductName(i.product.name)).filter((l): l is string => !!l)));
+  const deliveryPanels = await Promise.all(
+    Array.from(new Set([...lines, ...customer.geoClients.map((g) => g.line)]))
+      .filter((line) => customer.geoClients.some((g) => g.line === line) || (line === "UNBUSYNESS" && !["NEW", "CONTACTED", "LOST"].includes(customer.status)) || customer.status === "WON" || customer.contracts.length > 0)
+      .map(async (line) => {
+        const g = customer.geoClients.find((x) => x.line === line);
+        return {
+          line,
+          geo: g
+            ? {
+                id: g.id,
+                status: g.status,
+                assistant: g.assistant?.name ?? null,
+                tasksDone: await prisma.geoTask.count({ where: { clientId: g.id, status: { in: ["DONE", "NOT_POSSIBLE"] } } }),
+                tasksTotal: g._count.tasks,
+              }
+            : null,
+        };
+      })
+  );
   const suggested = materials.filter((m) => m.productId && interestIds.includes(m.productId)).map((m) => m.id);
 
   const formValues = {
@@ -187,23 +209,9 @@ export default async function CustomerDetailPage({ params }: { params: { id: str
         </div>
 
         <div className="space-y-4">
-          {(customer.geoClient ||
-            (customer.interests.some((i) => /picked/i.test(i.product.name)) && (customer.status === "WON" || customer.contracts.length > 0))) && (
-            <GeoPanel
-              customerId={customer.id}
-              geo={
-                customer.geoClient
-                  ? {
-                      id: customer.geoClient.id,
-                      status: customer.geoClient.status,
-                      assistant: customer.geoClient.assistant?.name ?? null,
-                      tasksDone: await prisma.geoTask.count({ where: { clientId: customer.geoClient.id, status: { in: ["DONE", "NOT_POSSIBLE"] } } }),
-                      tasksTotal: customer.geoClient._count.tasks,
-                    }
-                  : null
-              }
-            />
-          )}
+          {deliveryPanels.map((d) => (
+            <GeoPanel key={d.line} customerId={customer.id} line={d.line} geo={d.geo} />
+          ))}
           <StagePanel
             customerId={customer.id}
             status={customer.status}

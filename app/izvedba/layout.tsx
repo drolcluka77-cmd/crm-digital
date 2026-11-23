@@ -5,13 +5,14 @@ import { ROLE_LABEL } from "@/lib/constants";
 import Sidebar, { type NavSection } from "@/components/Sidebar";
 import { GridIcon, UsersIcon, MailIcon, SettingsIcon, ChartIcon } from "@/components/icons";
 import { LocaleProvider } from "@/components/LocaleProvider";
+import { DELIVERY_ROLE_LABEL } from "@/lib/geo-labels";
 
 const ic = "h-[18px] w-[18px]";
 
 export default async function IzvedbaLayout({ children }: { children: React.ReactNode }) {
   const user = await requireGeoArea();
   const [settings, unread] = await Promise.all([getSettings(), unreadCount(user.id)]);
-  const staff = user.role !== "GEO";
+  const staff = user.role !== "GEO" && user.role !== "FDE";
   const sections: NavSection[] = [
     {
       items: [
@@ -32,8 +33,8 @@ export default async function IzvedbaLayout({ children }: { children: React.Reac
         <Sidebar
           sections={sections}
           brand={settings.companyName}
-          subtitle="Izvedba · Mr. Picked"
-          user={{ name: user.name, email: user.email, roleLabel: user.role === "GEO" ? "GEO asistent" : ROLE_LABEL[user.role] }}
+          subtitle="Izvedba"
+          user={{ name: user.name, email: user.email, roleLabel: DELIVERY_ROLE_LABEL[user.role] || ROLE_LABEL[user.role] }}
           notificationsHref={staff ? "/admin/notifications" : "/izvedba/obvestila"}
           unread={unread}
         />

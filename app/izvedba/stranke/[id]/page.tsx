@@ -7,7 +7,13 @@ import {
   GEO_INDUSTRY_LABEL,
   GEO_PACKAGE_LABEL,
   GEO_STATUS_LABEL,
-  GEO_STATUS_NEXT,
+  statusNext,
+  DELIVERY_LINE_LABEL,
+  DELIVERY_LINE_ROLE,
+  UNB_PROPERTY_TYPES,
+  UNB_BOOKING_CHANNELS,
+  UNB_GUEST_CHANNELS,
+  type UnbDetails,
   missingCardFields,
   fmtDay,
 } from "@/lib/geo-labels";
@@ -55,13 +61,16 @@ export default async function GeoClientPage({ params, searchParams }: { params: 
     },
   });
   if (!c) notFound();
-  if (user.role === "GEO" && c.assistantId !== user.id) notFound();
+  if ((user.role === "GEO" || user.role === "FDE") && c.assistantId !== user.id) notFound();
   const isAdmin = user.role === "ADMIN";
-  const tab = TABS.some(([k]) => k === searchParams.tab) ? searchParams.tab! : c.status === "KICKOFF" ? "kartica" : "naloge";
+  const unb = c.line === "UNBUSYNESS";
+  const d = (c.details as UnbDetails) || {};
+  const tabs = unb ? TABS.filter(([k]) => ["predaja", "dostopi", "naloge", "zgodovina"].includes(k)) : TABS;
+  const tab = tabs.some(([k]) => k === searchParams.tab) ? searchParams.tab! : !unb && c.status === "KICKOFF" ? "kartica" : "naloge";
   const card = asCard(c.card);
   const missing = missingCardFields(card, c.package);
   const assistants = isAdmin
-    ? await prisma.user.findMany({ where: { role: { in: ["GEO", "ADMIN"] }, active: true }, select: { id: true, name: true, role: true }, orderBy: { name: "asc" } })
+    ? await prisma.user.findMany({ where: { role: { in: [DELIVERY_LINE_ROLE[c.line] || "GEO", "ADMIN"] }, active: true }, select: { id: true, name: true, role: true }, orderBy: { name: "asc" } })
     : [];
 
   const tasks: TaskRow[] = c.tasks.map((t) => ({
@@ -96,20 +105,35 @@ export default async function GeoClientPage({ params, searchParams }: { params: 
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{c.company}</h1>
           <div className="text-sm text-black/55 mt-1">
+            <span className="font-medium text-black/70">{DELIVERY_LINE_LABEL[c.line]}</span> ·{" "}
+            {unb ? (
+              <>
+                {d.units ? `${d.units} enot` : "—"} · začetek {fmtDay(c.startDate?.toISOString() ?? null)} · FDE {c.assistant?.name || "ni dodeljen"}
+              </>
+            ) : (
+              <>
             {GEO_PACKAGE_LABEL[c.package || ""] || "—"}
             {asStrings(c.addons).length ? ` + ${asStrings(c.addons).map((a) => GEO_ADDON_LABEL[a] || a).join(", ")}` : ""} ·{" "}
             {GEO_INDUSTRY_LABEL[c.industry || ""] || "—"} · začetek {fmtDay(c.startDate?.toISOString() ?? null)} · asistent{" "}
             {c.assistant?.name || "ni dodeljen"}
+              </>
+            )}
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
             <span className="px-2.5 py-1 rounded-full bg-brand-50 text-brand-700 font-medium">{GEO_STATUS_LABEL[c.status]}</span>
-            {GEO_STATUS_NEXT[c.status] && <span className="text-black/45">Naprej, ko: {GEO_STATUS_NEXT[c.status]}</span>}
+            {statusNext(c.line, c.status) && <span className="text-black/45">Naprej, ko: {statusNext(c.line, c.status)}</span>}
+            {unb && d.outcome && (
+              <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 text-xs">
+                {d.outcome === "CONVERTED" ? "Nadaljuje kot plačljiva stranka" : "Pilot končan brez nadaljevanja"}
+              </span>
+            )}
             {c.freeMonth4 && <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-700 text-xs">4. mesec brezplačen</span>}
           </div>
         </div>
         {isAdmin && (
           <AdminControls
             clientId={c.id}
+            line={c.line}
             status={c.status}
             assistantId={c.assistantId}
             assistants={assistants.map((a) => ({ id: a.id, name: a.role === "ADMIN" ? `${a.name} (admin)` : a.name }))}
@@ -118,7 +142,7 @@ export default async function GeoClientPage({ params, searchParams }: { params: 
       </div>
 
       <div className="flex flex-wrap gap-1.5 mb-5 border-b border-black/5 pb-3">
-        {TABS.map(([k, label]) => (
+        {tabs.map(([k, label]) => (
           <Link key={k} href={`/izvedba/stranke/${c.id}?tab=${k}`} className={tab === k ? "chip-active" : "chip"}>
             {label}
             {k === "kartica" && missing.length > 0 && <span className="ml-1.5 text-amber-600">•</span>}
@@ -131,13 +155,32 @@ export default async function GeoClientPage({ params, searchParams }: { params: 
         <div className="card p-5">
           <dl>
             <Field k="Prodajalec" v={c.seller?.name} />
+            {unb && (
+              <>
+                <Field k="Vrsta nastanitve" v={UNB_PROPERTY_TYPES[d.propertyType || ""]} />
+                <Field k="Število enot" v={d.units ? String(d.units) : null} />
+                <Field k="Lokacije" v={d.locations} />
+                <Field k="Kanali rezervacij" v={(d.bookingChannels || []).map((x) => UNB_BOOKING_CHANNELS[x] || x).join(", ")} />
+                <Field k="Kje gostje pišejo" v={(d.guestChannels || []).map((x) => UNB_GUEST_CHANNELS[x] || x).join(", ")} />
+                <Field k="Sistem za rezervacije" v={d.pms} />
+                <Field k="Kdo zdaj odgovarja gostom" v={d.whoAnswers} />
+                <Field k="Cilj pilota" v={d.pilotGoal} />
+                <Field k="Trajanje pilota" v={d.pilotDays ? `${d.pilotDays} dni po zagonu` : null} />
+                <Field k="Cena po pilotu" v={d.priceAfterPilot ? `${d.priceAfterPilot} € / mesec` : null} />
+                {d.outcomeNote && <Field k="Zaključek pilota" v={d.outcomeNote} />}
+              </>
+            )}
             <Field k="Kontaktna oseba" v={[c.contactName, c.contactPhone, c.contactEmail].filter(Boolean).join(" · ")} />
-            <Field k="Mesečna cena" v={c.monthlyPrice ? `${c.monthlyPrice} €` : null} />
-            <Field k="Enkratna namestitev" v={c.setupFee ? `${c.setupFee} €` : null} />
-            <Field k="Kdo ureja stran" v={c.webManager} />
-            <Field k="Vrednost ene stranke" v={c.customerValue ? `${c.customerValue} €` : null} />
+            {!unb && (
+              <>
+                <Field k="Mesečna cena" v={c.monthlyPrice ? `${c.monthlyPrice} €` : null} />
+                <Field k="Enkratna namestitev" v={c.setupFee ? `${c.setupFee} €` : null} />
+                <Field k="Kdo ureja stran" v={c.webManager} />
+                <Field k="Vrednost ene stranke" v={c.customerValue ? `${c.customerValue} €` : null} />
+              </>
+            )}
             <Field k="Glavni problem" v={c.mainProblem} />
-            <Field k="Jeziki strank" v={asStrings(c.languages).join(", ")} />
+            <Field k={unb ? "Jeziki gostov" : "Jeziki strank"} v={asStrings(c.languages).join(", ")} />
             <Field k="Kaj je prodajalec obljubil" v={c.promised} />
             <Field k="Posebnosti" v={c.specialNotes} />
             <Field k="Predano" v={c.handedOverAt ? c.handedOverAt.toLocaleString("sl-SI") : null} />

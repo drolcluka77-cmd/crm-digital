@@ -255,7 +255,7 @@ model Customer {
   interests     CustomerProduct[]
   shares        MaterialShare[]
   subscriptions Subscription[]
-  geoClient     GeoClient?
+  geoClients    GeoClient[]
 }
 
 // Which products a lead is interested in.
@@ -818,8 +818,10 @@ model WorkLog {
 // One per signed customer. Created by the seller's handover form; worked by the GEO assistant.
 model GeoClient {
   id             String    @id @default(cuid())
-  customerId     String    @unique
+  customerId     String
   customer       Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  line           String    @default("PICKED") // PICKED (GEO assistant) | UNBUSYNESS (forward deployment engineer, pilots)
+  details        Json      @default("{}") // line-specific handover fields (Unbusyness: units, channels, pilot goal …)
   contractId     String?
   sellerId       String?
   seller         User?     @relation("GeoSeller", fields: [sellerId], references: [id], onDelete: SetNull)
@@ -870,6 +872,7 @@ model GeoClient {
 
   @@index([status])
   @@index([assistantId])
+  @@index([customerId])
 }
 
 model GeoAccess {

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSales } from "@/lib/session";
 import HandoverForm, { type HandoverValues } from "./HandoverForm";
+import type { UnbDetails } from "@/lib/geo-labels";
 
 export const dynamic = "force-dynamic";
 
@@ -28,17 +29,18 @@ function fromQuote(items: { name: string; billing: string; unitPrice: number; qu
   return { pkg, addons: Array.from(new Set(addons)), monthly: monthly || null, setup: setup || null };
 }
 
-export default async function HandoverPage({ params }: { params: { id: string } }) {
+export default async function HandoverPage({ params, searchParams }: { params: { id: string }; searchParams: { line?: string } }) {
+  const line = searchParams.line === "UNBUSYNESS" ? "UNBUSYNESS" : "PICKED";
   const user = await requireSales();
   const customer = await prisma.customer.findUnique({
     where: { id: params.id },
     include: {
-      geoClient: true,
+      geoClients: { where: { line } },
       quotes: { where: { status: "ACCEPTED" }, include: { items: { include: { product: { select: { name: true } } } } }, orderBy: { decidedAt: "desc" }, take: 1 },
     },
   });
   if (!customer || customer.ownerId !== user.id) notFound();
-  const g = customer.geoClient;
+  const g = customer.geoClients[0] ?? null;
   const q = customer.quotes[0] ? fromQuote(customer.quotes[0].items) : null;
   const iso = (d: Date | null | undefined) => (d ? d.toISOString().slice(0, 10) : "");
   const values: HandoverValues = g
@@ -59,6 +61,7 @@ export default async function HandoverPage({ params }: { params: { id: string } 
         languages: (g.languages as string[]) || [],
         promised: g.promised || "",
         specialNotes: g.specialNotes || "",
+        details: (g.details as UnbDetails) || {},
       }
     : {
         company: customer.company || customer.name,
@@ -77,6 +80,7 @@ export default async function HandoverPage({ params }: { params: { id: string } 
         languages: ["SL"],
         promised: "",
         specialNotes: "",
+        details: { pilotDays: 30 },
       };
   const locked = !!g && g.status !== "DRAFT";
   return (
@@ -84,15 +88,15 @@ export default async function HandoverPage({ params }: { params: { id: string } 
       <Link href={`/crm/customers/${customer.id}`} className="text-sm text-black/40 hover:text-black/60">
         ← {customer.company || customer.name}
       </Link>
-      <h1 className="text-2xl font-semibold tracking-tight mt-3">Predaja v izvedbo</h1>
+      <h1 className="text-2xl font-semibold tracking-tight mt-3">{line === "UNBUSYNESS" ? "Predaja pilota Unbusyness" : "Predaja v izvedbo · Mr. Picked"}</h1>
       <p className="text-black/50 text-sm mt-1 mb-6">
-        GEO asistent bo delal samo s temi podatki, zato jih izpolni natančno. Polja z * so obvezna. Ko oddaš, podatkov ne
+        {line === "UNBUSYNESS" ? "Forward deployment engineer" : "GEO asistent"} bo delal samo s temi podatki, zato jih izpolni natančno. Polja z * so obvezna. Ko oddaš, podatkov ne
         moreš več urejati.
       </p>
       {locked ? (
         <div className="card p-5 text-sm">Predaja je že oddana. Napredek vidiš na strani stranke.</div>
       ) : (
-        <HandoverForm customerId={customer.id} values={values} fromQuote={!g && !!q} />
+        <HandoverForm customerId={customer.id} line={line} values={values} fromQuote={line === "PICKED" && !g && !!q} />
       )}
     </div>
   );

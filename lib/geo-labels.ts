@@ -1,4 +1,18 @@
-// GEO delivery (Mr. Picked) — labels shared by server and client components (no server imports).
+// Delivery after the sale ("izvedba") — labels shared by server and client components (no server imports).
+// Lines: PICKED (Mr. Picked GEO, worked by the GEO assistant) and UNBUSYNESS (pilots, worked by the
+// forward deployment engineer).
+
+export const DELIVERY_LINES = ["PICKED", "UNBUSYNESS"] as const;
+export const DELIVERY_LINE_LABEL: Record<string, string> = { PICKED: "Mr. Picked", UNBUSYNESS: "Unbusyness pilot" };
+/** Roles that can be assigned to work a line (admins always can). */
+export const DELIVERY_LINE_ROLE: Record<string, string> = { PICKED: "GEO", UNBUSYNESS: "FDE" };
+export const DELIVERY_ROLE_LABEL: Record<string, string> = { GEO: "GEO asistent", FDE: "Forward deployment engineer" };
+/** Which product names belong to which line. */
+export function lineForProductName(name: string): string | null {
+  if (/picked/i.test(name)) return "PICKED";
+  if (/unbusyness/i.test(name)) return "UNBUSYNESS";
+  return null;
+}
 
 export const GEO_PACKAGES = ["VISIBLE", "RECOMMENDED", "CONCIERGE"] as const;
 export const GEO_PACKAGE_LABEL: Record<string, string> = {
@@ -49,8 +63,18 @@ export const GEO_STATUSES = [
   "FIX",
   "MAINTENANCE",
   "DAY90",
+  "SETUP",
+  "TEST",
+  "PILOT",
+  "REVIEW",
+  "DONE",
   "CANCELLED",
 ] as const;
+/** Status flow per line (for the board and the manual status picker). */
+export const LINE_STATUSES: Record<string, string[]> = {
+  PICKED: ["DRAFT", "HANDED_OVER", "KICKOFF", "ACCESS", "BASELINE", "FIX", "MAINTENANCE", "DAY90", "CANCELLED"],
+  UNBUSYNESS: ["DRAFT", "HANDED_OVER", "KICKOFF", "SETUP", "TEST", "PILOT", "REVIEW", "DONE", "CANCELLED"],
+};
 export const GEO_STATUS_LABEL: Record<string, string> = {
   DRAFT: "Osnutek predaje",
   HANDED_OVER: "Predano",
@@ -60,6 +84,11 @@ export const GEO_STATUS_LABEL: Record<string, string> = {
   FIX: "Popravek",
   MAINTENANCE: "Vzdrževanje",
   DAY90: "Dan 90",
+  SETUP: "Nastavitev",
+  TEST: "Test",
+  PILOT: "Pilot teče",
+  REVIEW: "Pregled pilota",
+  DONE: "Zaključeno",
   CANCELLED: "Prekinjeno",
 };
 /** What has to happen for the client to move on from each status. */
@@ -72,9 +101,22 @@ export const GEO_STATUS_NEXT: Record<string, string> = {
   FIX: "Vse naloge faze Popravek so končane (cilj: dan 30).",
   MAINTENANCE: "Po 3 mesecih CRM odpre Dan 90.",
   DAY90: "Administrator potrdi primerjavo; stranka se vrne v Vzdrževanje.",
+  SETUP: "Vse naloge nastavitve so končane.",
+  TEST: "Test je opravljen in lastnik je potrdil zagon.",
+  PILOT: "Vse naloge pilota so končane (tedenski pregledi, meritve).",
+  REVIEW: "Administrator zaključi pilot: nadaljuje kot plačljiva stranka ali konec.",
+  DONE: "",
   CANCELLED: "",
 };
-export const GEO_ACTIVE_STATUSES = ["KICKOFF", "ACCESS", "BASELINE", "FIX", "MAINTENANCE", "DAY90"];
+/** Unbusyness: KICKOFF uses the same label, but a different condition. */
+export const UNB_STATUS_NEXT: Record<string, string> = {
+  HANDED_OVER: "Administrator dodeli forward deployment engineerja.",
+  KICKOFF: "Naloge uvodnega klica in zbiranja podatkov so končane.",
+};
+export function statusNext(line: string, status: string) {
+  return (line === "UNBUSYNESS" && UNB_STATUS_NEXT[status]) || GEO_STATUS_NEXT[status] || "";
+}
+export const GEO_ACTIVE_STATUSES = ["KICKOFF", "ACCESS", "BASELINE", "FIX", "MAINTENANCE", "DAY90", "SETUP", "TEST", "PILOT", "REVIEW"];
 
 export const GEO_TASK_STATUSES = ["OPEN", "IN_PROGRESS", "WAITING_CLIENT", "WAITING_APPROVAL", "DONE", "NOT_POSSIBLE"] as const;
 export const GEO_TASK_STATUS_LABEL: Record<string, string> = {
@@ -87,13 +129,17 @@ export const GEO_TASK_STATUS_LABEL: Record<string, string> = {
 };
 export const GEO_OPEN_TASK_STATUSES = ["OPEN", "IN_PROGRESS", "WAITING_CLIENT"];
 
-export const GEO_PHASES = ["START", "FIX", "MONTHLY", "QUARTERLY", "DAY90"] as const;
+export const GEO_PHASES = ["START", "FIX", "MONTHLY", "QUARTERLY", "DAY90", "SETUP", "TEST", "PILOT", "REVIEW"] as const;
 export const GEO_PHASE_LABEL: Record<string, string> = {
   START: "Začetek",
   FIX: "Popravek",
   MONTHLY: "Mesečno",
   QUARTERLY: "Četrtletno",
   DAY90: "Dan 90",
+  SETUP: "Nastavitev",
+  TEST: "Test",
+  PILOT: "Pilot",
+  REVIEW: "Pregled",
 };
 
 export const GEO_TEMPLATE_GROUPS = [
@@ -104,6 +150,7 @@ export const GEO_TEMPLATE_GROUPS = [
   "ADDON_REVIEWS",
   "ADDON_WHATSAPP",
   "ADDON_WEBSITE",
+  "UNBUSYNESS_PILOT",
 ] as const;
 export const GEO_TEMPLATE_GROUP_LABEL: Record<string, string> = {
   VISIBLE: "Visible",
@@ -113,6 +160,7 @@ export const GEO_TEMPLATE_GROUP_LABEL: Record<string, string> = {
   ADDON_REVIEWS: "Add-on: reviews",
   ADDON_WHATSAPP: "Add-on: WhatsApp",
   ADDON_WEBSITE: "Add-on: website",
+  UNBUSYNESS_PILOT: "Unbusyness pilot",
 };
 
 export const GEO_PLATFORMS = [
@@ -123,6 +171,11 @@ export const GEO_PLATFORMS = [
   "FACEBOOK",
   "INSTAGRAM",
   "TRIPADVISOR",
+  "AIRBNB",
+  "BOOKING",
+  "PMS",
+  "WHATSAPP",
+  "EMAIL",
   "OTHER",
 ] as const;
 export const GEO_PLATFORM_LABEL: Record<string, string> = {
@@ -133,6 +186,11 @@ export const GEO_PLATFORM_LABEL: Record<string, string> = {
   FACEBOOK: "Facebook",
   INSTAGRAM: "Instagram",
   TRIPADVISOR: "TripAdvisor",
+  AIRBNB: "Airbnb (sporočila gostov)",
+  BOOKING: "Booking.com (Extranet)",
+  PMS: "Sistem za rezervacije / channel manager",
+  WHATSAPP: "WhatsApp Business",
+  EMAIL: "E-pošta za goste",
   OTHER: "Drugo",
 };
 export const GEO_ACCESS_STATUSES = ["NOT_REQUESTED", "REQUESTED", "APPROVED", "PROBLEM"] as const;
@@ -274,4 +332,64 @@ export function missingHandoverFields(h: Handover): string[] {
 
 export function fmtDay(d: string | null) {
   return d ? new Date(d).toLocaleDateString("sl-SI", { day: "numeric", month: "numeric", year: "2-digit" }) : "—";
+}
+
+// ─── Unbusyness pilot handover ───────────────────────────────────────────
+
+export const UNB_PROPERTY_TYPES: Record<string, string> = {
+  APARTMENTS: "Apartmaji / sobe",
+  HOTEL: "Hotel",
+  HOSTEL: "Hostel",
+  BUILDINGS: "Upravljanje stavb",
+  OTHER: "Drugo",
+};
+export const UNB_BOOKING_CHANNELS: Record<string, string> = {
+  AIRBNB: "Airbnb",
+  BOOKING: "Booking.com",
+  DIRECT: "Direktne rezervacije",
+  OTHER: "Drugo",
+};
+export const UNB_GUEST_CHANNELS: Record<string, string> = {
+  PLATFORM: "Sporočila na Airbnb/Booking",
+  WHATSAPP: "WhatsApp",
+  EMAIL: "E-pošta",
+  PHONE: "Telefon / SMS",
+};
+
+export type UnbDetails = {
+  propertyType?: string;
+  units?: number | null;
+  locations?: string;
+  bookingChannels?: string[];
+  guestChannels?: string[];
+  pms?: string;
+  whoAnswers?: string; // who answers guests today
+  pilotGoal?: string; // what must be true after the pilot
+  pilotDays?: number | null;
+  priceAfterPilot?: number | null;
+  outcome?: "CONVERTED" | "ENDED";
+  outcomeNote?: string;
+};
+
+export function missingUnbHandover(h: Handover & { details?: UnbDetails | null }): string[] {
+  const m: string[] = [];
+  const has = (v?: string | null) => !!v && String(v).trim().length > 0;
+  const d = h.details || {};
+  if (!has(h.company)) m.push("Ime podjetja");
+  if (!h.startDate) m.push("Datum začetka pilota");
+  if (!has(h.contactName)) m.push("Kontaktna oseba");
+  if (!has(h.contactPhone)) m.push("Telefon kontakta");
+  if (!has(h.contactEmail)) m.push("E-pošta kontakta");
+  if (!has(d.propertyType)) m.push("Vrsta nastanitve");
+  if (!d.units) m.push("Število enot");
+  if (!(d.bookingChannels || []).length) m.push("Kanali rezervacij");
+  if (!(d.guestChannels || []).length) m.push("Kje gostje pišejo");
+  if (!has(h.mainProblem)) m.push("Glavni problem");
+  if (!has(d.pilotGoal)) m.push("Cilj pilota");
+  if (!has(h.promised)) m.push("Kaj je prodajalec obljubil");
+  return m;
+}
+
+export function missingHandoverFor(line: string, h: Handover & { details?: unknown }): string[] {
+  return line === "UNBUSYNESS" ? missingUnbHandover({ ...h, details: (h.details as UnbDetails) || {} }) : missingHandoverFields(h);
 }

@@ -1,22 +1,23 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/session";
-import { GEO_PACKAGE_LABEL, GEO_STATUS_LABEL } from "@/lib/geo-labels";
+import { DELIVERY_LINE_LABEL, GEO_PACKAGE_LABEL, GEO_STATUS_LABEL, LINE_STATUSES } from "@/lib/geo-labels";
 import TaskList, { type TaskRow } from "@/app/izvedba/TaskList";
 
 export const dynamic = "force-dynamic";
 
-const COLUMNS = ["HANDED_OVER", "KICKOFF", "ACCESS", "BASELINE", "FIX", "MAINTENANCE", "DAY90"];
 
-export default async function GeoBoardPage({ searchParams }: { searchParams: { view?: string } }) {
+export default async function GeoBoardPage({ searchParams }: { searchParams: { view?: string; line?: string } }) {
   const user = await requireStaff();
   const isAdmin = user.role === "ADMIN";
   const view = searchParams.view === "approve" ? "approve" : "board";
+  const line = searchParams.line === "UNBUSYNESS" ? "UNBUSYNESS" : "PICKED";
+  const COLUMNS = LINE_STATUSES[line].filter((s) => !["DRAFT", "CANCELLED"].includes(s));
   const now = new Date();
 
   const [clients, lateCounts, approvals, drafts, cancelled] = await Promise.all([
     prisma.geoClient.findMany({
-      where: { status: { in: COLUMNS } },
+      where: { line, status: { in: COLUMNS } },
       include: { assistant: { select: { name: true } }, seller: { select: { name: true } } },
       orderBy: { statusAt: "asc" },
     }),
@@ -30,8 +31,8 @@ export default async function GeoBoardPage({ searchParams }: { searchParams: { v
       include: { client: { select: { company: true } }, assignee: { select: { name: true } } },
       orderBy: { updatedAt: "asc" },
     }),
-    prisma.geoClient.count({ where: { status: "DRAFT" } }),
-    prisma.geoClient.findMany({ where: { status: "CANCELLED" }, select: { id: true, company: true, endsAt: true } }),
+    prisma.geoClient.count({ where: { line, status: "DRAFT" } }),
+    prisma.geoClient.findMany({ where: { line, status: "CANCELLED" }, select: { id: true, company: true, endsAt: true } }),
   ]);
   const late = new Map(lateCounts.map((c) => [c.clientId, c._count._all]));
   const approvalRows: TaskRow[] = approvals.map((t) => ({
@@ -53,16 +54,18 @@ export default async function GeoBoardPage({ searchParams }: { searchParams: { v
     <div>
       <div className="flex flex-wrap items-end justify-between gap-3 mb-5">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">GEO delivery</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Delivery</h1>
           <p className="text-black/50 text-sm mt-1">
-            Signed Mr. Picked clients after the seller's handover. Open a client to assign a GEO assistant (tasks are created then).
+            Clients after the seller's handover: Mr. Picked → GEO assistant, Unbusyness pilots → forward deployment engineer. Open a client to assign who works on it (tasks are created then).
             {drafts ? ` ${drafts} handover draft(s) not submitted yet.` : ""}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link href="/admin/geo" className={view === "board" ? "chip-active" : "chip"}>
-            Board
-          </Link>
+          {(["PICKED", "UNBUSYNESS"] as const).map((l) => (
+            <Link key={l} href={`/admin/geo?line=${l}`} className={view === "board" && line === l ? "chip-active" : "chip"}>
+              {DELIVERY_LINE_LABEL[l]}
+            </Link>
+          ))}
           <Link href="/admin/geo?view=approve" className={view === "approve" ? "chip-active" : "chip"}>
             Waiting for approval <span className="ml-1.5 opacity-60">{approvals.length}</span>
           </Link>
@@ -96,10 +99,11 @@ export default async function GeoBoardPage({ searchParams }: { searchParams: { v
                       <Link key={c.id} href={`/izvedba/stranke/${c.id}`} className="card p-3 block hover:border-brand-300">
                         <div className="font-medium text-sm leading-snug">{c.company}</div>
                         <div className="text-xs text-black/45 mt-1">
-                          {GEO_PACKAGE_LABEL[c.package || ""] || "—"} · {c.assistant?.name || <span className="text-amber-600">no assistant</span>}
+                          {line === "PICKED" ? `${GEO_PACKAGE_LABEL[c.package || ""] || "—"} · ` : ""}
+                          {c.assistant?.name || <span className="text-amber-600">not assigned</span>}
                         </div>
                         {late.get(c.id) ? <div className="text-xs text-rose-600 mt-1">{late.get(c.id)} overdue</div> : null}
-                        {s === "HANDED_OVER" && <div className="text-xs text-brand-600 mt-1">Assign assistant →</div>}
+                        {s === "HANDED_OVER" && <div className="text-xs text-brand-600 mt-1">Assign →</div>}
                       </Link>
                     ))}
                     {list.length === 0 && <div className="text-xs text-black/30 px-1">—</div>}
