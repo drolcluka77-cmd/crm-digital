@@ -85,3 +85,12 @@ export async function saveMirrorAsMeasurement(runId: string, month: number, mapR
   revalidatePath(`/izvedba/mirror/${runId}`);
   return { success: "Shranjeno kot meritev." };
 }
+
+/** Staff: delete a run (e.g. a test or a run with a wrong search term). */
+export async function deleteMirrorRun(runId: string): Promise<{ error?: string; success?: string }> {
+  const user = await requireUser();
+  if (user.role !== "ADMIN" && user.role !== "MANAGER") return { error: "Ni dovoljeno." };
+  await prisma.aiMirrorRun.deleteMany({ where: { id: runId } });
+  revalidatePath("/admin/mirror");
+  return { success: "Izbrisano." };
+}
