@@ -25,6 +25,15 @@ const BRAND: Record<string, { t: string; cls: string }> = {
   wrong: { t: "navaja napačne podatke", cls: "text-amber-700" },
 };
 
+// Answers come as Markdown: show them as plain text.
+const plain = (t: string) =>
+  t
+    .replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, "$1")
+    .replace(/\(\s*\)/g, "")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/^#{1,4}\s+/gm, "")
+    .replace(/\n{3,}/g, "\n\n");
+
 export default function MirrorResult({ run }: { run: MirrorRunView }) {
   if (run.status === "FAILED")
     return <div className="card p-5 text-sm text-rose-700">Analiza ni uspela: {run.error || "neznana napaka"}</div>;
@@ -120,7 +129,7 @@ export default function MirrorResult({ run }: { run: MirrorRunView }) {
               <span className="shrink-0 w-16 text-black/50">{ENGINE[a.engine]}</span>
               <span className="flex-1">{a.q}</span>
             </summary>
-            <div className="mt-2 ml-0 sm:ml-[6.5rem] text-sm whitespace-pre-line text-black/75">{a.error || a.text}</div>
+            <div className="mt-2 ml-0 sm:ml-[6.5rem] text-sm whitespace-pre-line text-black/75">{a.error || plain(a.text)}</div>
             {a.sources.length > 0 && (
               <div className="mt-2 sm:ml-[6.5rem] text-xs text-black/45 space-y-0.5">
                 {a.sources.slice(0, 5).map((src) => (

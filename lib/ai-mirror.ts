@@ -57,6 +57,8 @@ export type MirrorInput = {
 // Models get retired; when the configured one is gone we pick the newest small one the account offers.
 let openaiPicked: string | null = null;
 let geminiPicked: string | null = null;
+let openaiLookup: Promise<string | null> | null = null;
+let geminiLookup: Promise<string | null> | null = null;
 const OPENAI_MODEL = () => openaiPicked || process.env.AI_MIRROR_OPENAI_MODEL || "gpt-4.1-mini";
 const GEMINI_MODEL = () => geminiPicked || process.env.AI_MIRROR_GEMINI_MODEL || "gemini-2.5-flash";
 const EXTRACT_MODEL = () => process.env.AI_MIRROR_EXTRACT_MODEL || OPENAI_MODEL();
@@ -217,12 +219,11 @@ async function askChatGPT(q: string, city: string): Promise<Raw> {
       })
     );
   let res = await call("web_search");
-  if (res.status === 404 && !openaiPicked) {
-    const m = await newestOpenAIMini();
-    if (m && m !== OPENAI_MODEL()) {
-      openaiPicked = m;
-      res = await call("web_search");
-    }
+  if (res.status === 404) {
+    openaiLookup = openaiLookup || newestOpenAIMini();
+    const m = await openaiLookup;
+    if (m && m !== openaiPicked) openaiPicked = m;
+    if (m) res = await call("web_search");
   }
   if (res.status === 400) res = await call("web_search_preview"); // older accounts / models
   if (!res.ok) throw new Error(`ChatGPT ${res.status}: ${(await res.text()).slice(0, 180)}`);
@@ -264,12 +265,12 @@ async function askGemini(q: string): Promise<Raw> {
       })
     );
   let res = await call(false);
-  if (res.status === 404 && !geminiPicked) {
-    const m = await newestGeminiFlash();
-    if (m && m !== GEMINI_MODEL()) {
-      geminiPicked = m;
-      res = await call(false);
-    }
+  if (res.status === 404) {
+    // Several questions run at once: share one lookup.
+    geminiLookup = geminiLookup || newestGeminiFlash();
+    const m = await geminiLookup;
+    if (m && m !== geminiPicked) geminiPicked = m;
+    if (m) res = await call(false);
   }
   if (res.status === 400) res = await call(true);
   if (!res.ok) throw new Error(`Gemini ${res.status}: ${(await res.text()).slice(0, 180)}`);
@@ -359,7 +360,7 @@ async function summarize(input: MirrorInput, answers: MirrorAnswer[]): Promise<{
         .slice(0, 8)
         .map((c: any) => ({ name: String(c.name).slice(0, 80), mentions: Math.max(1, Math.round(Number(c.mentions) || 1)) })),
       brand: Object.fromEntries(
-        (["chatgpt", "gemini"] as const).filter((e) => ["known", "unknown", "wrong"].includes(p.brand?.[e])).map((e) => [e, p.brand[e]])
+        (["chatgpt", "gemini"] as const).filter((e) => answers.some((a) => a.engine === e && a.text)).filter((e) => ["known", "unknown", "wrong"].includes(p.brand?.[e])).map((e) => [e, p.brand[e]])
       ),
       wrongFacts: (Array.isArray(p.wrongFacts) ? p.wrongFacts : []).map((x: any) => String(x).slice(0, 200)).slice(0, 8),
       summary: String(p.summary || "").slice(0, 900),
