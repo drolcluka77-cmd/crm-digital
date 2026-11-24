@@ -144,14 +144,14 @@ export function buildQueries(input: Pick<MirrorInput, "kind" | "company" | "city
     .filter(Boolean)
     .slice(0, 4)
     .map((q): MirrorQuery => ({ q, kind: mentions(q, company) ? "brand" : "discovery" }));
-  const pool: MirrorQuery[] = [
+  const candidates: MirrorQuery[] = [
     ...quick.slice(0, 2),
     { q: `Kateri so najbolje ocenjeni ponudniki za ${t(2)} v kraju ${city} in okolici?`, kind: "discovery" },
     { q: `Kdo je najbolj zanesljiv za ${t(0)} v kraju ${city}? Daj mi 3 predloge.`, kind: "discovery" },
     { q: `Best ${t(1)} in ${city}, Slovenia — recommend specific places or companies.`, kind: "discovery" },
     ...extra,
   ];
-  const discovery = pool.slice(0, 8);
+  const discovery = candidates.slice(0, 8);
   return [
     ...discovery,
     brand,
