@@ -375,6 +375,9 @@ export async function createOnceTasks(clientId: string) {
   if (!c || !c.startDate) return 0;
   const groups = clientGroups(c);
   const card = asCard(c.card);
+  // SimpleImport with samples: everything after the samples moves two weeks later.
+  const withSamples = c.line === "IMPORT" && !!(c.details as { samples?: boolean } | null)?.samples;
+  const shiftFor = (phase: string) => (withSamples && ["ORDER", "PRODUCTION", "SHIPPING"].includes(phase) ? 14 : 0);
   const templates = await prisma.geoTaskTemplate.findMany({ where: { active: true, recurrence: "ONCE" }, orderBy: { sortOrder: "asc" } });
   let n = 0;
   for (const t of templates) {
@@ -389,7 +392,7 @@ export async function createOnceTasks(clientId: string) {
         title: t.title,
         description: t.description,
         phase: t.phase,
-        dueDate: new Date(c.startDate.getTime() + t.dueDay * DAY),
+        dueDate: new Date(c.startDate.getTime() + (t.dueDay + shiftFor(t.phase)) * DAY),
         assigneeId: c.assistantId,
         needsApproval: t.needsApproval,
         technical: t.technical,
