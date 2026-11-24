@@ -412,7 +412,10 @@ export async function runMirror(input: MirrorInput, user: { id: string; name: st
       }
     });
     const ok = answers.filter((a) => !a.error);
-    if (!ok.length) throw new Error(answers[0]?.error || "Noben AI asistent ni odgovoril.");
+    if (!ok.length) {
+      const errs = Array.from(new Set(answers.map((a) => a.error).filter(Boolean)));
+      throw new Error(errs.join(" | ") || "Noben AI asistent ni odgovoril.");
+    }
     const { s, cost: c2 } = await summarize(input, ok);
     cost += c2;
     const disc = ok.filter((a) => a.kind === "discovery");
