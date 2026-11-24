@@ -33,6 +33,7 @@ import TaskList, { type TaskRow } from "../../TaskList";
 import CardEditor from "./CardEditor";
 import AccessList from "./AccessList";
 import Measurements from "./Measurements";
+import OffersTab from "./OffersTab";
 import CodeTab from "./CodeTab";
 import AdminControls from "./AdminControls";
 import AddTask from "./AddTask";
@@ -46,6 +47,7 @@ const TABS = [
   ["naloge", "Naloge"],
   ["meritve", "Meritve"],
   ["koda", "Koda"],
+  ["dobavitelji", "Dobavitelji"],
   ["zgodovina", "Zgodovina"],
 ] as const;
 
@@ -59,6 +61,7 @@ export default async function GeoClientPage({ params, searchParams }: { params: 
       accesses: { orderBy: { platform: "asc" } },
       tasks: { include: { assignee: { select: { name: true } } }, orderBy: [{ dueDate: "asc" }, { createdAt: "asc" }] },
       measurements: { orderBy: [{ month: "asc" }, { createdAt: "asc" }] },
+      offers: { orderBy: { createdAt: "asc" } },
       logs: { orderBy: { createdAt: "desc" }, take: 200 },
     },
   });
@@ -72,8 +75,8 @@ export default async function GeoClientPage({ params, searchParams }: { params: 
   const tabs = unb
     ? TABS.filter(([k]) => ["predaja", "dostopi", "naloge", "zgodovina"].includes(k))
     : imp
-      ? TABS.filter(([k]) => ["predaja", "naloge", "zgodovina"].includes(k))
-      : TABS;
+      ? TABS.filter(([k]) => ["predaja", "dobavitelji", "naloge", "zgodovina"].includes(k))
+      : TABS.filter(([k]) => k !== "dobavitelji");
   const tab = tabs.some(([k]) => k === searchParams.tab) ? searchParams.tab! : c.line === "PICKED" && c.status === "KICKOFF" ? "kartica" : "naloge";
   const card = asCard(c.card);
   const missing = missingCardFields(card, c.package);
@@ -246,12 +249,41 @@ export default async function GeoClientPage({ params, searchParams }: { params: 
         </div>
       )}
 
+      {tab === "dobavitelji" && (
+        <OffersTab
+          clientId={c.id}
+          quantity={(() => {
+            const n = parseInt(String(di.quantity || "").replace(/[^\d]/g, ""), 10);
+            return Number.isFinite(n) && n > 0 ? n : null;
+          })()}
+          offers={c.offers.map((o) => ({
+            id: o.id,
+            supplier: o.supplier,
+            location: o.location,
+            contact: o.contact,
+            unitPrice: o.unitPrice,
+            currency: o.currency,
+            moq: o.moq,
+            leadDays: o.leadDays,
+            incoterm: o.incoterm,
+            certificates: o.certificates,
+            sampleCost: o.sampleCost,
+            verified: o.verified,
+            status: o.status,
+            note: o.note,
+          }))}
+        />
+      )}
+
       {tab === "meritve" && (
         <Measurements
           clientId={c.id}
           isAdmin={isAdmin}
           status={c.status}
           day90Done={!!c.day90DoneAt}
+          company={c.company}
+          assistantName={c.assistant?.name ?? null}
+          tasks={c.tasks.map((t) => ({ title: t.title, status: t.status, doneAt: t.doneAt?.toISOString() ?? null, dueDate: t.dueDate?.toISOString() ?? null }))}
           nextMonth={c.measurements.length ? Math.max(...c.measurements.map((m) => m.month)) + 1 : 0}
           rows={c.measurements.map((m) => ({
             id: m.id,

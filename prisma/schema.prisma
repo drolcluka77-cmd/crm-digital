@@ -869,6 +869,7 @@ model GeoClient {
   accesses     GeoAccess[]
   tasks        GeoTask[]
   measurements GeoMeasurement[]
+  offers       ImportOffer[]
   logs         GeoLog[]
 
   @@index([status])
@@ -951,6 +952,31 @@ model GeoMeasurement {
   note        String?
   createdById String?
   createdAt   DateTime  @default(now())
+
+  @@index([clientId])
+}
+
+// SimpleImport: a supplier offer gathered by the import coordinator (≥ 3 compared per client).
+model ImportOffer {
+  id           String    @id @default(cuid())
+  clientId     String
+  client       GeoClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  supplier     String // internal name; shown to the client only after the commission is paid
+  location     String? // city / province
+  contact      String? // person, e-mail, WeChat, Alibaba link
+  unitPrice    Float?
+  currency     String    @default("USD")
+  moq          Int?
+  leadDays     Int? // production time in days
+  incoterm     String?
+  certificates String?
+  sampleCost   Float?
+  verified     Boolean   @default(false) // licence / factory checked
+  status       String    @default("CANDIDATE") // CANDIDATE | SHORTLIST | SAMPLES | CHOSEN | REJECTED
+  note         String?
+  createdById  String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   @@index([clientId])
 }

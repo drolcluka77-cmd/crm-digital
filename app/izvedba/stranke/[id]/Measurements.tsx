@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { confirmDay90, saveMeasurement } from "@/lib/geo-actions";
+import { buildMonthlyReport, type ReportTask } from "@/lib/geo-report";
 
 type M = {
   id: string;
@@ -24,6 +25,9 @@ export default function Measurements({
   isAdmin,
   status,
   day90Done,
+  company,
+  assistantName,
+  tasks,
 }: {
   clientId: string;
   rows: M[];
@@ -31,6 +35,9 @@ export default function Measurements({
   isAdmin: boolean;
   status: string;
   day90Done: boolean;
+  company: string;
+  assistantName: string | null;
+  tasks: ReportTask[];
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -40,6 +47,15 @@ export default function Measurements({
   const avg = (r?: M) => {
     const ranks = (r?.mapRanks || []).map((x) => x.rank).filter((x): x is number => !!x);
     return ranks.length ? Math.round((ranks.reduce((a, b) => a + b, 0) / ranks.length) * 10) / 10 : null;
+  };
+  const [draftFor, setDraftFor] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+  const [copied, setCopied] = useState(false);
+  const openDraft = (r: M) => {
+    const prev = rows.filter((x) => x.month < r.month && x.id !== r.id).pop();
+    setDraft(buildMonthlyReport({ company, current: r, baseline: base && base.id !== r.id ? base : undefined, previous: prev && prev.month > 0 ? prev : undefined, tasks, assistantName }));
+    setDraftFor(r.id);
+    setCopied(false);
   };
   const better = base && m3 && (m3.score ?? 0) > (base.score ?? 0);
 
@@ -75,6 +91,11 @@ export default function Measurements({
                   ) : (
                     "—"
                   )}
+                  {r.month > 0 && (
+                    <button type="button" className="block text-xs text-brand-600 underline mt-1" onClick={() => openDraft(r)}>
+                      osnutek
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
@@ -88,6 +109,37 @@ export default function Measurements({
           </tbody>
         </table>
       </div>
+
+      {draftFor && (
+        <div className="card p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <div className="font-semibold">Osnutek mesečnega poročila</div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className="btn-secondary py-1.5"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(draft);
+                    setCopied(true);
+                  } catch {
+                    setCopied(false);
+                  }
+                }}
+              >
+                {copied ? "Kopirano ✓" : "Kopiraj"}
+              </button>
+              <button type="button" className="btn-secondary py-1.5" onClick={() => setDraftFor(null)}>
+                Zapri
+              </button>
+            </div>
+          </div>
+          <p className="text-xs text-black/50 mb-2">
+            Sestavljen iz meritev in zaključenih nalog. Preberi, dopolni dele v [oklepajih], nato ga prenesi v predlogo poročila in povezavo vpiši pri meritvi.
+          </p>
+          <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={22} className="input font-mono text-[13px]" />
+        </div>
+      )}
 
       {status === "DAY90" && !day90Done && (
         <div className="card p-5 border-amber-200">

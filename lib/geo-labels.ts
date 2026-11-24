@@ -494,3 +494,14 @@ export function missingHandoverFor(line: string, h: Handover & { details?: unkno
   if (line === "IMPORT") return missingImportHandover({ ...h, details: (h.details as ImportDetails) || {} });
   return line === "UNBUSYNESS" ? missingUnbHandover({ ...h, details: (h.details as UnbDetails) || {} }) : missingHandoverFields(h);
 }
+
+// ─── SimpleImport supplier offers ─────────────────────────────────────────
+export const IMPORT_OFFER_STATUSES = ["CANDIDATE", "SHORTLIST", "SAMPLES", "CHOSEN", "REJECTED"] as const;
+export const IMPORT_OFFER_STATUS_LABEL: Record<string, string> = {
+  CANDIDATE: "Kandidat",
+  SHORTLIST: "V primerjavi",
+  SAMPLES: "Vzorci",
+  CHOSEN: "Izbran",
+  REJECTED: "Zavrnjen",
+};
+export const IMPORT_CURRENCIES = ["USD", "EUR", "CNY"] as const;

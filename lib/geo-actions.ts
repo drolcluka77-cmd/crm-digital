@@ -28,6 +28,9 @@ import {
   type UnbDetails,
   type ImportDetails,
   IMPORT_INCOTERMS,
+  IMPORT_OFFER_STATUSES,
+  IMPORT_OFFER_STATUS_LABEL,
+  IMPORT_CURRENCIES,
   DELIVERY_ROLES,
 } from "@/lib/geo-labels";
 import {
@@ -579,4 +582,71 @@ export async function closePilot(clientId: string, outcome: "CONVERTED" | "ENDED
     });
   revalidateClient(clientId, c.customerId);
   return { success: outcome === "CONVERTED" ? "Pilot zaključen — prodajalec je obveščen, da pripravi ponudbo." : "Pilot zaključen." };
+}
+
+// ─── SimpleImport supplier offers ─────────────────────────────────────────
+
+function offerData(fd: FormData) {
+  const int = (k: string) => {
+    const v = num(fd, k);
+    return v === null ? null : Math.round(v);
+  };
+  const currency = str(fd, "currency", 3) || "USD";
+  return {
+    supplier: str(fd, "supplier", 160) || "",
+    location: str(fd, "location", 120),
+    contact: str(fd, "contact", 300),
+    unitPrice: num(fd, "unitPrice"),
+    currency: (IMPORT_CURRENCIES as readonly string[]).includes(currency) ? currency : "USD",
+    moq: int("moq"),
+    leadDays: int("leadDays"),
+    incoterm: str(fd, "incoterm", 10),
+    certificates: str(fd, "certificates", 300),
+    sampleCost: num(fd, "sampleCost"),
+    verified: fd.get("verified") === "on",
+    note: str(fd, "note", 1000),
+  };
+}
+
+export async function saveImportOffer(clientId: string, offerId: string | null, fd: FormData): Promise<GeoResult> {
+  const user = await requireUser();
+  const c = await clientForWork(user, clientId);
+  if (!c || c.line !== "IMPORT") return { error: "Ni dovoljeno." };
+  const data = offerData(fd);
+  if (!data.supplier) return { error: "Vpiši ime dobavitelja." };
+  if (offerId) {
+    const o = await prisma.importOffer.findUnique({ where: { id: offerId } });
+    if (!o || o.clientId !== clientId) return { error: "Ni najdeno." };
+    await prisma.importOffer.update({ where: { id: offerId }, data });
+  } else {
+    await prisma.importOffer.create({ data: { ...data, clientId, createdById: user.id } });
+    await geoLog(clientId, user, "OFFER", `Nova ponudba: ${data.supplier}`);
+  }
+  revalidateClient(clientId);
+  return { success: "Shranjeno." };
+}
+
+export async function setImportOfferStatus(offerId: string, status: string): Promise<GeoResult> {
+  const user = await requireUser();
+  const o = await prisma.importOffer.findUnique({ where: { id: offerId } });
+  if (!o) return { error: "Ni najdeno." };
+  const c = await clientForWork(user, o.clientId);
+  if (!c) return { error: "Ni dovoljeno." };
+  if (!(IMPORT_OFFER_STATUSES as readonly string[]).includes(status)) return { error: "Neznan status." };
+  await prisma.importOffer.update({ where: { id: offerId }, data: { status } });
+  await geoLog(o.clientId, user, "OFFER", `${o.supplier}: ${IMPORT_OFFER_STATUS_LABEL[status]}`);
+  revalidateClient(o.clientId);
+  return { success: "Shranjeno." };
+}
+
+export async function deleteImportOffer(offerId: string): Promise<GeoResult> {
+  const user = await requireUser();
+  const o = await prisma.importOffer.findUnique({ where: { id: offerId } });
+  if (!o) return { error: "Ni najdeno." };
+  const c = await clientForWork(user, o.clientId);
+  if (!c) return { error: "Ni dovoljeno." };
+  await prisma.importOffer.delete({ where: { id: offerId } });
+  await geoLog(o.clientId, user, "OFFER", `Ponudba izbrisana: ${o.supplier}`);
+  revalidateClient(o.clientId);
+  return { success: "Izbrisano." };
 }
