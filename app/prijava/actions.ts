@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { savePrivateFile, deletePrivateFile } from "@/lib/upload";
 import { getSettings } from "@/lib/settings";
 import { newCandidateToken, notifyNewCandidate, sendInvite } from "@/lib/recruiting";
-import { positionKey } from "@/lib/recruiting-labels";
+import { positionKey, positionOf } from "@/lib/recruiting-labels";
 
 export type ApplyResult = { error?: string; ok?: boolean; invited?: boolean };
 
@@ -73,7 +73,12 @@ export async function apply(fd: FormData): Promise<ApplyResult> {
 
   const settings = await getSettings();
   let invited = false;
-  if (settings.recruitingAutoInvite && settings.recruitingCalendlyUrl && (!existing || newPosition || !existing.invitedAt)) {
+  if (
+    positionOf(data.position).autoInvite !== false &&
+    settings.recruitingAutoInvite &&
+    settings.recruitingCalendlyUrl &&
+    (!existing || newPosition || !existing.invitedAt)
+  ) {
     try {
       await sendInvite(c.id);
       invited = true;

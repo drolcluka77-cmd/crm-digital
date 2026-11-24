@@ -34,6 +34,7 @@ export type RecruitingPosition = {
   intro: string; // form page text
   experienceLabel: string;
   experienceHint: string;
+  autoInvite?: boolean; // false = applications only land in Recruiting; invite by hand from there
   inviteSubject: string | null; // null = the invitation from Recruiting → Settings
   inviteBody: string | null;
 };
@@ -58,6 +59,7 @@ export const RECRUITING_POSITIONS: Record<string, RecruitingPosition> = {
       "Mr. Picked pomaga lokalnim podjetjem (restavracije, hoteli, avtoservisi …), da jih najdejo Google in AI asistenti, kot sta ChatGPT in Gemini. Iščemo natančno in samostojno osebo, ki bo urejala Google profile in vpise podjetij, pripravljala objave in mesečna poročila. Delo od doma, prilagodljiv urnik, uvajanje zagotovljeno. Obseg: do 60 ur na mesec. Plačilo: 10 €/uro neto.",
     experienceLabel: "Izkušnje z Googlovimi orodji, družbenimi omrežji ali marketingom",
     experienceHint: "Npr. urejanje Google profila, Instagram strani, spletne strani, študij marketinga — izkušnje niso pogoj.",
+    autoInvite: false, // too many meetings — screen in Recruiting first, then invite the best ones
     inviteSubject: "Povabilo na uvodni pogovor — asistent/ka za Google profile in AI vidnost",
     inviteBody: `Pozdravljeni {{firstName}},
 
