@@ -54,9 +54,35 @@ export type MirrorInput = {
   geoClientId?: string | null;
 };
 
-const OPENAI_MODEL = () => process.env.AI_MIRROR_OPENAI_MODEL || "gpt-4.1-mini";
-const GEMINI_MODEL = () => process.env.AI_MIRROR_GEMINI_MODEL || "gemini-2.5-flash";
-const EXTRACT_MODEL = () => process.env.AI_MIRROR_EXTRACT_MODEL || "gpt-4.1-mini";
+// Models get retired; when the configured one is gone we pick the newest small one the account offers.
+let openaiPicked: string | null = null;
+let geminiPicked: string | null = null;
+const OPENAI_MODEL = () => openaiPicked || process.env.AI_MIRROR_OPENAI_MODEL || "gpt-4.1-mini";
+const GEMINI_MODEL = () => geminiPicked || process.env.AI_MIRROR_GEMINI_MODEL || "gemini-2.5-flash";
+const EXTRACT_MODEL = () => process.env.AI_MIRROR_EXTRACT_MODEL || OPENAI_MODEL();
+
+const ver = (id: string) => (id.match(/(\d+(?:\.\d+)?)/)?.[1] ? Number(id.match(/(\d+(?:\.\d+)?)/)![1]) : 0);
+
+async function newestOpenAIMini(): Promise<string | null> {
+  const r = await fetch("https://api.openai.com/v1/models", { headers: { authorization: `Bearer ${process.env.OPENAI_API_KEY}` }, cache: "no-store" }).catch(() => null);
+  if (!r?.ok) return null;
+  const ids: string[] = ((await r.json()).data || []).map((m: any) => m.id);
+  const minis = ids.filter((id) => /^gpt-\d+(\.\d+)?-mini$/.test(id)).sort((a, b) => ver(b) - ver(a));
+  return minis[0] || null;
+}
+
+async function newestGeminiFlash(): Promise<string | null> {
+  const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200", {
+    headers: { "x-goog-api-key": process.env.GEMINI_API_KEY! },
+    cache: "no-store",
+  }).catch(() => null);
+  if (!r?.ok) return null;
+  const names: string[] = ((await r.json()).models || [])
+    .filter((m: any) => (m.supportedGenerationMethods || []).includes("generateContent"))
+    .map((m: any) => String(m.name).replace(/^models\//, ""));
+  const flashes = names.filter((n) => /^gemini-\d+(\.\d+)?-flash$/.test(n)).sort((a, b) => ver(b) - ver(a));
+  return flashes[0] || null;
+}
 
 // Rough prices in EUR (≈ USD) — only for the budget guard and the cost shown on each run.
 const PRICE = {
@@ -191,6 +217,13 @@ async function askChatGPT(q: string, city: string): Promise<Raw> {
       })
     );
   let res = await call("web_search");
+  if (res.status === 404 && !openaiPicked) {
+    const m = await newestOpenAIMini();
+    if (m && m !== OPENAI_MODEL()) {
+      openaiPicked = m;
+      res = await call("web_search");
+    }
+  }
   if (res.status === 400) res = await call("web_search_preview"); // older accounts / models
   if (!res.ok) throw new Error(`ChatGPT ${res.status}: ${(await res.text()).slice(0, 180)}`);
   const j = await res.json();
@@ -231,6 +264,13 @@ async function askGemini(q: string): Promise<Raw> {
       })
     );
   let res = await call(false);
+  if (res.status === 404 && !geminiPicked) {
+    const m = await newestGeminiFlash();
+    if (m && m !== GEMINI_MODEL()) {
+      geminiPicked = m;
+      res = await call(false);
+    }
+  }
   if (res.status === 400) res = await call(true);
   if (!res.ok) throw new Error(`Gemini ${res.status}: ${(await res.text()).slice(0, 180)}`);
   const j = await res.json();
