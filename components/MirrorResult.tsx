@@ -75,6 +75,12 @@ export default function MirrorResult({ run }: { run: MirrorRunView }) {
           </div>
         </div>
         {s.summary && <p className="mt-4 text-sm leading-relaxed">{s.summary}</p>}
+        <div className="mt-4 print:hidden">
+          <a href={`/api/mirror/${run.id}/pdf`} target="_blank" rel="noreferrer" className="btn-secondary py-1.5 inline-flex">
+            PDF za stranko
+          </a>
+          <span className="ml-3 text-xs text-black/45">V PDF-ju ste navedeni kot kontakt. Točke za sestanek niso vključene.</span>
+        </div>
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
