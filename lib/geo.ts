@@ -189,7 +189,7 @@ export const DEFAULT_SOCIAL_TEMPLATES: Tpl[] = [
   { packages: SOC, title: "Mesečni načrt objav v Metricool (stranka odobri)", phase: "MONTHLY", recurrence: "MONTHLY", dueDay: 3, needsApproval: true },
   { packages: ["ADDON_SOCIAL"], title: "8 objav na Facebooku + Instagramu iz Mr. Picked vsebine", phase: "MONTHLY", recurrence: "MONTHLY", dueDay: 28 },
   { packages: ["ADDON_SOCIAL_PLUS"], title: "12–16 objav + zgodbe na Facebooku + Instagramu", phase: "MONTHLY", recurrence: "MONTHLY", dueDay: 28 },
-  { packages: SOC, title: "4 Google objave na profilu podjetja", phase: "MONTHLY", recurrence: "MONTHLY", dueDay: 28 },
+  // Google posts: every Mr. Picked package already has 4 monthly Google post tasks, so none are added here.
   {
     packages: ["ADDON_SOCIAL_PLUS"],
     title: "Odgovori na komentarje in sporočila na FB + IG ob delavnikih (sproti)",
