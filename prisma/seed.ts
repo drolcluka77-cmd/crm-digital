@@ -200,6 +200,55 @@ async function main() {
     console.log("Created product: Mr. Picked Social.");
   }
 
+  // Mr. Picked Social: e-mail template and certification questions (once, if the product has none).
+  const social = await prisma.product.findFirst({ where: { name: { contains: "Picked Social", mode: "insensitive" } } });
+  if (social) {
+    if ((await prisma.emailTemplate.count({ where: { productId: social.id } })) === 0) {
+      await prisma.emailTemplate.create({
+        data: {
+          productId: social.id,
+          name: "Social — ponudba obstoječi stranki Mr. Picked",
+          purpose: "PROPOSAL",
+          subject: "{{company}}: objave na Facebooku in Instagramu iz vaše Mr. Picked vsebine",
+          body: `Pozdravljeni {{firstName}},
+
+za vašo vidnost v AI asistentih vsak mesec že pripravljamo vsebino: AI videe, odgovore na vprašanja strank, ocene in fotografije. Iz nje lahko naredimo še objave za Facebook in Instagram, brez dodatnega dela za vas.
+
+Social Start — 8 objav na mesec na Facebooku in Instagramu ter Google objave: 290 € na mesec, s paketom Recommended ali Concierge 190 €.
+Social Plus — 12–16 objav na mesec + zgodbe, Google objave ter odgovori na komentarje in sporočila ob delavnikih: 490 € na mesec, s paketom Recommended ali Concierge 390 €.
+
+Na začetku meseca dobite načrt objav, ki ga odobrite, objavljamo pa mi. Doseg in sledilci so v vašem mesečnem poročilu. Sodelovanje je mesečno, z 60-dnevnim odpovednim rokom.
+
+V prilogi je kratek opis obeh paketov. Vam ustreza, da se slišiva ta teden za 10 minut?
+
+Lep pozdrav,
+{{sellerName}}
+{{sellerPhone}}`,
+          sortOrder: 1,
+        },
+      });
+    }
+    if ((await prisma.quizQuestion.count({ where: { productId: social.id } })) === 0) {
+      const Q = (question: string, options: string[], correctIndex: number, explanation: string, sortOrder: number) => ({
+        productId: social.id,
+        question,
+        options: JSON.stringify(options),
+        correctIndex,
+        explanation,
+        sortOrder,
+      });
+      await prisma.quizQuestion.createMany({
+        data: [
+          Q("Koliko stane Social Start za stranko, ki ima paket Recommended?", ["290 € na mesec", "190 € na mesec", "390 € na mesec", "Je vključen v Recommended"], 1, "S paketom Recommended ali Concierge je Social 100 € cenejši: Start 190 €, Plus 390 €.", 1),
+          Q("Stranka ima samo paket Visible. Katero ceno ji ponudiš za Social Plus?", ["390 € (paketna cena)", "490 €", "290 €", "Social Plus ni mogoč z Visible"], 1, "Paketna cena velja samo z Recommended ali Concierge. Ponudba s paketno ceno brez teh paketov gre v odobritev.", 2),
+          Q("Kaj ima Social Plus, česar Social Start nima?", ["Google objave", "Mesečni načrt objav", "Odgovore na komentarje in sporočila ob delavnikih ter zgodbe", "Objave na Facebooku"], 2, "Social Plus: 12–16 objav + zgodbe in odgovori na komentarje in sporočila ob delavnikih. Google objave in načrt imata oba.", 3),
+          Q("Zakaj je Social cenejši od agencije?", ["Ker objavljamo manj", "Ker objave naredimo iz vsebine, ki jo za stranko že pripravljamo za AI vidnost", "Ker objave piše AI brez preverjanja", "Ker ni odobritve stranke"], 1, "Agencija vsako objavo začne od nič; mi uporabimo AI videe, vprašanja strank, ocene in fotografije iz Mr. Picked.", 4),
+          Q("Kako stranka odobri objave?", ["Vsako objavo posebej po e-pošti", "Ne odobri, objavljamo sami", "Na začetku meseca dobi načrt objav, ki ga odobri ali popravi", "Na mesečnem sestanku"], 2, "Mesečni načrt objav stranka odobri vnaprej; objavljamo mi.", 5),
+        ],
+      });
+    }
+  }
+
   if ((await prisma.emailTemplate.count()) === 0) {
     await prisma.emailTemplate.createMany({
       data: [
