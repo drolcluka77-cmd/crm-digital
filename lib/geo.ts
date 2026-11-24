@@ -7,6 +7,7 @@ import {
   GEO_STATUS_LABEL,
   missingCardFields,
   missingHandoverFor,
+  PHASE_FLOW,
   type GeoCard,
 } from "@/lib/geo-labels";
 
@@ -230,6 +231,68 @@ export const DEFAULT_UNB_TEMPLATES: Tpl[] = [
   },
 ];
 
+const SI = ["SIMPLEIMPORT"];
+/** SimpleImport (import coordinator). Days count from the start date (contract signed, 149 € paid). */
+export const DEFAULT_IMPORT_TEMPLATES: Tpl[] = [
+  {
+    packages: SI,
+    title: "Uvodni klic: izdelek, specifikacija, količina, ciljna cena, rok, dostava",
+    description: "Potrdi specifikacijo iz predaje (materiali, mere, barve, embalaža, logotip).\nPotrebni certifikati in zahteve za EU trg (npr. CE, stik z živili).\nZapiši spremembe v zgodovino stranke.",
+    phase: "START",
+    dueDay: 2,
+  },
+  {
+    packages: SI,
+    title: "Iskanje dobaviteljev: najmanj 3 primerni proizvajalci",
+    description: "Iskanje na platformah in pri znanih proizvajalcih.\nZa vsakega: cena na kos, MOQ, rok izdelave, plačilni pogoji, certifikati.",
+    phase: "SOURCING",
+    dueDay: 7,
+  },
+  {
+    packages: SI,
+    title: "Preverjanje dobaviteljev: registracija podjetja, reference, izvozne izkušnje, certifikati",
+    phase: "SOURCING",
+    dueDay: 9,
+  },
+  {
+    packages: SI,
+    title: "Primerjava ponudb za stranko (brez imen dobaviteljev) in priporočilo",
+    description: "Cena na kos, ocena stroškov prevoza in carine, rok dostave, tveganja.\nImena dobaviteljev se razkrijejo šele po plačilu provizije.",
+    phase: "OFFERS",
+    dueDay: 11,
+    needsApproval: true,
+  },
+  { packages: SI, title: "Stranka izbere ponudbo (zapiši izbiro in pogoje)", phase: "OFFERS", dueDay: 16 },
+  { packages: ["SIMPLEIMPORT_SAMPLES"], title: "Naroči vzorce in uredi plačilo vzorcev", phase: "SAMPLES", dueDay: 18 },
+  { packages: ["SIMPLEIMPORT_SAMPLES"], title: "Vzorci prejeti in potrjeni s stranko (fotografije, opombe)", phase: "SAMPLES", dueDay: 32 },
+  {
+    packages: SI,
+    title: "Stranka plačala provizijo (potrdi administrator)",
+    description: "Provizija se plača ob potrditvi naročila, hkrati z avansom proizvajalcu.\nŠele po plačilu provizije stranki razkrijemo dobavitelja.",
+    phase: "ORDER",
+    dueDay: 20,
+    needsApproval: true,
+  },
+  {
+    packages: SI,
+    title: "Naročilo pri proizvajalcu: pogodba ali PI, specifikacija, rok, plačilni pogoji; avans 30 % plačan",
+    phase: "ORDER",
+    dueDay: 22,
+  },
+  { packages: SI, title: "Spremljanje proizvodnje (tedensko poročilo stranki)", phase: "PRODUCTION", dueDay: 40 },
+  {
+    packages: SI,
+    title: "Kontrola kakovosti pred odpremo (fotografije, pregled ali inšpekcija)",
+    phase: "PRODUCTION",
+    dueDay: 50,
+    needsApproval: true,
+  },
+  { packages: SI, title: "Preostanek plačila proizvajalcu in odprema", phase: "PRODUCTION", dueDay: 52 },
+  { packages: SI, title: "Prevoz: ponudba špediterja, rezervacija, dokumenti (račun, pakirni list, B/L)", phase: "SHIPPING", dueDay: 55 },
+  { packages: SI, title: "Carina in uvozne dajatve, DDV pri uvozu", phase: "SHIPPING", dueDay: 85 },
+  { packages: SI, title: "Dostava stranki in potrditev prejema; zaključni klic (ponovno naročilo?)", phase: "SHIPPING", dueDay: 90 },
+];
+
 const tplRow = (t: Tpl, i: number) => ({
   key: t.key ?? null,
   packages: t.packages,
@@ -248,6 +311,9 @@ export async function ensureGeoTemplates() {
   const all = await prisma.geoTaskTemplate.findMany({ select: { packages: true } });
   if (!all.some((t) => asStrings(t.packages).includes("UNBUSYNESS_PILOT"))) {
     await prisma.geoTaskTemplate.createMany({ data: DEFAULT_UNB_TEMPLATES.map((t, i) => tplRow(t, 500 + i)) });
+  }
+  if (!all.some((t) => asStrings(t.packages).includes("SIMPLEIMPORT"))) {
+    await prisma.geoTaskTemplate.createMany({ data: DEFAULT_IMPORT_TEMPLATES.map((t, i) => tplRow(t, 700 + i)) });
   }
   if (all.length > 0) return;
   await prisma.geoTaskTemplate.createMany({
@@ -276,8 +342,9 @@ export function asStrings(v: unknown): string[] {
 }
 
 /** Template groups that apply to a client: its package plus add-ons. */
-export function clientGroups(c: { package: string | null; addons: unknown; line?: string }): string[] {
+export function clientGroups(c: { package: string | null; addons: unknown; line?: string; details?: unknown }): string[] {
   if (c.line === "UNBUSYNESS") return ["UNBUSYNESS_PILOT"];
+  if (c.line === "IMPORT") return ["SIMPLEIMPORT", ...((c as any).details?.samples ? ["SIMPLEIMPORT_SAMPLES"] : [])];
   return [c.package || "VISIBLE", ...asStrings(c.addons).map((a) => `ADDON_${a}`)];
 }
 
@@ -388,6 +455,7 @@ const DEFAULT_ACCESS = ["GOOGLE", "WEBSITE", "BING", "APPLE", "FACEBOOK", "INSTA
 export async function ensureAccessRows(clientId: string, industry: string | null, line = "PICKED", details: unknown = {}) {
   const have = await prisma.geoAccess.findMany({ where: { clientId }, select: { platform: true } });
   let want = [...DEFAULT_ACCESS, ...(industry === "RESTAURANT" || industry === "LODGING" || industry === "ACTIVITIES" ? ["TRIPADVISOR"] : [])];
+  if (line === "IMPORT") want = [];
   if (line === "UNBUSYNESS") {
     const d = (details || {}) as { bookingChannels?: string[]; guestChannels?: string[] };
     want = [
@@ -405,12 +473,12 @@ export async function ensureAccessRows(clientId: string, industry: string | null
 // ─── Status machine ───────────────────────────────────────────────────────
 
 /** All tasks of a phase are closed (and there is at least one). */
-async function phaseDone(clientId: string, phase: string) {
+async function phaseDone(clientId: string, phase: string, emptyCounts = false) {
   const [any, open] = await Promise.all([
     prisma.geoTask.count({ where: { clientId, phase } }),
     prisma.geoTask.count({ where: { clientId, phase, status: { notIn: ["DONE", "NOT_POSSIBLE"] } } }),
   ]);
-  return any > 0 && open === 0;
+  return (any > 0 || emptyCounts) && open === 0;
 }
 
 async function setStatus(clientId: string, from: string, to: string, by: { id: string; name: string } | null, why?: string) {
@@ -432,18 +500,7 @@ export async function advanceGeoClient(clientId: string, by: { id: string; name:
         if (c.assistantId && missingHandoverFor(c.line, c).length === 0) next = "KICKOFF";
         break;
       case "KICKOFF":
-        if (c.line === "UNBUSYNESS") {
-          if (await phaseDone(clientId, "START")) next = "SETUP";
-        } else if (missingCardFields(asCard(c.card), c.package).length === 0) next = "ACCESS";
-        break;
-      case "SETUP":
-        if (await phaseDone(clientId, "SETUP")) next = "TEST";
-        break;
-      case "TEST":
-        if (await phaseDone(clientId, "TEST")) next = "PILOT";
-        break;
-      case "PILOT":
-        if (await phaseDone(clientId, "PILOT")) next = "REVIEW";
+        if (c.line === "PICKED" && missingCardFields(asCard(c.card), c.package).length === 0) next = "ACCESS";
         break;
       case "ACCESS":
         if (c.accesses.some((a) => a.platform === "GOOGLE" && a.status === "APPROVED")) next = "BASELINE";
@@ -463,6 +520,9 @@ export async function advanceGeoClient(clientId: string, by: { id: string; name:
         if (!c.day90DoneAt && c.startDate && Date.now() >= c.startDate.getTime() + 90 * DAY) next = "DAY90";
         break;
     }
+    // Phase-driven lines (Unbusyness pilots, SimpleImport): move on when the status's phase has no open tasks.
+    const step = (PHASE_FLOW[c.line] || []).find(([s]) => s === c.status);
+    if (!next && step && (await phaseDone(clientId, step[1], step[1] !== "START"))) next = step[2];
     if (!next) return c.status;
     await setStatus(clientId, c.status, next, by);
     if (next === "DAY90") await notifyAdmins({ type: "GEO", title: `Dan 90: ${c.company}`, body: "Primerjaj z izhodiščem in potrdi.", link: `/izvedba/stranke/${clientId}?tab=meritve` });

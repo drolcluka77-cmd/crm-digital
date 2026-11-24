@@ -55,7 +55,7 @@ export default async function CustomerDetailPage({ params }: { params: { id: str
   const lines = Array.from(new Set(customer.interests.map((i) => lineForProductName(i.product.name)).filter((l): l is string => !!l)));
   const deliveryPanels = await Promise.all(
     Array.from(new Set([...lines, ...customer.geoClients.map((g) => g.line)]))
-      .filter((line) => customer.geoClients.some((g) => g.line === line) || (line === "UNBUSYNESS" && !["NEW", "CONTACTED", "LOST"].includes(customer.status)) || customer.status === "WON" || customer.contracts.length > 0)
+      .filter((line) => customer.geoClients.some((g) => g.line === line) || ((line === "UNBUSYNESS" || line === "IMPORT") && !["NEW", "CONTACTED", "LOST"].includes(customer.status)) || customer.status === "WON" || customer.contracts.length > 0)
       .map(async (line) => {
         const g = customer.geoClients.find((x) => x.line === line);
         return {

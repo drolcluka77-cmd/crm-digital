@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { DELIVERY_LINE_LABEL, GEO_STATUS_LABEL, statusNext } from "@/lib/geo-labels";
+import { DELIVERY_LINE_LABEL, DELIVERY_LINE_ROLE, DELIVERY_ROLE_LABEL, GEO_STATUS_LABEL, statusNext } from "@/lib/geo-labels";
 
 /** Seller's view of the GEO delivery for this customer: hand over, then read-only progress. */
 export default function GeoPanel({
@@ -19,7 +19,9 @@ export default function GeoPanel({
           <p className="text-sm text-black/55 mb-3">
             {line === "UNBUSYNESS"
               ? "Ko se stranka strinja s pilotom, ga predaj forward deployment engineerju. Izpolniti moraš vsa obvezna polja."
-              : "Ko stranka podpiše, jo predaj GEO asistentu. Izpolniti moraš vsa obvezna polja."}
+              : line === "IMPORT"
+                ? "Ko stranka podpiše pogodbo o proviziji in plača 149 € za iskanje, jo predaj koordinatorju uvoza."
+                : "Ko stranka podpiše, jo predaj GEO asistentu. Izpolniti moraš vsa obvezna polja."}
           </p>
           <Link href={`/crm/customers/${customerId}/predaja?line=${line}`} className="btn-primary w-full justify-center">
             Predaj v izvedbo
@@ -39,7 +41,7 @@ export default function GeoPanel({
             <dd className="font-medium">{GEO_STATUS_LABEL[geo.status] || geo.status}</dd>
           </div>
           <div className="flex justify-between gap-3">
-            <dt className="text-black/45">{line === "UNBUSYNESS" ? "Forward deployment engineer" : "GEO asistent"}</dt>
+            <dt className="text-black/45">{DELIVERY_ROLE_LABEL[DELIVERY_LINE_ROLE[line]] || "GEO asistent"}</dt>
             <dd>{geo.assistant || "še ni dodeljen"}</dd>
           </div>
           {geo.tasksTotal > 0 && (

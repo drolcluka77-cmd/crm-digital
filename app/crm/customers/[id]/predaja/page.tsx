@@ -30,7 +30,7 @@ function fromQuote(items: { name: string; billing: string; unitPrice: number; qu
 }
 
 export default async function HandoverPage({ params, searchParams }: { params: { id: string }; searchParams: { line?: string } }) {
-  const line = searchParams.line === "UNBUSYNESS" ? "UNBUSYNESS" : "PICKED";
+  const line = searchParams.line === "UNBUSYNESS" || searchParams.line === "IMPORT" ? searchParams.line : "PICKED";
   const user = await requireSales();
   const customer = await prisma.customer.findUnique({
     where: { id: params.id },
@@ -61,7 +61,7 @@ export default async function HandoverPage({ params, searchParams }: { params: {
         languages: (g.languages as string[]) || [],
         promised: g.promised || "",
         specialNotes: g.specialNotes || "",
-        details: (g.details as UnbDetails) || {},
+        details: (g.details as any) || {},
       }
     : {
         company: customer.company || customer.name,
@@ -88,9 +88,9 @@ export default async function HandoverPage({ params, searchParams }: { params: {
       <Link href={`/crm/customers/${customer.id}`} className="text-sm text-black/40 hover:text-black/60">
         ← {customer.company || customer.name}
       </Link>
-      <h1 className="text-2xl font-semibold tracking-tight mt-3">{line === "UNBUSYNESS" ? "Predaja pilota Unbusyness" : "Predaja v izvedbo · Mr. Picked"}</h1>
+      <h1 className="text-2xl font-semibold tracking-tight mt-3">{line === "UNBUSYNESS" ? "Predaja pilota Unbusyness" : line === "IMPORT" ? "Predaja v izvedbo · SimpleImport" : "Predaja v izvedbo · Mr. Picked"}</h1>
       <p className="text-black/50 text-sm mt-1 mb-6">
-        {line === "UNBUSYNESS" ? "Forward deployment engineer" : "GEO asistent"} bo delal samo s temi podatki, zato jih izpolni natančno. Polja z * so obvezna. Ko oddaš, podatkov ne
+        {line === "UNBUSYNESS" ? "Forward deployment engineer" : line === "IMPORT" ? "Koordinator uvoza" : "GEO asistent"} bo delal samo s temi podatki, zato jih izpolni natančno. Polja z * so obvezna. Ko oddaš, podatkov ne
         moreš več urejati.
       </p>
       {locked ? (

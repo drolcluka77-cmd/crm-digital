@@ -386,6 +386,7 @@ function PersonForm({
               <option value="MANAGER">{ROLE_LABEL.MANAGER}</option>
               <option value="GEO">{ROLE_LABEL.GEO}</option>
               <option value="FDE">{ROLE_LABEL.FDE}</option>
+              <option value="IMPORT">{ROLE_LABEL.IMPORT}</option>
               <option value="ADMIN">{ROLE_LABEL.ADMIN}</option>
             </select>
             {member?.isMe && <input type="hidden" name="role" value={role} />}

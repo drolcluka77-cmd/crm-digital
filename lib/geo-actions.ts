@@ -26,6 +26,9 @@ import {
   UNB_GUEST_CHANNELS,
   type GeoCard,
   type UnbDetails,
+  type ImportDetails,
+  IMPORT_INCOTERMS,
+  DELIVERY_ROLES,
 } from "@/lib/geo-labels";
 import {
   advanceGeoClient,
@@ -63,7 +66,7 @@ async function clientForWork(user: CurrentUser, clientId: string) {
   const c = await prisma.geoClient.findUnique({ where: { id: clientId } });
   if (!c) return null;
   if (isStaff(user)) return c;
-  if ((user.role === "GEO" || user.role === "FDE") && c.assistantId === user.id) return c;
+  if (DELIVERY_ROLES.includes(user.role) && c.assistantId === user.id) return c;
   return null;
 }
 
@@ -102,6 +105,26 @@ export async function saveHandover(customerId: string, fd: FormData, submit: boo
           priceAfterPilot: num(fd, "priceAfterPilot"),
         }
       : undefined;
+  const importDetails: ImportDetails | undefined =
+    line === "IMPORT"
+      ? {
+          ...((existing?.details as ImportDetails) || {}),
+          product: str(fd, "product", 300) || undefined,
+          specs: str(fd, "specs", 2000) || undefined,
+          quantity: str(fd, "quantity", 100) || undefined,
+          targetPrice: str(fd, "targetPrice", 100) || undefined,
+          budget: num(fd, "budget"),
+          deadline: str(fd, "deadline", 10) || undefined,
+          incoterm: str(fd, "incoterm") && str(fd, "incoterm")! in IMPORT_INCOTERMS ? str(fd, "incoterm")! : undefined,
+          deliveryAddress: str(fd, "deliveryAddress", 300) || undefined,
+          certifications: str(fd, "certifications", 300) || undefined,
+          samples: fd.get("samples") === "on",
+          searchFeePaid: fd.get("searchFeePaid") === "on",
+          commissionContract: fd.get("commissionContract") === "on",
+          commissionPct: num(fd, "commissionPct"),
+          reference: str(fd, "reference", 500) || undefined,
+        }
+      : undefined;
   const data = {
     line,
     ...(details ? { details: details as any, package: "PILOT", industry: "LODGING" } : {}),
@@ -129,8 +152,11 @@ export async function saveHandover(customerId: string, fd: FormData, submit: boo
     delete (data as any).industry;
     Object.assign(data, { package: "PILOT", industry: "LODGING", monthlyPrice: details?.priceAfterPilot ?? null });
   }
+  if (line === "IMPORT") {
+    Object.assign(data, { details: importDetails as any, package: "IMPORT", industry: "OTHER", monthlyPrice: null });
+  }
   if (submit) {
-    const missing = missingHandoverFor(line, { ...data, details });
+    const missing = missingHandoverFor(line, { ...data, details: line === "IMPORT" ? importDetails : details });
     if (missing.length) return { error: `Manjka: ${missing.join(", ")}.` };
   }
   const contract = await prisma.contract.findFirst({
@@ -149,7 +175,7 @@ export async function saveHandover(customerId: string, fd: FormData, submit: boo
     await notify(await geoAdmins(), {
       type: "GEO",
       title: `Nova predaja v izvedbo (${DELIVERY_LINE_LABEL[line]}): ${c.company}`,
-      body: line === "UNBUSYNESS" ? "Dodeli forward deployment engineerja." : "Dodeli GEO asistenta.",
+      body: line === "UNBUSYNESS" ? "Dodeli forward deployment engineerja." : line === "IMPORT" ? "Dodeli koordinatorja uvoza." : "Dodeli GEO asistenta.",
       link: "/admin/geo",
     });
   } else {
@@ -158,7 +184,7 @@ export async function saveHandover(customerId: string, fd: FormData, submit: boo
   revalidateClient(c.id, customerId);
   return {
     success: submit
-      ? `Predano v izvedbo. Administrator bo dodelil ${line === "UNBUSYNESS" ? "forward deployment engineerja" : "GEO asistenta"}.`
+      ? `Predano v izvedbo. Administrator bo dodelil ${line === "UNBUSYNESS" ? "forward deployment engineerja" : line === "IMPORT" ? "koordinatorja uvoza" : "GEO asistenta"}.`
       : "Osnutek shranjen.",
     id: c.id,
   };
@@ -176,7 +202,7 @@ export async function assignAssistant(clientId: string, assistantId: string): Pr
   if (!c) return { error: "Stranke ni mogoče najti." };
   const role = DELIVERY_LINE_ROLE[c.line] || "GEO";
   if (!a || !a.active || ![role, "ADMIN"].includes(a.role))
-    return { error: c.line === "UNBUSYNESS" ? "Izberite forward deployment engineerja." : "Izberite GEO asistenta." };
+    return { error: c.line === "UNBUSYNESS" ? "Izberite forward deployment engineerja." : c.line === "IMPORT" ? "Izberite koordinatorja uvoza." : "Izberite GEO asistenta." };
   if (c.status === "DRAFT") return { error: "Prodajalec predaje še ni oddal." };
   const missingH = missingHandoverFor(c.line, c);
   if (missingH.length) return { error: `Predaji manjka: ${missingH.join(", ")}.` };
@@ -197,7 +223,7 @@ export async function assignAssistant(clientId: string, assistantId: string): Pr
   await notify([assistantId], {
     type: "GEO",
     title: `Nova stranka: ${c.company}`,
-    body: `${c.line === "UNBUSYNESS" ? "Uvodni klic z lastnikom v 2 dneh." : "Uvodni klic in kartica podjetja v 3 dneh."}${once + rec ? ` Ustvarjenih nalog: ${once + rec}.` : ""}`,
+    body: `${c.line === "UNBUSYNESS" ? "Uvodni klic z lastnikom v 2 dneh." : c.line === "IMPORT" ? "Uvodni klic s stranko v 2 dneh." : "Uvodni klic in kartica podjetja v 3 dneh."}${once + rec ? ` Ustvarjenih nalog: ${once + rec}.` : ""}`,
     link: `/izvedba/stranke/${clientId}`,
   });
   revalidateClient(clientId, c.customerId);

@@ -14,6 +14,8 @@ import {
   UNB_BOOKING_CHANNELS,
   UNB_GUEST_CHANNELS,
   type UnbDetails,
+  type ImportDetails,
+  IMPORT_INCOTERMS,
   missingCardFields,
   fmtDay,
 } from "@/lib/geo-labels";
@@ -61,12 +63,18 @@ export default async function GeoClientPage({ params, searchParams }: { params: 
     },
   });
   if (!c) notFound();
-  if ((user.role === "GEO" || user.role === "FDE") && c.assistantId !== user.id) notFound();
+  if (["GEO", "FDE", "IMPORT"].includes(user.role) && c.assistantId !== user.id) notFound();
   const isAdmin = user.role === "ADMIN";
   const unb = c.line === "UNBUSYNESS";
+  const imp = c.line === "IMPORT";
   const d = (c.details as UnbDetails) || {};
-  const tabs = unb ? TABS.filter(([k]) => ["predaja", "dostopi", "naloge", "zgodovina"].includes(k)) : TABS;
-  const tab = tabs.some(([k]) => k === searchParams.tab) ? searchParams.tab! : !unb && c.status === "KICKOFF" ? "kartica" : "naloge";
+  const di = (c.details as ImportDetails) || {};
+  const tabs = unb
+    ? TABS.filter(([k]) => ["predaja", "dostopi", "naloge", "zgodovina"].includes(k))
+    : imp
+      ? TABS.filter(([k]) => ["predaja", "naloge", "zgodovina"].includes(k))
+      : TABS;
+  const tab = tabs.some(([k]) => k === searchParams.tab) ? searchParams.tab! : c.line === "PICKED" && c.status === "KICKOFF" ? "kartica" : "naloge";
   const card = asCard(c.card);
   const missing = missingCardFields(card, c.package);
   const assistants = isAdmin
@@ -106,7 +114,13 @@ export default async function GeoClientPage({ params, searchParams }: { params: 
           <h1 className="text-2xl font-semibold tracking-tight">{c.company}</h1>
           <div className="text-sm text-black/55 mt-1">
             <span className="font-medium text-black/70">{DELIVERY_LINE_LABEL[c.line]}</span> ·{" "}
-            {unb ? (
+            {imp ? (
+              <>
+                {di.product || "—"}
+                {di.quantity ? ` · ${di.quantity}` : ""} · začetek {fmtDay(c.startDate?.toISOString() ?? null)} · koordinator{" "}
+                {c.assistant?.name || "ni dodeljen"}
+              </>
+            ) : unb ? (
               <>
                 {d.units ? `${d.units} enot` : "—"} · začetek {fmtDay(c.startDate?.toISOString() ?? null)} · FDE {c.assistant?.name || "ni dodeljen"}
               </>
@@ -171,7 +185,24 @@ export default async function GeoClientPage({ params, searchParams }: { params: 
               </>
             )}
             <Field k="Kontaktna oseba" v={[c.contactName, c.contactPhone, c.contactEmail].filter(Boolean).join(" · ")} />
-            {!unb && (
+            {imp && (
+              <>
+                <Field k="Izdelek" v={di.product} />
+                <Field k="Specifikacija" v={di.specs} />
+                <Field k="Količina" v={di.quantity} />
+                <Field k="Ciljna cena na kos" v={di.targetPrice} />
+                <Field k="Proračun" v={di.budget ? `${di.budget} €` : null} />
+                <Field k="Želeni rok dostave" v={di.deadline ? fmtDay(di.deadline) : null} />
+                <Field k="Dostava" v={IMPORT_INCOTERMS[di.incoterm || ""]} />
+                <Field k="Kraj dostave" v={di.deliveryAddress} />
+                <Field k="Certifikati / zahteve" v={di.certifications} />
+                <Field k="Vzorci" v={di.samples ? "da" : "ne"} />
+                <Field k="149 € za iskanje plačano" v={di.searchFeePaid ? "da" : "ne"} />
+                <Field k="Pogodba o proviziji" v={di.commissionContract ? `podpisana${di.commissionPct ? ` · ${di.commissionPct} %` : ""} (najmanj 500 € na naročilo)` : "ne"} />
+                <Field k="Primer / referenca" v={di.reference} />
+              </>
+            )}
+            {c.line === "PICKED" && (
               <>
                 <Field k="Mesečna cena" v={c.monthlyPrice ? `${c.monthlyPrice} €` : null} />
                 <Field k="Enkratna namestitev" v={c.setupFee ? `${c.setupFee} €` : null} />
@@ -180,7 +211,7 @@ export default async function GeoClientPage({ params, searchParams }: { params: 
               </>
             )}
             <Field k="Glavni problem" v={c.mainProblem} />
-            <Field k={unb ? "Jeziki gostov" : "Jeziki strank"} v={asStrings(c.languages).join(", ")} />
+            {!imp && <Field k={unb ? "Jeziki gostov" : "Jeziki strank"} v={asStrings(c.languages).join(", ")} />}
             <Field k="Kaj je prodajalec obljubil" v={c.promised} />
             <Field k="Posebnosti" v={c.specialNotes} />
             <Field k="Predano" v={c.handedOverAt ? c.handedOverAt.toLocaleString("sl-SI") : null} />

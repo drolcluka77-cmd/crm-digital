@@ -15,6 +15,8 @@ import {
   UNB_GUEST_CHANNELS,
   UNB_PROPERTY_TYPES,
   type UnbDetails,
+  type ImportDetails,
+  IMPORT_INCOTERMS,
 } from "@/lib/geo-labels";
 
 export type HandoverValues = {
@@ -34,7 +36,7 @@ export type HandoverValues = {
   languages: string[];
   promised: string;
   specialNotes: string;
-  details: UnbDetails;
+  details: UnbDetails & ImportDetails;
 };
 
 function L({ label, req, children }: { label: string; req?: boolean; children: React.ReactNode }) {
@@ -51,6 +53,7 @@ function L({ label, req, children }: { label: string; req?: boolean; children: R
 
 export default function HandoverForm({ customerId, line, values, fromQuote }: { customerId: string; line: string; values: HandoverValues; fromQuote: boolean }) {
   const unb = line === "UNBUSYNESS";
+  const imp = line === "IMPORT";
   const d = values.details || {};
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
@@ -77,7 +80,72 @@ export default function HandoverForm({ customerId, line, values, fromQuote }: { 
       }}
     >
       {fromQuote && <div className="success-box text-sm">Paket, dodatki in cene so predizpolnjeni iz sprejete ponudbe — preveri jih.</div>}
-      {unb ? (
+      {imp ? (
+        <div className="card p-5 grid sm:grid-cols-2 gap-4">
+          <L label="Ime podjetja" req>
+            <input name="company" defaultValue={values.company} className="input" />
+          </L>
+          <L label="Datum začetka" req>
+            <input name="startDate" type="date" defaultValue={values.startDate} className="input" />
+          </L>
+          <div className="sm:col-span-2">
+            <L label="Izdelek" req>
+              <input name="product" defaultValue={d.product || ""} className="input" placeholder="npr. kovinske police za trgovino, 3 velikosti" />
+            </L>
+          </div>
+          <div className="sm:col-span-2">
+            <L label="Specifikacija (materiali, mere, barve, embalaža, logotip)">
+              <textarea name="specs" rows={3} defaultValue={d.specs || ""} className="input" />
+            </L>
+          </div>
+          <L label="Količina" req>
+            <input name="quantity" defaultValue={d.quantity || ""} className="input" placeholder="npr. 500 kosov" />
+          </L>
+          <L label="Ciljna cena na kos">
+            <input name="targetPrice" defaultValue={d.targetPrice || ""} className="input" placeholder="npr. do 12 € brez DDV" />
+          </L>
+          <L label="Proračun skupaj (€)">
+            <input name="budget" inputMode="decimal" defaultValue={d.budget ?? ""} className="input" />
+          </L>
+          <L label="Želeni rok dostave">
+            <input name="deadline" type="date" defaultValue={d.deadline || ""} className="input" />
+          </L>
+          <L label="Kako do stranke" req>
+            <select name="incoterm" defaultValue={d.incoterm || ""} className="input">
+              <option value="">Izberi …</option>
+              {Object.entries(IMPORT_INCOTERMS).map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
+                </option>
+              ))}
+            </select>
+          </L>
+          <L label="Kraj dostave" req>
+            <input name="deliveryAddress" defaultValue={d.deliveryAddress || ""} className="input" placeholder="naslov ali kraj" />
+          </L>
+          <L label="Certifikati in zahteve">
+            <input name="certifications" defaultValue={d.certifications || ""} className="input" placeholder="npr. CE, stik z živili, slovenska navodila" />
+          </L>
+          <L label="Primer / referenca (povezava ali opis)">
+            <input name="reference" defaultValue={d.reference || ""} className="input" />
+          </L>
+          <div className="sm:col-span-2 grid sm:grid-cols-2 gap-3 text-sm">
+            <label className="flex items-center gap-2">
+              <input type="checkbox" name="samples" defaultChecked={!!d.samples} /> Stranka želi vzorce pred naročilom
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" name="searchFeePaid" defaultChecked={!!d.searchFeePaid} /> 149 € za iskanje je plačano *
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" name="commissionContract" defaultChecked={!!d.commissionContract} /> Pogodba o proviziji je podpisana *
+            </label>
+            <label className="flex items-center gap-2">
+              Provizija
+              <input name="commissionPct" inputMode="decimal" defaultValue={d.commissionPct ?? ""} className="input py-1 w-20" />% (najmanj 500 €)
+            </label>
+          </div>
+        </div>
+      ) : unb ? (
         <div className="card p-5 grid sm:grid-cols-2 gap-4">
           <L label="Ime podjetja" req>
             <input name="company" defaultValue={values.company} className="input" />
@@ -215,7 +283,7 @@ export default function HandoverForm({ customerId, line, values, fromQuote }: { 
       </div>
 
       <div className="card p-5 grid gap-4">
-        <div className="grid sm:grid-cols-2 gap-4">
+        {!imp && <div className="grid sm:grid-cols-2 gap-4">
           {unb ? (
             <div />
           ) : (
@@ -234,9 +302,9 @@ export default function HandoverForm({ customerId, line, values, fromQuote }: { 
               ))}
             </div>
           </div>
-        </div>
-        <L label="Glavni problem" req>
-          <textarea name="mainProblem" rows={2} defaultValue={values.mainProblem} className="input" placeholder={unb ? "npr. lastnik odgovarja gostom ponoči, zamujeni odgovori, slabe ocene zaradi komunikacije" : "npr. premalo strank, slabe ocene, zgrešeni klici"} />
+        </div>}
+        <L label={imp ? "Zakaj uvoz / kaj želi izboljšati" : "Glavni problem"} req={!imp}>
+          <textarea name="mainProblem" rows={2} defaultValue={values.mainProblem} className="input" placeholder={unb ? "npr. lastnik odgovarja gostom ponoči, zamujeni odgovori, slabe ocene zaradi komunikacije" : imp ? "npr. trenutni dobavitelj predrag, dolgi roki, slaba kakovost" : "npr. premalo strank, slabe ocene, zgrešeni klici"} />
         </L>
         <L label="Kaj si obljubil" req>
           <textarea name="promised" rows={2} defaultValue={values.promised} className="input" placeholder="tudi »nič posebnega«" />

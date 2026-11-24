@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { assignAssistant, cancelGeoClient, closePilot, setGeoStatus } from "@/lib/geo-actions";
-import { LINE_STATUSES, GEO_STATUS_LABEL } from "@/lib/geo-labels";
+import { LINE_STATUSES, GEO_STATUS_LABEL, DELIVERY_ROLE_LABEL, DELIVERY_LINE_ROLE } from "@/lib/geo-labels";
 
 export default function AdminControls({
   clientId,
@@ -33,7 +33,7 @@ export default function AdminControls({
     <div className="card p-4 space-y-2 text-sm w-full sm:w-80">
       <div className="text-xs uppercase tracking-wide text-black/40">Administrator</div>
       <label className="block">
-        <span className="label">{line === "UNBUSYNESS" ? "Forward deployment engineer" : "GEO asistent"}</span>
+        <span className="label">{DELIVERY_ROLE_LABEL[DELIVERY_LINE_ROLE[line]] || "GEO asistent"}</span>
         <select
           className="input py-1.5"
           value={assistantId || ""}

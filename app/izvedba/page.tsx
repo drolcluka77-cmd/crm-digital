@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default async function MyTasksPage() {
   const user = await requireGeoArea();
   const isAdmin = user.role === "ADMIN";
-  const mine = user.role === "GEO" || user.role === "FDE";
+  const mine = ["GEO", "FDE", "IMPORT"].includes(user.role);
   const rows = await prisma.geoTask.findMany({
     where: {
       ...(mine ? { assigneeId: user.id } : {}),

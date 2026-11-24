@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export default async function GeoClientsPage() {
   const user = await requireGeoArea();
-  const mine = user.role === "GEO" || user.role === "FDE";
+  const mine = ["GEO", "FDE", "IMPORT"].includes(user.role);
   const clients = await prisma.geoClient.findMany({
     where: mine ? { assistantId: user.id } : { status: { not: "DRAFT" } },
     include: { assistant: { select: { name: true } } },

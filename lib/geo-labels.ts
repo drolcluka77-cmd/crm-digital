@@ -2,15 +2,17 @@
 // Lines: PICKED (Mr. Picked GEO, worked by the GEO assistant) and UNBUSYNESS (pilots, worked by the
 // forward deployment engineer).
 
-export const DELIVERY_LINES = ["PICKED", "UNBUSYNESS"] as const;
-export const DELIVERY_LINE_LABEL: Record<string, string> = { PICKED: "Mr. Picked", UNBUSYNESS: "Unbusyness pilot" };
+export const DELIVERY_LINES = ["PICKED", "UNBUSYNESS", "IMPORT"] as const;
+export const DELIVERY_LINE_LABEL: Record<string, string> = { PICKED: "Mr. Picked", UNBUSYNESS: "Unbusyness pilot", IMPORT: "SimpleImport" };
 /** Roles that can be assigned to work a line (admins always can). */
-export const DELIVERY_LINE_ROLE: Record<string, string> = { PICKED: "GEO", UNBUSYNESS: "FDE" };
-export const DELIVERY_ROLE_LABEL: Record<string, string> = { GEO: "GEO asistent", FDE: "Forward deployment engineer" };
+export const DELIVERY_LINE_ROLE: Record<string, string> = { PICKED: "GEO", UNBUSYNESS: "FDE", IMPORT: "IMPORT" };
+export const DELIVERY_ROLE_LABEL: Record<string, string> = { GEO: "GEO asistent", FDE: "Forward deployment engineer", IMPORT: "Koordinator uvoza" };
+export const DELIVERY_ROLES = ["GEO", "FDE", "IMPORT"];
 /** Which product names belong to which line. */
 export function lineForProductName(name: string): string | null {
   if (/picked/i.test(name)) return "PICKED";
   if (/unbusyness/i.test(name)) return "UNBUSYNESS";
+  if (/simple\s*import/i.test(name)) return "IMPORT";
   return null;
 }
 
@@ -67,6 +69,12 @@ export const GEO_STATUSES = [
   "TEST",
   "PILOT",
   "REVIEW",
+  "SOURCING",
+  "OFFERS",
+  "SAMPLES",
+  "ORDER",
+  "PRODUCTION",
+  "SHIPPING",
   "DONE",
   "CANCELLED",
 ] as const;
@@ -74,6 +82,25 @@ export const GEO_STATUSES = [
 export const LINE_STATUSES: Record<string, string[]> = {
   PICKED: ["DRAFT", "HANDED_OVER", "KICKOFF", "ACCESS", "BASELINE", "FIX", "MAINTENANCE", "DAY90", "CANCELLED"],
   UNBUSYNESS: ["DRAFT", "HANDED_OVER", "KICKOFF", "SETUP", "TEST", "PILOT", "REVIEW", "DONE", "CANCELLED"],
+  IMPORT: ["DRAFT", "HANDED_OVER", "KICKOFF", "SOURCING", "OFFERS", "SAMPLES", "ORDER", "PRODUCTION", "SHIPPING", "DONE", "CANCELLED"],
+};
+/** Phase-driven lines: [status, phase whose tasks must be done, next status]. */
+export const PHASE_FLOW: Record<string, [string, string, string][]> = {
+  UNBUSYNESS: [
+    ["KICKOFF", "START", "SETUP"],
+    ["SETUP", "SETUP", "TEST"],
+    ["TEST", "TEST", "PILOT"],
+    ["PILOT", "PILOT", "REVIEW"],
+  ],
+  IMPORT: [
+    ["KICKOFF", "START", "SOURCING"],
+    ["SOURCING", "SOURCING", "OFFERS"],
+    ["OFFERS", "OFFERS", "SAMPLES"],
+    ["SAMPLES", "SAMPLES", "ORDER"],
+    ["ORDER", "ORDER", "PRODUCTION"],
+    ["PRODUCTION", "PRODUCTION", "SHIPPING"],
+    ["SHIPPING", "SHIPPING", "DONE"],
+  ],
 };
 export const GEO_STATUS_LABEL: Record<string, string> = {
   DRAFT: "Osnutek predaje",
@@ -88,6 +115,12 @@ export const GEO_STATUS_LABEL: Record<string, string> = {
   TEST: "Test",
   PILOT: "Pilot teče",
   REVIEW: "Pregled pilota",
+  SOURCING: "Iskanje dobaviteljev",
+  OFFERS: "Ponudbe stranki",
+  SAMPLES: "Vzorci",
+  ORDER: "Naročilo in avans",
+  PRODUCTION: "Proizvodnja in kontrola",
+  SHIPPING: "Prevoz in carina",
   DONE: "Zaključeno",
   CANCELLED: "Prekinjeno",
 };
@@ -113,10 +146,21 @@ export const UNB_STATUS_NEXT: Record<string, string> = {
   HANDED_OVER: "Administrator dodeli forward deployment engineerja.",
   KICKOFF: "Naloge uvodnega klica in zbiranja podatkov so končane.",
 };
+export const IMPORT_STATUS_NEXT: Record<string, string> = {
+  HANDED_OVER: "Administrator dodeli koordinatorja uvoza.",
+  KICKOFF: "Uvodni klic je opravljen in specifikacija izdelka potrjena.",
+  SOURCING: "Najdeni in preverjeni so vsaj 3 dobavitelji.",
+  OFFERS: "Stranka je izbrala ponudbo.",
+  SAMPLES: "Vzorci so prejeti in potrjeni (če niso potrebni, se faza preskoči).",
+  ORDER: "Stranka je plačala provizijo in avans proizvajalcu; naročilo je potrjeno.",
+  PRODUCTION: "Proizvodnja je končana in kontrola kakovosti opravljena.",
+  SHIPPING: "Blago je ocarinjeno in dostavljeno stranki.",
+};
 export function statusNext(line: string, status: string) {
+  if (line === "IMPORT") return IMPORT_STATUS_NEXT[status] || "";
   return (line === "UNBUSYNESS" && UNB_STATUS_NEXT[status]) || GEO_STATUS_NEXT[status] || "";
 }
-export const GEO_ACTIVE_STATUSES = ["KICKOFF", "ACCESS", "BASELINE", "FIX", "MAINTENANCE", "DAY90", "SETUP", "TEST", "PILOT", "REVIEW"];
+export const GEO_ACTIVE_STATUSES = ["KICKOFF", "ACCESS", "BASELINE", "FIX", "MAINTENANCE", "DAY90", "SETUP", "TEST", "PILOT", "REVIEW", "SOURCING", "OFFERS", "SAMPLES", "ORDER", "PRODUCTION", "SHIPPING"];
 
 export const GEO_TASK_STATUSES = ["OPEN", "IN_PROGRESS", "WAITING_CLIENT", "WAITING_APPROVAL", "DONE", "NOT_POSSIBLE"] as const;
 export const GEO_TASK_STATUS_LABEL: Record<string, string> = {
@@ -129,7 +173,7 @@ export const GEO_TASK_STATUS_LABEL: Record<string, string> = {
 };
 export const GEO_OPEN_TASK_STATUSES = ["OPEN", "IN_PROGRESS", "WAITING_CLIENT"];
 
-export const GEO_PHASES = ["START", "FIX", "MONTHLY", "QUARTERLY", "DAY90", "SETUP", "TEST", "PILOT", "REVIEW"] as const;
+export const GEO_PHASES = ["START", "FIX", "MONTHLY", "QUARTERLY", "DAY90", "SETUP", "TEST", "PILOT", "REVIEW", "SOURCING", "OFFERS", "SAMPLES", "ORDER", "PRODUCTION", "SHIPPING"] as const;
 export const GEO_PHASE_LABEL: Record<string, string> = {
   START: "Začetek",
   FIX: "Popravek",
@@ -140,6 +184,12 @@ export const GEO_PHASE_LABEL: Record<string, string> = {
   TEST: "Test",
   PILOT: "Pilot",
   REVIEW: "Pregled",
+  SOURCING: "Iskanje",
+  OFFERS: "Ponudbe",
+  SAMPLES: "Vzorci",
+  ORDER: "Naročilo",
+  PRODUCTION: "Proizvodnja",
+  SHIPPING: "Prevoz",
 };
 
 export const GEO_TEMPLATE_GROUPS = [
@@ -151,6 +201,8 @@ export const GEO_TEMPLATE_GROUPS = [
   "ADDON_WHATSAPP",
   "ADDON_WEBSITE",
   "UNBUSYNESS_PILOT",
+  "SIMPLEIMPORT",
+  "SIMPLEIMPORT_SAMPLES",
 ] as const;
 export const GEO_TEMPLATE_GROUP_LABEL: Record<string, string> = {
   VISIBLE: "Visible",
@@ -161,6 +213,8 @@ export const GEO_TEMPLATE_GROUP_LABEL: Record<string, string> = {
   ADDON_WHATSAPP: "Add-on: WhatsApp",
   ADDON_WEBSITE: "Add-on: website",
   UNBUSYNESS_PILOT: "Unbusyness pilot",
+  SIMPLEIMPORT: "SimpleImport",
+  SIMPLEIMPORT_SAMPLES: "SimpleImport: samples",
 };
 
 export const GEO_PLATFORMS = [
@@ -390,6 +444,53 @@ export function missingUnbHandover(h: Handover & { details?: UnbDetails | null }
   return m;
 }
 
+// ─── SimpleImport handover ───────────────────────────────────────────────
+
+export const IMPORT_INCOTERMS: Record<string, string> = {
+  DDP: "Do vrat stranke (DDP, vse urejeno)",
+  DAP: "Do vrat, carina na stranki (DAP)",
+  FOB: "FOB pristanišče na Kitajskem",
+  EXW: "EXW (prevzem pri proizvajalcu)",
+  UNSURE: "Ne ve še — svetujemo",
+};
+
+export type ImportDetails = {
+  product?: string; // what exactly
+  specs?: string; // materials, size, colour, branding
+  quantity?: string; // e.g. "500 kosov"
+  targetPrice?: string; // per unit
+  budget?: number | null;
+  deadline?: string; // YYYY-MM-DD wanted delivery
+  incoterm?: string;
+  deliveryAddress?: string;
+  certifications?: string; // CE, food contact …
+  samples?: boolean;
+  searchFeePaid?: boolean; // 149 € supplier search
+  commissionContract?: boolean; // commission contract signed
+  commissionPct?: number | null;
+  reference?: string; // link or photo of a similar product
+};
+
+export function missingImportHandover(h: Handover & { details?: ImportDetails | null }): string[] {
+  const m: string[] = [];
+  const has = (v?: string | null) => !!v && String(v).trim().length > 0;
+  const d = h.details || {};
+  if (!has(h.company)) m.push("Ime podjetja");
+  if (!h.startDate) m.push("Datum začetka");
+  if (!has(h.contactName)) m.push("Kontaktna oseba");
+  if (!has(h.contactPhone)) m.push("Telefon kontakta");
+  if (!has(h.contactEmail)) m.push("E-pošta kontakta");
+  if (!has(d.product)) m.push("Izdelek");
+  if (!has(d.quantity)) m.push("Količina");
+  if (!has(d.deliveryAddress)) m.push("Kraj dostave");
+  if (!has(d.incoterm)) m.push("Kako do stranke (dostava)");
+  if (!d.searchFeePaid) m.push("Plačilo 149 € za iskanje");
+  if (!d.commissionContract) m.push("Podpisana pogodba o proviziji");
+  if (!has(h.promised)) m.push("Kaj je prodajalec obljubil");
+  return m;
+}
+
 export function missingHandoverFor(line: string, h: Handover & { details?: unknown }): string[] {
+  if (line === "IMPORT") return missingImportHandover({ ...h, details: (h.details as ImportDetails) || {} });
   return line === "UNBUSYNESS" ? missingUnbHandover({ ...h, details: (h.details as UnbDetails) || {} }) : missingHandoverFields(h);
 }

@@ -1,14 +1,15 @@
 // Allowed values for the string "enum" columns in prisma/schema.prisma,
 // plus their human labels. Import from here instead of hard-coding.
 
-export type Role = "ADMIN" | "MANAGER" | "SALES" | "GEO" | "FDE";
-export const ROLES: Role[] = ["ADMIN", "MANAGER", "SALES", "GEO", "FDE"];
+export type Role = "ADMIN" | "MANAGER" | "SALES" | "GEO" | "FDE" | "IMPORT";
+export const ROLES: Role[] = ["ADMIN", "MANAGER", "SALES", "GEO", "FDE", "IMPORT"];
 export const ROLE_LABEL: Record<string, string> = {
   ADMIN: "Admin",
   MANAGER: "Sales manager",
   SALES: "Seller",
   GEO: "GEO assistant",
   FDE: "Forward deployment engineer",
+  IMPORT: "Import coordinator",
 };
 
 export const LEAD_STATUSES = [

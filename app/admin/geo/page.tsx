@@ -11,7 +11,7 @@ export default async function GeoBoardPage({ searchParams }: { searchParams: { v
   const user = await requireStaff();
   const isAdmin = user.role === "ADMIN";
   const view = searchParams.view === "approve" ? "approve" : "board";
-  const line = searchParams.line === "UNBUSYNESS" ? "UNBUSYNESS" : "PICKED";
+  const line = searchParams.line === "UNBUSYNESS" || searchParams.line === "IMPORT" ? searchParams.line : "PICKED";
   const COLUMNS = LINE_STATUSES[line].filter((s) => !["DRAFT", "CANCELLED"].includes(s));
   const now = new Date();
 
@@ -56,12 +56,12 @@ export default async function GeoBoardPage({ searchParams }: { searchParams: { v
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Delivery</h1>
           <p className="text-black/50 text-sm mt-1">
-            Clients after the seller's handover: Mr. Picked → GEO assistant, Unbusyness pilots → forward deployment engineer. Open a client to assign who works on it (tasks are created then).
+            Clients after the seller's handover: Mr. Picked → GEO assistant, Unbusyness pilots → forward deployment engineer, SimpleImport → import coordinator. Open a client to assign who works on it (tasks are created then).
             {drafts ? ` ${drafts} handover draft(s) not submitted yet.` : ""}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {(["PICKED", "UNBUSYNESS"] as const).map((l) => (
+          {(["PICKED", "UNBUSYNESS", "IMPORT"] as const).map((l) => (
             <Link key={l} href={`/admin/geo?line=${l}`} className={view === "board" && line === l ? "chip-active" : "chip"}>
               {DELIVERY_LINE_LABEL[l]}
             </Link>
