@@ -34,6 +34,8 @@ import CardEditor from "./CardEditor";
 import AccessList from "./AccessList";
 import Measurements from "./Measurements";
 import OffersTab from "./OffersTab";
+import MirrorForm from "@/components/MirrorForm";
+import { mirrorBudget, mirrorEngines } from "@/lib/ai-mirror";
 import CodeTab from "./CodeTab";
 import AdminControls from "./AdminControls";
 import AddTask from "./AddTask";
@@ -79,6 +81,15 @@ export default async function GeoClientPage({ params, searchParams }: { params: 
       : TABS.filter(([k]) => k !== "dobavitelji");
   const tab = tabs.some(([k]) => k === searchParams.tab) ? searchParams.tab! : c.line === "PICKED" && c.status === "KICKOFF" ? "kartica" : "naloge";
   const card = asCard(c.card);
+  const mirrorRuns =
+    c.line === "PICKED"
+      ? await prisma.aiMirrorRun.findMany({
+          where: { geoClientId: c.id },
+          orderBy: { createdAt: "desc" },
+          take: 12,
+          select: { id: true, status: true, score: true, createdAt: true, measurementId: true },
+        })
+      : [];
   const missing = missingCardFields(card, c.package);
   const assistants = isAdmin
     ? await prisma.user.findMany({ where: { role: { in: [DELIVERY_LINE_ROLE[c.line] || "GEO", "ADMIN"] }, active: true }, select: { id: true, name: true, role: true }, orderBy: { name: "asc" } })
@@ -273,6 +284,37 @@ export default async function GeoClientPage({ params, searchParams }: { params: 
             note: o.note,
           }))}
         />
+      )}
+
+      {tab === "meritve" && (
+        <div className="space-y-4 mb-5">
+          <div>
+            <div className="font-semibold mb-1">AI Mirror — samodejna meritev</div>
+            <p className="text-sm text-black/55 mb-3">
+              Vpraša ChatGPT in Gemini (s spletnim iskanjem) ista vprašanja kot ob izhodišču in prešteje omembe. Rezultat pregledaš in shraniš kot meritev.
+            </p>
+            <MirrorForm
+              basePath="/izvedba/mirror"
+              compact
+              budget={{ ...(await mirrorBudget(user.id)), engines: mirrorEngines().map((e) => (e === "chatgpt" ? "ChatGPT" : "Gemini")) }}
+              prefill={{ company: c.company, city: card.city, category: card.primaryCategory, website: card.website, phone: card.phone, geoClientId: c.id }}
+            />
+          </div>
+          {mirrorRuns.length > 0 && (
+            <div className="card p-4 text-sm">
+              <div className="font-medium mb-1">Pretekle AI Mirror meritve</div>
+              {mirrorRuns.map((r) => (
+                <div key={r.id} className="flex gap-3 py-0.5">
+                  <Link href={`/izvedba/mirror/${r.id}`} className="text-brand-600 underline">
+                    {r.createdAt.toLocaleDateString("sl-SI")}
+                  </Link>
+                  <span>{r.status === "DONE" ? `${r.score ?? 0} %` : r.status === "FAILED" ? "napaka" : "teče …"}</span>
+                  {r.measurementId && <span className="text-emerald-700">shranjeno kot meritev</span>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       {tab === "meritve" && (

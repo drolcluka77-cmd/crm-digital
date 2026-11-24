@@ -994,3 +994,35 @@ model GeoLog {
 
   @@index([clientId])
 }
+
+// AI Mirror: what ChatGPT and Gemini answer about a business (QUICK during a call, FULL before a meeting / as a measurement).
+model AiMirrorRun {
+  id           String   @id @default(cuid())
+  kind         String // QUICK | FULL
+  status       String   @default("RUNNING") // RUNNING | DONE | FAILED
+  company      String
+  city         String
+  category     String
+  website      String?
+  phone        String?
+  address      String?
+  queries      Json     @default("[]") // [{ q, kind }]
+  answers      Json     @default("[]") // MirrorAnswer[]
+  summary      Json     @default("{}") // MirrorSummary
+  mentions     Int?
+  answersCount Int?
+  score        Float? // % of discovery answers that mention the business
+  costEur      Float    @default(0)
+  error        String?
+  customerId   String?
+  geoClientId  String?
+  measurementId String?
+  userId       String?
+  userName     String?
+  createdAt    DateTime @default(now())
+
+  @@index([customerId])
+  @@index([geoClientId])
+  @@index([userId, createdAt])
+  @@index([createdAt])
+}

@@ -67,6 +67,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       heading: "Sales",
       items: [
         { href: "/admin/lead-finder", label: "Lead finder", icon: <SparkIcon className={ic} /> },
+        { href: "/admin/mirror", label: "AI Mirror", icon: <SparkIcon className={ic} /> },
         { href: "/admin/leads", label: "Lead pools", icon: <SparkIcon className={ic} /> },
         { href: "/admin/ugc", label: "UGC creators", icon: <PlayIcon className={ic} />, badge: pendingUgc },
         { href: "/admin/subscriptions", label: "Subscriptions", icon: <ChartIcon className={ic} /> },

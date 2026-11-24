@@ -42,6 +42,7 @@ export default async function CrmLayout({ children }: { children: React.ReactNod
         { href: "/crm/products", label: t("My products"), icon: <PackageIcon className={ic} /> },
         { href: "/crm/customers", label: t("Customers"), icon: <UsersIcon className={ic} /> },
         { href: "/crm/prospects", label: t("Recommended leads"), icon: <SparkIcon className={ic} /> },
+        { href: "/crm/mirror", label: "AI Mirror", icon: <SparkIcon className={ic} /> },
         { href: "/crm/pool", label: t("Lead pool"), icon: <SparkIcon className={ic} /> },
         { href: "/crm/quotes", label: t("Quotes"), icon: <FileIcon className={ic} /> },
         { href: "/crm/contracts", label: t("Contracts"), icon: <FileIcon className={ic} /> },

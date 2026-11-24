@@ -172,6 +172,9 @@ export default async function CustomerDetailPage({ params }: { params: { id: str
                 {customer.website.replace(/^https?:\/\//, "")}
               </a>
             )}
+            <Link href={`/crm/mirror?customer=${customer.id}`} className="flex items-center gap-1.5 text-brand-600 hover:underline">
+              ✨ AI Mirror
+            </Link>
           </div>
         </div>
         <CustomerDetailActions
