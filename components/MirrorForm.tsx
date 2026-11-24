@@ -63,7 +63,8 @@ export default function MirrorForm({
         </label>
         <label className="text-sm">
           <span className="label">Kaj ljudje iščejo *</span>
-          <input name="category" required list="mirror-cats" defaultValue={prefill.category || ""} className="input" placeholder="npr. gostilna" />
+          <input name="category" required list="mirror-cats" defaultValue={prefill.category || ""} className="input" placeholder="npr. kavarna, koktajl bar" autoComplete="off" />
+          <span className="block text-[11px] text-black/45 mt-0.5">Kaj stranka vpiše v ChatGPT — brez imena podjetja ali spletne strani. Več izrazov loči z vejico (do 3).</span>
           <datalist id="mirror-cats">
             {CATEGORIES.map((c) => (
               <option key={c} value={c} />

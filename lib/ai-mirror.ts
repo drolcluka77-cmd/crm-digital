@@ -106,32 +106,56 @@ export function mirrorEngines(): MirrorEngine[] {
 
 // ─── Questions ────────────────────────────────────────────────────────────
 
-export function buildQueries(input: Pick<MirrorInput, "kind" | "company" | "city" | "category" | "extraQueries">): MirrorQuery[] {
-  const { company, city, category } = input;
+/**
+ * The search term must be what customers type (e.g. "kavarna"), never the business itself — otherwise every
+ * question names the business and the score is always 100 %.
+ */
+export function categoryProblem(category: string, company: string, website?: string | null): string | null {
   const c = category.trim();
+  if (/^(https?:\/\/)?(www\.)?[a-z0-9-]+(\.[a-z0-9-]+)+(\/\S*)?$/i.test(c) || /\.(com|si|eu|net|org|hr|at|it|de)\b/i.test(c))
+    return "Pri »Kaj ljudje iščejo« vpišite dejavnost (npr. kavarna, bar, avtoservis), ne spletne strani.";
+  const host = (website || "").replace(/^https?:\/\//, "").replace(/^www\./, "").split(/[/.]/)[0].toLowerCase();
+  const core = coreName(company);
+  const fc = fold(c);
+  if ((core && core.length >= 3 && (fc.includes(core) || core.split(" ").filter((w) => w.length >= 4 && !GENERIC.has(w)).some((w) => fc.split(" ").includes(w)))) || (host.length >= 4 && fc.replace(/ /g, "").includes(host.replace(/[^a-z0-9]/g, ""))))
+    return "Pri »Kaj ljudje iščejo« ne sme biti ime podjetja — vpišite, kaj stranke iščejo (npr. kavarna ob operi, koktajl bar).";
+  return null;
+}
+
+export function buildQueries(input: Pick<MirrorInput, "kind" | "company" | "city" | "category" | "extraQueries">): MirrorQuery[] {
+  const { company, city } = input;
+  // Up to 3 search terms, comma-separated ("kavarna, koktajl bar"); the questions rotate through them.
+  const terms = input.category
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .slice(0, 3);
+  const t = (i: number) => terms[i % terms.length] || input.category.trim();
+  const brand: MirrorQuery = { q: `Kaj veš o podjetju ${company} (${city})? Kaj ponujajo in kakšna so mnenja strank?`, kind: "brand" };
   const quick: MirrorQuery[] = [
-    { q: `Kaj priporočaš za ${c} v kraju ${city}? Naštej nekaj konkretnih ponudnikov z imeni.`, kind: "discovery" },
-    { q: `Iščem ${c} v bližini kraja ${city}. Koga mi priporočaš in zakaj?`, kind: "discovery" },
-    { q: `Kaj veš o podjetju ${company} (${city})? Kaj ponujajo in kakšna so mnenja strank?`, kind: "brand" },
+    { q: `Kaj priporočaš za ${t(0)} v kraju ${city}? Naštej nekaj konkretnih ponudnikov z imeni.`, kind: "discovery" },
+    { q: `Iščem ${t(1)} v bližini kraja ${city}. Koga mi priporočaš in zakaj?`, kind: "discovery" },
+    brand,
   ];
   if (input.kind === "QUICK") return quick;
+  // Own questions that name the business are about the brand, so they don't count towards visibility.
   const extra = (input.extraQueries || [])
     .map((q) => q.trim())
     .filter(Boolean)
     .slice(0, 4)
-    .map((q) => ({ q, kind: "discovery" as const }));
-  const all: MirrorQuery[] = [
+    .map((q) => ({ q, kind: (mentions(q, company) ? "brand" : "discovery") as MirrorQueryKind }));
+  const discovery: MirrorQuery[] = [
     ...quick.slice(0, 2),
-    { q: `Kateri so najbolje ocenjeni ponudniki za ${c} v kraju ${city} in okolici?`, kind: "discovery" },
-    { q: `Kdo je najbolj zanesljiv za ${c} v kraju ${city}? Daj mi 3 predloge.`, kind: "discovery" },
-    { q: `Best ${c} in ${city}, Slovenia — recommend specific places or companies.`, kind: "discovery" },
+    { q: `Kateri so najbolje ocenjeni ponudniki za ${t(2)} v kraju ${city} in okolici?`, kind: "discovery" },
+    { q: `Kdo je najbolj zanesljiv za ${t(0)} v kraju ${city}? Daj mi 3 predloge.`, kind: "discovery" },
+    { q: `Best ${t(1)} in ${city}, Slovenia — recommend specific places or companies.`, kind: "discovery" },
     ...extra,
-    quick[2],
+  ].slice(0, 8);
+  return [
+    ...discovery,
+    brand,
     { q: `Kakšen je naslov, telefon, spletna stran in delovni čas podjetja ${company} v kraju ${city}?`, kind: "facts" },
   ];
-  // Keep at most 10, always ending with the brand and facts questions.
-  const tail = all.slice(-2);
-  return [...all.slice(0, -2).slice(0, 8), ...tail];
 }
 
 // ─── Matching ─────────────────────────────────────────────────────────────

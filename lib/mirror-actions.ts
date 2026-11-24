@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
-import { runMirror, type MirrorKind, type MirrorSummary } from "@/lib/ai-mirror";
+import { categoryProblem, runMirror, type MirrorKind, type MirrorSummary } from "@/lib/ai-mirror";
 import { saveMeasurement } from "@/lib/geo-actions";
 import { asCard } from "@/lib/geo";
 
@@ -47,6 +47,8 @@ export async function startMirror(fd: FormData): Promise<{ id?: string; error?: 
     if (!extraQueries.length) extraQueries = [...(card.aiQuestions || []), ...(card.keySearches || [])].filter(Boolean);
   }
   if (!company || !city || !category) return { error: "Vpišite ime podjetja, kraj in dejavnost." };
+  const bad = categoryProblem(category, company, website);
+  if (bad) return { error: bad };
 
   try {
     const id = await runMirror({ kind, company, city, category, website, phone, address, extraQueries, customerId, geoClientId }, user);

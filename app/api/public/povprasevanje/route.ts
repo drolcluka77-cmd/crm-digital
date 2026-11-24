@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity";
 import { notify } from "@/lib/notify";
 import { assignWarmLead } from "@/lib/warm-leads";
-import { mirrorEngines, runMirror } from "@/lib/ai-mirror";
+import { categoryProblem, mirrorEngines, runMirror } from "@/lib/ai-mirror";
 
 export const dynamic = "force-dynamic";
 
@@ -199,7 +199,7 @@ export async function POST(req: NextRequest) {
   // Mr. Picked: run the AI Mirror analysis in the background so the seller sees it on the customer page.
   const city = clip(d.kraj, 80);
   const category = clip(d.dejavnost, 80);
-  if (key === "picked" && city && category && mirrorEngines().length) {
+  if (key === "picked" && city && category && mirrorEngines().length && !categoryProblem(category, clip(d.podjetje, 120) || name)) {
     runMirror({ kind: "FULL", company: clip(d.podjetje, 120) || name, city, category, customerId: customer.id }, null).catch(() => {
       /* budget reached or AI unavailable — the seller can run it by hand */
     });
