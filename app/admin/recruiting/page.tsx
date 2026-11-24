@@ -42,6 +42,7 @@ export default async function RecruitingPage({ searchParams }: { searchParams: {
         workMode: c.workMode,
         source: c.source,
         position: c.position,
+        tools: Array.isArray(c.answers) ? String((c.answers as unknown as { key?: string; value?: string }[]).find((a) => a?.key === "tools")?.value || "") || null : null,
         stage: c.stage,
         rating: c.rating,
         hasCv: !!c.cvKey,

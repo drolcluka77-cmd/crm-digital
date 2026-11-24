@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { savePrivateFile, deletePrivateFile } from "@/lib/upload";
 import { getSettings } from "@/lib/settings";
 import { newCandidateToken, notifyNewCandidate, sendInvite } from "@/lib/recruiting";
-import { positionKey, positionOf } from "@/lib/recruiting-labels";
+import { positionKey, positionOf, type CandidateAnswer } from "@/lib/recruiting-labels";
 
 export type ApplyResult = { error?: string; ok?: boolean; invited?: boolean };
 
@@ -33,6 +33,18 @@ export async function apply(fd: FormData): Promise<ApplyResult> {
     if (!CV_TYPES.test(file.name)) return { error: "Življenjepis naj bo PDF, Word ali slika." };
   }
 
+  // Extra questions of the position (e.g. tools and a mini task for the GEO assistant).
+  const pos = positionOf(positionKey(str(fd, "position", 40)));
+  const answers: CandidateAnswer[] = [];
+  for (const q of pos.questions || []) {
+    const value =
+      q.type === "checks"
+        ? fd.getAll(`q_${q.key}`).map(String).filter((v) => (q.options || []).includes(v)).join(", ")
+        : String(fd.get(`q_${q.key}`) ?? "").trim().slice(0, q.type === "textarea" ? 2000 : 300);
+    if (q.required && !value) return { error: `Odgovorite na vprašanje: ${q.label}` };
+    answers.push({ key: q.key, label: q.label, value });
+  }
+
   const ip = headers().get("x-forwarded-for")?.split(",")[0]?.trim() || null;
   const data = {
     name,
@@ -45,6 +57,7 @@ export async function apply(fd: FormData): Promise<ApplyResult> {
     languages: str(fd, "languages", 200),
     experience: str(fd, "experience", 1500),
     motivation: str(fd, "motivation", 1500),
+    answers: answers.length ? answers : undefined,
     source: str(fd, "source", 60),
     position: positionKey(str(fd, "position", 40)),
     consentAt: new Date(),

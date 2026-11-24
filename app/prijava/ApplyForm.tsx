@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { apply } from "./actions";
+import type { PositionQuestion } from "@/lib/recruiting-labels";
 
 export default function ApplyForm({
   position,
@@ -10,6 +11,8 @@ export default function ApplyForm({
   source,
   retentionMonths,
   companyName,
+  questions = [],
+  autoInvite = true,
 }: {
   position: string;
   experienceLabel: string;
@@ -17,6 +20,8 @@ export default function ApplyForm({
   source: string | null;
   retentionMonths: number;
   companyName: string;
+  questions?: PositionQuestion[];
+  autoInvite?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,9 +29,16 @@ export default function ApplyForm({
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    for (const q of questions) {
+      if (q.required && q.type === "checks" && fd.getAll(`q_${q.key}`).length === 0) {
+        setError(`Odgovorite na vprašanje: ${q.label}`);
+        return;
+      }
+    }
     setBusy(true);
     setError(null);
-    const res = await apply(new FormData(e.currentTarget));
+    const res = await apply(fd);
     setBusy(false);
     if (res?.error) setError(res.error);
     else setDone({ invited: !!res?.invited });
@@ -111,6 +123,29 @@ export default function ApplyForm({
         <span className="label">{experienceLabel}</span>
         <textarea name="experience" rows={3} className="input" placeholder={experienceHint} />
       </label>
+      {questions.map((q) => (
+        <div key={q.key} className="block">
+          <span className="label">
+            {q.label}
+            {q.required ? " *" : ""}
+          </span>
+          {q.hint && <span className="block text-xs text-black/45 mb-1">{q.hint}</span>}
+          {q.type === "checks" ? (
+            <div className="grid sm:grid-cols-2 gap-x-4 gap-y-1.5 mt-1">
+              {(q.options || []).map((o) => (
+                <label key={o} className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" name={`q_${q.key}`} value={o} />
+                  {o}
+                </label>
+              ))}
+            </div>
+          ) : q.type === "textarea" ? (
+            <textarea name={`q_${q.key}`} rows={4} className="input" required={q.required} />
+          ) : (
+            <input name={`q_${q.key}`} className="input" required={q.required} />
+          )}
+        </div>
+      ))}
       <label className="block">
         <span className="label">Zakaj vas zanima to delo?</span>
         <textarea name="motivation" rows={3} className="input" />

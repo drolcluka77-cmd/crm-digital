@@ -18,6 +18,7 @@ type C = {
   workMode: string | null;
   source: string | null;
   position: string;
+  tools: string | null;
   stage: string;
   rating: number | null;
   hasCv: boolean;
@@ -294,6 +295,7 @@ export default function RecruitingManager({
                   {c.rating ? <span className="ml-2 text-amber-500 text-xs">{"★".repeat(c.rating)}</span> : null}
                   <div className="text-xs text-black/45">{[c.email, c.phone, c.city].filter(Boolean).join(" · ")}</div>
                   <div className="text-xs text-black/35">{[RECRUITING_POSITIONS[c.position]?.label || c.position, c.status, c.source, c.hasCv ? "CV" : null].filter(Boolean).join(" · ")}</div>
+                  {c.tools && <div className="text-xs text-brand-700 mt-0.5">Orodja: {c.tools}</div>}
                 </td>
                 <td className="px-3 py-3 text-xs text-black/60">{[c.hours, c.workMode].filter(Boolean).join(" · ") || "—"}</td>
                 <td className="px-3 py-3 text-xs">

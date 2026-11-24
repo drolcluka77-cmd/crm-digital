@@ -610,6 +610,7 @@ model Candidate {
   languages     String?
   experience    String?
   motivation    String?
+  answers       Json? // extra questions of the position: [{ key, label, value }]
   cvKey         String? // private storage key
   cvName        String?
   source        String? // e.g. "Študentski servis" (?vir= on the form link)

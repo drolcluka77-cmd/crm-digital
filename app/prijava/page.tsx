@@ -30,9 +30,13 @@ export default async function ApplyPage({ searchParams }: { searchParams: { vir?
           )}
           <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">{pos.title}</h1>
           <p className="text-black/60 mt-2 leading-relaxed">{pos.intro}</p>
-          <p className="text-black/60 mt-2">Izpolnite obrazec — povabilo na kratek uvodni pogovor prejmete takoj po e-pošti.</p>
+          <p className="text-black/60 mt-2">
+            {pos.autoInvite === false
+              ? "Izpolnite obrazec — prijave pregledamo in izbrane kandidate povabimo na kratek uvodni pogovor."
+              : "Izpolnite obrazec — povabilo na kratek uvodni pogovor prejmete takoj po e-pošti."}
+          </p>
         </div>
-        <ApplyForm position={key} experienceLabel={pos.experienceLabel} experienceHint={pos.experienceHint} source={source} retentionMonths={settings.recruitingRetentionMonths} companyName={settings.companyName} />
+        <ApplyForm position={key} experienceLabel={pos.experienceLabel} experienceHint={pos.experienceHint} source={source} retentionMonths={settings.recruitingRetentionMonths} companyName={settings.companyName} questions={pos.questions} autoInvite={pos.autoInvite !== false} />
       </div>
     </div>
   );

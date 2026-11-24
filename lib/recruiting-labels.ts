@@ -27,6 +27,17 @@ Lep pozdrav,
 {{senderName}}
 {{company}}`;
 
+/** Extra required questions a position can ask on the form (answers are stored on Candidate.answers). */
+export type PositionQuestion = {
+  key: string;
+  label: string;
+  hint?: string;
+  type: "text" | "textarea" | "checks";
+  options?: string[]; // for "checks"
+  required?: boolean;
+};
+export type CandidateAnswer = { key: string; label: string; value: string };
+
 /** Open positions. The form link takes ?pozicija=<key>; each position has its own page text and invitation. */
 export type RecruitingPosition = {
   label: string; // admin label
@@ -34,6 +45,7 @@ export type RecruitingPosition = {
   intro: string; // form page text
   experienceLabel: string;
   experienceHint: string;
+  questions?: PositionQuestion[];
   autoInvite?: boolean; // false = applications only land in Recruiting; invite by hand from there
   inviteSubject: string | null; // null = the invitation from Recruiting → Settings
   inviteBody: string | null;
@@ -59,6 +71,47 @@ export const RECRUITING_POSITIONS: Record<string, RecruitingPosition> = {
       "Mr. Picked pomaga lokalnim podjetjem (restavracije, hoteli, avtoservisi …), da jih najdejo Google in AI asistenti, kot sta ChatGPT in Gemini. Iščemo natančno in samostojno osebo, ki bo urejala Google profile in vpise podjetij, pripravljala objave in mesečna poročila. Delo od doma, prilagodljiv urnik, uvajanje zagotovljeno. Obseg: do 60 ur na mesec. Plačilo: 10 €/uro neto.",
     experienceLabel: "Izkušnje z Googlovimi orodji, družbenimi omrežji ali marketingom",
     experienceHint: "Npr. urejanje Google profila, Instagram strani, spletne strani, študij marketinga — izkušnje niso pogoj.",
+    questions: [
+      {
+        key: "study",
+        label: "Kaj študirate (smer in letnik)?",
+        hint: "npr. računalništvo in informatika, 2. letnik",
+        type: "text",
+        required: true,
+      },
+      {
+        key: "tools",
+        label: "S katerimi orodji ste že delali?",
+        hint: "Označite vse, kar ste že uporabljali sami.",
+        type: "checks",
+        options: [
+          "Google Business profil",
+          "WordPress",
+          "Wix ali Squarespace",
+          "HTML / CSS",
+          "Google Search Console",
+          "Google Analytics",
+          "Canva",
+          "Instagram / Facebook za podjetje",
+          "Nič od tega",
+        ],
+        required: true,
+      },
+      {
+        key: "link",
+        label: "Povezava do spletne strani ali profila, ki ste ga uredili ali naredili",
+        hint: "Če je nimate, napišite »nimam«.",
+        type: "text",
+        required: true,
+      },
+      {
+        key: "task",
+        label: "Mini naloga: Odprite Google profil poljubnega lokalnega podjetja. Katere 3 stvari bi popravili ali dodali in zakaj?",
+        hint: "Napišite ime podjetja in 3 konkretne stvari.",
+        type: "textarea",
+        required: true,
+      },
+    ],
     autoInvite: false, // too many meetings — screen in Recruiting first, then invite the best ones
     inviteSubject: "Povabilo na uvodni pogovor — asistent/ka za Google profile in AI vidnost",
     inviteBody: `Pozdravljeni {{firstName}},

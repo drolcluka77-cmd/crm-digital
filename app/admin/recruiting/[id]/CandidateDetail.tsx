@@ -19,6 +19,7 @@ type Cand = {
   languages: string | null;
   experience: string | null;
   motivation: string | null;
+  answers: { key: string; label: string; value: string }[];
   source: string | null;
   position: string;
   cvName: string | null;
@@ -175,6 +176,9 @@ export default function CandidateDetail({
           </div>
           <Field label="Experience" value={c.experience} />
           <Field label="Why this job" value={c.motivation} />
+          {c.answers.map((a) => (
+            <Field key={a.key} label={a.label} value={a.value || "—"} />
+          ))}
           {c.hasCv && <Field label="CV" value={c.cvName} />}
 
           <div>
