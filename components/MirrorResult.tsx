@@ -101,7 +101,7 @@ export default function MirrorResult({ run }: { run: MirrorRunView }) {
               ))}
             </ul>
           ) : null}
-          {(run.kind === "FULL" ? s.wrongFacts?.length : true) && (
+          {(run.kind === "FULL" ? (s.wrongFacts?.length ?? 0) > 0 : true) && (
             <div className={run.kind === "FULL" ? "mt-3" : ""}>
               {run.kind === "FULL" && <div className="text-xs uppercase tracking-wide text-black/40 mb-1">Napačni podatki</div>}
               {s.wrongFacts?.length ? (
@@ -124,7 +124,7 @@ export default function MirrorResult({ run }: { run: MirrorRunView }) {
           <details key={i} className="px-5 py-3 group">
             <summary className="cursor-pointer list-none flex items-start gap-3 text-sm">
               <span className={`mt-0.5 shrink-0 text-xs rounded px-1.5 py-0.5 ${a.error ? "bg-black/5 text-black/40" : a.mentioned ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-600"}`}>
-                {a.error ? "napaka" : a.mentioned ? (a.position ? `${a.position}. mesto` : "omenjeni") : "ni omembe"}
+                {a.error ? "napaka" : a.mentioned ? (a.position && a.kind === "discovery" ? `${a.position}. mesto` : "omenjeni") : "ni omembe"}
               </span>
               <span className="shrink-0 w-16 text-black/50">{ENGINE[a.engine]}</span>
               <span className="flex-1">{a.q}</span>

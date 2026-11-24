@@ -358,7 +358,8 @@ async function summarize(input: MirrorInput, answers: MirrorAnswer[]): Promise<{
       competitors: (Array.isArray(p.competitors) ? p.competitors : [])
         .filter((c: any) => c && typeof c.name === "string" && coreName(c.name) !== coreSelf)
         .slice(0, 8)
-        .map((c: any) => ({ name: String(c.name).slice(0, 80), mentions: Math.max(1, Math.round(Number(c.mentions) || 1)) })),
+        .map((c: any) => ({ name: String(c.name).slice(0, 80), mentions: Math.max(1, Math.round(Number(c.mentions) || 1)) }))
+        .sort((a: { mentions: number }, b: { mentions: number }) => b.mentions - a.mentions),
       brand: Object.fromEntries(
         (["chatgpt", "gemini"] as const).filter((e) => answers.some((a) => a.engine === e && a.text)).filter((e) => ["known", "unknown", "wrong"].includes(p.brand?.[e])).map((e) => [e, p.brand[e]])
       ),
