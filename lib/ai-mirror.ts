@@ -398,13 +398,28 @@ export async function mirrorBudget(userId: string) {
 
 // ─── Run ──────────────────────────────────────────────────────────────────
 
-export async function runMirror(input: MirrorInput, user: { id: string; name: string }) {
+export async function runMirror(input: MirrorInput, user: { id: string; name: string } | null) {
   const engines = mirrorEngines();
   if (!engines.length) throw new Error("AI Mirror ni nastavljen: na strežniku manjkata OPENAI_API_KEY in GEMINI_API_KEY.");
-  const b = await mirrorBudget(user.id);
-  if (b.monthEur >= b.limitEur) throw new Error(`Mesečni proračun za AI Mirror (${b.limitEur} €) je porabljen. Administrator ga lahko poveča.`);
-  if (input.kind === "QUICK" && b.quickLeft <= 0) throw new Error("Danes ste porabili vse hitre preglede. Poskusite jutri.");
-  if (input.kind === "FULL" && b.fullLeft <= 0) throw new Error("Danes ste porabili vse celovite analize. Poskusite jutri.");
+  if (user) {
+    const b = await mirrorBudget(user.id);
+    if (b.monthEur >= b.limitEur) throw new Error(`Mesečni proračun za AI Mirror (${b.limitEur} €) je porabljen. Administrator ga lahko poveča.`);
+    if (input.kind === "QUICK" && b.quickLeft <= 0) throw new Error("Danes ste porabili vse hitre preglede. Poskusite jutri.");
+    if (input.kind === "FULL" && b.fullLeft <= 0) throw new Error("Danes ste porabili vse celovite analize. Poskusite jutri.");
+  } else {
+    // Automatic runs (website inquiries): same monthly budget, plus a daily cap.
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const [month, today] = await Promise.all([
+      prisma.aiMirrorRun.aggregate({ where: { createdAt: { gte: monthStart } }, _sum: { costEur: true } }),
+      prisma.aiMirrorRun.count({ where: { userId: null, createdAt: { gte: dayStart } } }),
+    ]);
+    const limit = Number(process.env.AI_MIRROR_MONTHLY_LIMIT_EUR || 25) || 25;
+    const daily = Number(process.env.AI_MIRROR_DAILY_AUTO || 20) || 20;
+    if ((month._sum.costEur || 0) >= limit) throw new Error("Mesečni proračun za AI Mirror je porabljen.");
+    if (today >= daily) throw new Error("Dnevna meja samodejnih analiz je dosežena.");
+  }
 
   // A delivery client keeps the same questions every month, so measurements are comparable.
   let queries = buildQueries(input);
@@ -425,8 +440,8 @@ export async function runMirror(input: MirrorInput, user: { id: string; name: st
       queries: queries as any,
       customerId: input.customerId || null,
       geoClientId: input.geoClientId || null,
-      userId: user.id,
-      userName: user.name,
+      userId: user?.id ?? null,
+      userName: user?.name ?? "Samodejno (spletna stran)",
       status: "RUNNING",
     },
   });

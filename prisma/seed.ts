@@ -169,7 +169,7 @@ async function main() {
         name: "Mr. Picked Social",
         family: picked.family,
         leadGroup: picked.leadGroup,
-        tagline: "Facebook, Instagram and Google posts made from the client's Mr. Picked content.",
+        tagline: "Objave na Facebooku, Instagramu in Googlu iz vsebine, ki jo za stranko že pripravlja Mr. Picked.",
         targetSegment: picked.targetSegment,
         description:
           "Dodatek k Mr. Picked. Objave na Facebooku, Instagramu in Google profilu pripravimo iz vsebine, ki jo že naredimo za AI vidnost (AI videi, odgovori na vprašanja strank, ocene, fotografije). Social Start: 8 objav na mesec + 4 Google objave. Social Plus: 12–16 objav + zgodbe, Google objave, odgovori na komentarje in sporočila ob delavnikih. S paketom Recommended ali Concierge je dodatek 100 € cenejši.",

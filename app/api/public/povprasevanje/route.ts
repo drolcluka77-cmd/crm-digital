@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity";
 import { notify } from "@/lib/notify";
 import { assignWarmLead } from "@/lib/warm-leads";
+import { mirrorEngines, runMirror } from "@/lib/ai-mirror";
 
 export const dynamic = "force-dynamic";
 
@@ -12,12 +13,13 @@ export const dynamic = "force-dynamic";
  *   POST /api/public/povprasevanje?produkt=simpleimport
  *   Body: HTML form (application/x-www-form-urlencoded or multipart) or JSON.
  *
- * Fields: ime*, email*, podjetje, telefon, kraj, izdelek, kolicina, rok, sporocilo, vrsta (e.g. "iskanje" | "vprasanje"),
+ * Fields: ime*, email*, podjetje, telefon, kraj, dejavnost, izdelek, kolicina, rok, sporocilo, vrsta (e.g. "iskanje" | "vprasanje"),
  *         jezik, stran (page the form is on), hvala (thank-you URL to redirect to after a form post),
  *         website (honeypot — must stay empty), cf-turnstile-response (only if TURNSTILE_SECRET_KEY is set).
  * Answers JSON for fetch()/JSON requests; redirects to `hvala` (or a simple thank-you page) for normal form posts.
  * Creates a warm website lead with the product and offers it to a seller (72 h to accept); an e-mail already in
  * the CRM is not duplicated — its seller is told instead.
+ * Mr. Picked inquiries with kraj + dejavnost also get an automatic AI Mirror analysis, ready before the first call.
  */
 
 const PRODUCTS: Record<string, { match: RegExp; label: string }> = {
@@ -144,6 +146,7 @@ export async function POST(req: NextRequest) {
   const kind = clip(d.vrsta, 40);
   const lines = [
     `Povpraševanje s spletne strani ${prod.label}${d.stran ? ` (${clip(d.stran, 120)})` : ""}${kind ? ` · ${kind}` : ""}${d.jezik ? ` · jezik ${clip(d.jezik, 5)}` : ""}`,
+    d.dejavnost ? `Dejavnost: ${clip(d.dejavnost, 80)}` : null,
     d.izdelek ? `Izdelek: ${clip(d.izdelek, 300)}` : null,
     d.kolicina ? `Količina: ${clip(d.kolicina, 100)}` : null,
     d.rok ? `Želeni rok: ${clip(d.rok, 60)}` : null,
@@ -192,5 +195,14 @@ export async function POST(req: NextRequest) {
   });
   await logActivity(customer.id, null, "WEBSITE_SIGNUP", summary);
   await assignWarmLead(customer.id);
+
+  // Mr. Picked: run the AI Mirror analysis in the background so the seller sees it on the customer page.
+  const city = clip(d.kraj, 80);
+  const category = clip(d.dejavnost, 80);
+  if (key === "picked" && city && category && mirrorEngines().length) {
+    runMirror({ kind: "FULL", company: clip(d.podjetje, 120) || name, city, category, customerId: customer.id }, null).catch(() => {
+      /* budget reached or AI unavailable — the seller can run it by hand */
+    });
+  }
   return reply(true, "Hvala, oglasili se bomo v enem delovnem dnevu.");
 }

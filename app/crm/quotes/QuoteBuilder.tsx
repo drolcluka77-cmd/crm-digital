@@ -532,7 +532,7 @@ export default function QuoteBuilder({
               <ul className="list-disc pl-5 mt-1 text-xs space-y-0.5">
                 {guard.issues.map((i) => (
                   <li key={i.name}>
-                    {i.name}: {i.discount}{t("% off list (your limit is ")}{i.max}%)
+                    {i.note ? `${i.name}: ${i.note}` : <>{i.name}: {i.discount}{t("% off list (your limit is ")}{i.max}%)</>}
                   </li>
                 ))}
               </ul>

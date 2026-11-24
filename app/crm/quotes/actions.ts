@@ -12,7 +12,7 @@ import { getAccessibleProductIds, getSellableProductIds } from "@/lib/access";
 import { logActivity } from "@/lib/activity";
 import { notify, supervisorsOf } from "@/lib/notify";
 import { acceptQuote, rejectQuote } from "@/lib/quotes";
-import { checkDiscounts, describeIssues } from "@/lib/guardrails";
+import { checkDiscounts, describeIssues, type GuardrailIssue } from "@/lib/guardrails";
 import { getBaseUrl } from "@/lib/url";
 import { computeQuoteBreakdown, escapeHtml, formatMoney } from "@/lib/format";
 import { BILLINGS, BILLING_LABEL, BILLING_SUFFIX, QUOTE_STATUSES } from "@/lib/constants";
@@ -142,7 +142,7 @@ function parseDate(raw: FormDataEntryValue | null): Date | null {
 async function applyApproval(
   quoteId: string,
   user: CurrentUser,
-  check: { needsApproval: boolean; issues: { name: string; discount: number; max: number }[] }
+  check: { needsApproval: boolean; issues: GuardrailIssue[] }
 ) {
   const quote = await prisma.quote.findUnique({ where: { id: quoteId }, include: { customer: true } });
   if (!quote) return;

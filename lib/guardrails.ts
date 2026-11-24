@@ -12,7 +12,14 @@ export type GuardrailLine = {
   listPrice?: number | null;
 };
 
-export type GuardrailIssue = { name: string; discount: number; max: number };
+export type GuardrailIssue = { name: string; discount: number; max: number; note?: string };
+
+/**
+ * Bundle prices: a plan whose name says "paketna cena" / "bundle price" is only valid together with one of the
+ * base packages it is tied to (Mr. Picked Recommended or Concierge). Without one, the quote needs approval.
+ */
+const BUNDLE_PLAN = /paketna cena|bundle price/i;
+const BUNDLE_BASE = /recommended|concierge/i;
 
 export function checkDiscounts(
   items: GuardrailLine[],
@@ -35,9 +42,13 @@ export function checkDiscounts(
       issues.push({ name: i.name, discount: Math.round(effective * 10) / 10, max });
     }
   }
+  if (items.some((i) => BUNDLE_PLAN.test(i.name)) && !items.some((i) => BUNDLE_BASE.test(i.name) && !BUNDLE_PLAN.test(i.name))) {
+    for (const i of items.filter((x) => BUNDLE_PLAN.test(x.name)))
+      issues.push({ name: i.name, discount: 0, max: 0, note: "paketna cena brez paketa Recommended ali Concierge" });
+  }
   return { needsApproval: issues.length > 0, issues };
 }
 
 export function describeIssues(issues: GuardrailIssue[]): string {
-  return issues.map((i) => `${i.name}: ${i.discount}% off (limit ${i.max}%)`).join("; ");
+  return issues.map((i) => (i.note ? `${i.name}: ${i.note}` : `${i.name}: ${i.discount}% off (limit ${i.max}%)`)).join("; ");
 }

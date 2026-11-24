@@ -40,6 +40,11 @@ export default async function CustomerDetailPage({ params }: { params: { id: str
     },
   });
   if (!customer || customer.ownerId !== user.id) notFound();
+  const lastMirror = await prisma.aiMirrorRun.findFirst({
+    where: { customerId: customer.id, status: { in: ["DONE", "RUNNING"] } },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, status: true, score: true, kind: true },
+  });
 
   const settings = await getSettings();
   const [products, materials, templates, me] = await Promise.all([
@@ -175,6 +180,11 @@ export default async function CustomerDetailPage({ params }: { params: { id: str
             <Link href={`/crm/mirror?customer=${customer.id}`} className="flex items-center gap-1.5 text-brand-600 hover:underline">
               ✨ AI Mirror
             </Link>
+            {lastMirror && (
+              <Link href={`/crm/mirror/${lastMirror.id}`} className="flex items-center gap-1.5 text-brand-600 hover:underline">
+                {lastMirror.status === "RUNNING" ? "AI analiza teče …" : `AI vidnost ${lastMirror.score ?? 0} %`}
+              </Link>
+            )}
           </div>
         </div>
         <CustomerDetailActions
