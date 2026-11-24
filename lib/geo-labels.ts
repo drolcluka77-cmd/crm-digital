@@ -23,12 +23,14 @@ export const GEO_PACKAGE_LABEL: Record<string, string> = {
   CONCIERGE: "Concierge",
 };
 
-export const GEO_ADDONS = ["VIDEOS", "REVIEWS", "WHATSAPP", "WEBSITE"] as const;
+export const GEO_ADDONS = ["VIDEOS", "REVIEWS", "WHATSAPP", "WEBSITE", "SOCIAL", "SOCIAL_PLUS"] as const;
 export const GEO_ADDON_LABEL: Record<string, string> = {
   VIDEOS: "AI videi (+3 na mesec)",
   REVIEWS: "Zbiranje ocen",
   WHATSAPP: "WhatsApp concierge",
   WEBSITE: "Spletna stran za AI",
+  SOCIAL: "Social Start (8 objav FB + IG, 4 Google objave)",
+  SOCIAL_PLUS: "Social Plus (12–16 objav + zgodbe, odgovori na komentarje in sporočila)",
 };
 
 export const GEO_INDUSTRIES = [
@@ -200,6 +202,8 @@ export const GEO_TEMPLATE_GROUPS = [
   "ADDON_REVIEWS",
   "ADDON_WHATSAPP",
   "ADDON_WEBSITE",
+  "ADDON_SOCIAL",
+  "ADDON_SOCIAL_PLUS",
   "UNBUSYNESS_PILOT",
   "SIMPLEIMPORT",
   "SIMPLEIMPORT_SAMPLES",
@@ -212,6 +216,8 @@ export const GEO_TEMPLATE_GROUP_LABEL: Record<string, string> = {
   ADDON_REVIEWS: "Add-on: reviews",
   ADDON_WHATSAPP: "Add-on: WhatsApp",
   ADDON_WEBSITE: "Add-on: website",
+  ADDON_SOCIAL: "Add-on: Social Start",
+  ADDON_SOCIAL_PLUS: "Add-on: Social Plus",
   UNBUSYNESS_PILOT: "Unbusyness pilot",
   SIMPLEIMPORT: "SimpleImport",
   SIMPLEIMPORT_SAMPLES: "SimpleImport: samples",

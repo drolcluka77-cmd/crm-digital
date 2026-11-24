@@ -177,6 +177,29 @@ export const DEFAULT_GEO_TEMPLATES: Tpl[] = [
   },
 ];
 
+/** Social media add-ons (Social Start / Social Plus). Posts are made from the client's Mr. Picked content. */
+const SOC = ["ADDON_SOCIAL", "ADDON_SOCIAL_PLUS"];
+export const DEFAULT_SOCIAL_TEMPLATES: Tpl[] = [
+  {
+    packages: SOC,
+    title: "Družbena omrežja: dostop do FB strani in IG računa (Meta Business Suite), povezava v Metricool, ton in teme objav s stranko",
+    phase: "START",
+    dueDay: 7,
+  },
+  { packages: SOC, title: "Mesečni načrt objav v Metricool (stranka odobri)", phase: "MONTHLY", recurrence: "MONTHLY", dueDay: 3, needsApproval: true },
+  { packages: ["ADDON_SOCIAL"], title: "8 objav na Facebooku + Instagramu iz Mr. Picked vsebine", phase: "MONTHLY", recurrence: "MONTHLY", dueDay: 28 },
+  { packages: ["ADDON_SOCIAL_PLUS"], title: "12–16 objav + zgodbe na Facebooku + Instagramu", phase: "MONTHLY", recurrence: "MONTHLY", dueDay: 28 },
+  { packages: SOC, title: "4 Google objave na profilu podjetja", phase: "MONTHLY", recurrence: "MONTHLY", dueDay: 28 },
+  {
+    packages: ["ADDON_SOCIAL_PLUS"],
+    title: "Odgovori na komentarje in sporočila na FB + IG ob delavnikih (sproti)",
+    phase: "MONTHLY",
+    recurrence: "MONTHLY",
+    dueDay: 0,
+  },
+  { packages: SOC, title: "Rezultati omrežij v mesečno poročilo (doseg, sledilci, klik na profil)", phase: "MONTHLY", recurrence: "MONTHLY", dueDay: 30 },
+];
+
 const U = ["UNBUSYNESS_PILOT"];
 /** Unbusyness pilot (forward deployment engineer). Days count from the pilot start date. */
 export const DEFAULT_UNB_TEMPLATES: Tpl[] = [
@@ -315,6 +338,9 @@ export async function ensureGeoTemplates() {
   if (!all.some((t) => asStrings(t.packages).includes("SIMPLEIMPORT"))) {
     await prisma.geoTaskTemplate.createMany({ data: DEFAULT_IMPORT_TEMPLATES.map((t, i) => tplRow(t, 700 + i)) });
   }
+  if (all.length > 0 && !all.some((t) => asStrings(t.packages).includes("ADDON_SOCIAL"))) {
+    await prisma.geoTaskTemplate.createMany({ data: DEFAULT_SOCIAL_TEMPLATES.map((t, i) => tplRow(t, 400 + i)) });
+  }
   if (all.length > 0) return;
   await prisma.geoTaskTemplate.createMany({
     data: DEFAULT_GEO_TEMPLATES.map((t, i) => ({
@@ -330,6 +356,7 @@ export async function ensureGeoTemplates() {
       sortOrder: i,
     })),
   });
+  await prisma.geoTaskTemplate.createMany({ data: DEFAULT_SOCIAL_TEMPLATES.map((t, i) => tplRow(t, 400 + i)) });
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────

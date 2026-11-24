@@ -156,6 +156,50 @@ async function main() {
     console.log(`Created starter catalog: ${CATALOG.map((p) => p.name).join(", ")}.`);
   }
 
+  // Mr. Picked social media add-on (Social Start / Social Plus). Created once, only when a
+  // Mr. Picked product already exists; copies its family, lead group and commission.
+  const picked = await prisma.product.findFirst({
+    where: { name: { contains: "Picked", mode: "insensitive" }, NOT: { name: { contains: "Social", mode: "insensitive" } } },
+    orderBy: { sortOrder: "asc" },
+  });
+  const pickedSocial = await prisma.product.findFirst({ where: { name: { contains: "Picked Social", mode: "insensitive" } } });
+  if (picked && !pickedSocial) {
+    await prisma.product.create({
+      data: {
+        name: "Mr. Picked Social",
+        family: picked.family,
+        leadGroup: picked.leadGroup,
+        tagline: "Facebook, Instagram and Google posts made from the client's Mr. Picked content.",
+        targetSegment: picked.targetSegment,
+        description:
+          "Dodatek k Mr. Picked. Objave na Facebooku, Instagramu in Google profilu pripravimo iz vsebine, ki jo že naredimo za AI vidnost (AI videi, odgovori na vprašanja strank, ocene, fotografije). Social Start: 8 objav na mesec + 4 Google objave. Social Plus: 12–16 objav + zgodbe, Google objave, odgovori na komentarje in sporočila ob delavnikih. S paketom Recommended ali Concierge je dodatek 100 € cenejši.",
+        pitch:
+          "Agencija za omrežja začne vsako objavo od nič. Mi vsebino za vas že delamo za AI vidnost, zato iz nje naredimo še objave. Ceneje kot agencija, en kontakt za Google, AI in omrežja.",
+        keyBenefits:
+          "Redne objave brez dodatnega dela za stranko\nVsebina iz Mr. Picked (videi, vprašanja strank, ocene)\nGoogle objave vedno vključene, ker pomagajo lokalnemu iskanju\nCeneje kot ločena agencija (trg: 300–700 € za 8–12 objav)\n100 € popusta s paketom Recommended ali Concierge",
+        idealCustomer:
+          "Že kupuje ali kupi Mr. Picked\nIma FB stran in IG poslovni račun, a objavlja redko\nNima časa ali človeka za omrežja\nVprašaj: Kdo vam zdaj objavlja? Kolikokrat na mesec? Kdo odgovarja na sporočila?",
+        objections:
+          "Imamo že agencijo — primerjajte ceno; mi objave delamo iz vsebine, ki jo za vas že pripravljamo.\nObjavljamo sami — Social Start vam vzame to delo, vi samo odobrite mesečni načrt.\nOmrežja nam ne prinašajo strank — zato so vedno vključene Google objave, ki pomagajo lokalnemu iskanju in AI.",
+        websiteUrl: picked.websiteUrl,
+        color: picked.color,
+        commissionRate: picked.commissionRate,
+        renewalCommissionRate: picked.renewalCommissionRate,
+        maxDiscount: picked.maxDiscount,
+        sortOrder: picked.sortOrder + 10,
+        plans: {
+          create: [
+            { name: "Social Start", price: 290, billing: "MONTHLY", description: "8 objav/mesec na FB + IG, 4 Google objave", sortOrder: 1 },
+            { name: "Social Start (paketna cena)", price: 190, billing: "MONTHLY", description: "Samo s paketom Recommended ali Concierge", sortOrder: 2 },
+            { name: "Social Plus", price: 490, billing: "MONTHLY", description: "12–16 objav + zgodbe, Google objave, odgovori na komentarje in sporočila ob delavnikih", sortOrder: 3 },
+            { name: "Social Plus (paketna cena)", price: 390, billing: "MONTHLY", description: "Samo s paketom Recommended ali Concierge", sortOrder: 4 },
+          ],
+        },
+      },
+    });
+    console.log("Created product: Mr. Picked Social.");
+  }
+
   if ((await prisma.emailTemplate.count()) === 0) {
     await prisma.emailTemplate.createMany({
       data: [

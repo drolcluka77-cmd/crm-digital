@@ -22,6 +22,8 @@ function fromQuote(items: { name: string; billing: string; unitPrice: number; qu
     if (/ocen|review/.test(n)) addons.push("REVIEWS");
     if (/whatsapp/.test(n)) addons.push("WHATSAPP");
     if (/spletn|website/.test(n)) addons.push("WEBSITE");
+    if (/social\s*plus/.test(n)) addons.push("SOCIAL_PLUS");
+    else if (/social/.test(n)) addons.push("SOCIAL");
     if (i.billing === "MONTHLY") monthly += i.unitPrice * i.quantity;
     else if (i.billing === "YEARLY") monthly += (i.unitPrice * i.quantity) / 12;
     else setup += i.unitPrice * i.quantity;
