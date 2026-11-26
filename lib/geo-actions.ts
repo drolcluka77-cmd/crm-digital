@@ -32,6 +32,8 @@ import {
   IMPORT_OFFER_STATUS_LABEL,
   IMPORT_CURRENCIES,
   DELIVERY_ROLES,
+  LEAD_ENGINE,
+  leadEngineMinEnd,
 } from "@/lib/geo-labels";
 import {
   advanceGeoClient,
@@ -42,6 +44,8 @@ import {
   ensureAccessRows,
   geoAdmins,
   geoLog,
+  isLeadEngineTemplate,
+  leadEngineStart,
   napChanged,
 } from "@/lib/geo";
 import { verifySite } from "@/lib/geo-verify";
@@ -55,6 +59,7 @@ const num = (fd: FormData, k: string) => {
   return Number.isFinite(v) && v > 0 ? v : null;
 };
 const isStaff = (u: CurrentUser) => u.role === "ADMIN" || u.role === "MANAGER";
+const asStringsLocal = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
 
 function revalidateClient(id: string, customerId?: string) {
   revalidatePath(`/izvedba/stranke/${id}`);
@@ -69,7 +74,7 @@ async function clientForWork(user: CurrentUser, clientId: string) {
   const c = await prisma.geoClient.findUnique({ where: { id: clientId } });
   if (!c) return null;
   if (isStaff(user)) return c;
-  if (DELIVERY_ROLES.includes(user.role) && c.assistantId === user.id) return c;
+  if (DELIVERY_ROLES.includes(user.role) && (c.assistantId === user.id || c.adsAssistantId === user.id)) return c;
   return null;
 }
 
@@ -150,6 +155,27 @@ export async function saveHandover(customerId: string, fd: FormData, submit: boo
   };
   if (data.startDate && isNaN(data.startDate.getTime())) return { error: "Datum začetka ni pravilen." };
 
+  // Lead Engine: only with Recommended or Concierge, minimum 3 months, dated from when it was added.
+  const hadLead = asStringsLocal(existing?.addons).includes("LEAD_ENGINE");
+  const wantsLead = line === "PICKED" && addons.includes("LEAD_ENGINE");
+  let leadAdded = false;
+  if (line === "PICKED") {
+    if (wantsLead && !(LEAD_ENGINE.packages as readonly string[]).includes(data.package || ""))
+      return { error: "Lead Engine je na voljo samo s paketom Recommended ali Concierge." };
+    if (hadLead && !wantsLead && existing && !["DRAFT", "HANDED_OVER"].includes(existing.status)) {
+      const minEnd = leadEngineMinEnd(leadEngineStart(existing));
+      if (minEnd && minEnd > new Date())
+        return { error: `Lead Engine ima minimalno trajanje ${LEAD_ENGINE.minMonths} mesece (do ${minEnd.toLocaleDateString("sl-SI")}).` };
+    }
+    if (wantsLead && !hadLead) {
+      // Sold at handover: starts with the package. Added to a client already in delivery: starts today.
+      const active = existing && !["DRAFT", "HANDED_OVER"].includes(existing.status);
+      const start = active ? new Date() : data.startDate;
+      Object.assign(data, { details: { ...((existing?.details as object) || {}), leadEngineStart: start ? start.toISOString() : null } });
+      leadAdded = !!active;
+    }
+  }
+
   if (line === "UNBUSYNESS") {
     delete (data as any).package;
     delete (data as any).industry;
@@ -183,6 +209,20 @@ export async function saveHandover(customerId: string, fd: FormData, submit: boo
     });
   } else {
     await geoLog(c.id, user, "HANDOVER_SAVED", existing ? "Predaja posodobljena." : "Osnutek predaje ustvarjen.");
+  }
+  if (wantsLead && (submit || leadAdded)) {
+    // Admins assign the ads assistant; a client already in delivery gets its Lead Engine tasks right away.
+    if (leadAdded && c.assistantId) {
+      await createOnceTasks(c.id);
+      await createRecurringTasks(c.id);
+    }
+    await geoLog(c.id, user, "LEAD_ENGINE", `Lead Engine prodan (${LEAD_ENGINE.setupFee} € postavitev + ${LEAD_ENGINE.monthlyPrice} €/mesec, min. ${LEAD_ENGINE.minMonths} mesece).`);
+    await notify(await geoAdmins(), {
+      type: "GEO",
+      title: `Lead Engine: ${c.company}`,
+      body: c.adsAssistantId ? "Naloge so pri ads asistentu." : "Dodeli ads asistenta (Google Ads, pristajalna stran, e-mail zaporedje).",
+      link: `/izvedba/stranke/${c.id}`,
+    });
   }
   revalidateClient(c.id, customerId);
   return {
@@ -233,6 +273,37 @@ export async function assignAssistant(clientId: string, assistantId: string): Pr
   return { success: `Dodeljeno: ${a.name}. Ustvarjenih nalog: ${once + rec}.` };
 }
 
+/** Admin: who works the Lead Engine tasks (Google Ads, landing page, lead magnet, e-mail sequence). */
+export async function assignAdsAssistant(clientId: string, adsAssistantId: string): Promise<GeoResult> {
+  const user = await requireUser();
+  if (user.role !== "ADMIN") return { error: "Ads asistenta dodeli administrator." };
+  const [c, a] = await Promise.all([
+    prisma.geoClient.findUnique({ where: { id: clientId } }),
+    prisma.user.findUnique({ where: { id: adsAssistantId } }),
+  ]);
+  if (!c) return { error: "Stranke ni mogoče najti." };
+  if (!asStringsLocal(c.addons).includes("LEAD_ENGINE")) return { error: "Stranka nima dodatka Lead Engine." };
+  if (!a || !a.active || !["ADS", "ADMIN"].includes(a.role)) return { error: "Izberite ads asistenta." };
+  await prisma.geoClient.update({ where: { id: clientId }, data: { adsAssistantId } });
+  // Open Lead Engine tasks move to the new ads assistant.
+  const leadTpl = (await prisma.geoTaskTemplate.findMany({ select: { id: true, packages: true } })).filter(isLeadEngineTemplate).map((t) => t.id);
+  await prisma.geoTask.updateMany({
+    where: { clientId, templateId: { in: leadTpl }, status: { notIn: ["DONE", "NOT_POSSIBLE"] } },
+    data: { assigneeId: adsAssistantId },
+  });
+  let n = 0;
+  if (c.assistantId) n = (await createOnceTasks(clientId)) + (await createRecurringTasks(clientId));
+  await geoLog(clientId, user, "ASSIGN_ADS", `Ads asistent: ${a.name}`);
+  await notify([adsAssistantId], {
+    type: "GEO",
+    title: `Lead Engine: ${c.company}`,
+    body: "Začni z Google Ads računom pod našim MCC in sledenjem konverzijam.",
+    link: `/izvedba/stranke/${clientId}`,
+  });
+  revalidateClient(clientId, c.customerId);
+  return { success: `Ads asistent: ${a.name}.${n ? ` Novih nalog: ${n}.` : ""}` };
+}
+
 export async function setGeoStatus(clientId: string, status: string): Promise<GeoResult> {
   const user = await requireUser();
   if (user.role !== "ADMIN") return { error: "Samo administrator." };
@@ -269,11 +340,19 @@ export async function cancelGeoClient(clientId: string): Promise<GeoResult> {
   if (user.role !== "ADMIN") return { error: "Samo administrator." };
   const c = await prisma.geoClient.findUnique({ where: { id: clientId } });
   if (!c) return { error: "Stranke ni mogoče najti." };
-  const endsAt = new Date(Date.now() + 60 * DAY);
+  let endsAt = new Date(Date.now() + 60 * DAY);
+  // Lead Engine has a 3-month minimum: tasks keep running at least until then.
+  const leadMinEnd = asStringsLocal(c.addons).includes("LEAD_ENGINE") ? leadEngineMinEnd(leadEngineStart(c)) : null;
+  if (leadMinEnd && leadMinEnd > endsAt) endsAt = leadMinEnd;
   await prisma.geoClient.update({ where: { id: clientId }, data: { status: "CANCELLED", statusAt: new Date(), cancelledAt: new Date(), endsAt } });
   await geoLog(clientId, user, "CANCEL", `Odpoved; naloge se ustavijo ${endsAt.toLocaleDateString("sl-SI")}.`);
   revalidateClient(clientId, c.customerId);
-  return { success: "Označeno kot prekinjeno (60-dnevni odpovedni rok)." };
+  return {
+    success:
+      leadMinEnd && leadMinEnd.getTime() === endsAt.getTime()
+        ? `Označeno kot prekinjeno. Lead Engine teče do konca minimalnega trajanja (${endsAt.toLocaleDateString("sl-SI")}).`
+        : "Označeno kot prekinjeno (60-dnevni odpovedni rok).",
+  };
 }
 
 // ─── Assistant: company card ──────────────────────────────────────────────

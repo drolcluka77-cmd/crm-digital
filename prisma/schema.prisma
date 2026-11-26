@@ -82,6 +82,7 @@ model User {
   paymentsRecorded Payment[] @relation("PaymentRecordedBy")
   geoClientsSold     GeoClient[] @relation("GeoSeller")
   geoClientsAssigned GeoClient[] @relation("GeoAssistant")
+  geoClientsAds      GeoClient[] @relation("GeoAdsAssistant")
   geoTasks           GeoTask[]   @relation("GeoTaskAssignee")
 }
 
@@ -828,6 +829,8 @@ model GeoClient {
   seller         User?     @relation("GeoSeller", fields: [sellerId], references: [id], onDelete: SetNull)
   assistantId    String?
   assistant      User?     @relation("GeoAssistant", fields: [assistantId], references: [id], onDelete: SetNull)
+  adsAssistantId String? // Lead Engine add-on: works the Google Ads / landing page / e-mail tasks
+  adsAssistant   User?     @relation("GeoAdsAssistant", fields: [adsAssistantId], references: [id], onDelete: SetNull)
   // DRAFT | HANDED_OVER | KICKOFF | ACCESS | BASELINE | FIX | MAINTENANCE | DAY90 | CANCELLED (see lib/geo.ts)
   status         String    @default("DRAFT")
   statusAt       DateTime  @default(now())

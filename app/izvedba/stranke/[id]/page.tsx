@@ -68,7 +68,7 @@ export default async function GeoClientPage({ params, searchParams }: { params: 
     },
   });
   if (!c) notFound();
-  if (["GEO", "FDE", "IMPORT"].includes(user.role) && c.assistantId !== user.id) notFound();
+  if (["GEO", "FDE", "IMPORT", "ADS"].includes(user.role) && c.assistantId !== user.id && c.adsAssistantId !== user.id) notFound();
   const isAdmin = user.role === "ADMIN";
   const unb = c.line === "UNBUSYNESS";
   const imp = c.line === "IMPORT";
@@ -94,6 +94,11 @@ export default async function GeoClientPage({ params, searchParams }: { params: 
   const assistants = isAdmin
     ? await prisma.user.findMany({ where: { role: { in: [DELIVERY_LINE_ROLE[c.line] || "GEO", "ADMIN"] }, active: true }, select: { id: true, name: true, role: true }, orderBy: { name: "asc" } })
     : [];
+  const hasLeadEngine = asStrings(c.addons).includes("LEAD_ENGINE");
+  const adsAssistants =
+    isAdmin && hasLeadEngine
+      ? await prisma.user.findMany({ where: { role: { in: ["ADS", "ADMIN"] }, active: true }, select: { id: true, name: true, role: true }, orderBy: { name: "asc" } })
+      : [];
 
   const tasks: TaskRow[] = c.tasks.map((t) => ({
     id: t.id,
@@ -165,6 +170,9 @@ export default async function GeoClientPage({ params, searchParams }: { params: 
             status={c.status}
             assistantId={c.assistantId}
             assistants={assistants.map((a) => ({ id: a.id, name: a.role === "ADMIN" ? `${a.name} (admin)` : a.name }))}
+            hasLeadEngine={hasLeadEngine}
+            adsAssistantId={c.adsAssistantId}
+            adsAssistants={adsAssistants.map((a) => ({ id: a.id, name: a.role === "ADMIN" ? `${a.name} (admin)` : a.name }))}
           />
         )}
       </div>

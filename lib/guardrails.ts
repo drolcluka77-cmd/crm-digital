@@ -20,6 +20,7 @@ export type GuardrailIssue = { name: string; discount: number; max: number; note
  */
 const BUNDLE_PLAN = /paketna cena|bundle price/i;
 const BUNDLE_BASE = /recommended|concierge/i;
+const LEAD_ENGINE_PLAN = /lead engine/i;
 
 export function checkDiscounts(
   items: GuardrailLine[],
@@ -45,6 +46,11 @@ export function checkDiscounts(
   if (items.some((i) => BUNDLE_PLAN.test(i.name)) && !items.some((i) => BUNDLE_BASE.test(i.name) && !BUNDLE_PLAN.test(i.name))) {
     for (const i of items.filter((x) => BUNDLE_PLAN.test(x.name)))
       issues.push({ name: i.name, discount: 0, max: 0, note: "paketna cena brez paketa Recommended ali Concierge" });
+  }
+  // Lead Engine is sold only on top of Mr. Picked Recommended or Concierge (an upsell quote without them goes to approval).
+  if (items.some((i) => LEAD_ENGINE_PLAN.test(i.name)) && !items.some((i) => BUNDLE_BASE.test(i.name) && !BUNDLE_PLAN.test(i.name))) {
+    for (const i of items.filter((x) => LEAD_ENGINE_PLAN.test(x.name)))
+      issues.push({ name: i.name, discount: 0, max: 0, note: "Lead Engine samo s paketom Recommended ali Concierge (preveri, ali ga stranka že ima)" });
   }
   return { needsApproval: issues.length > 0, issues };
 }

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { assignAssistant, cancelGeoClient, closePilot, setGeoStatus } from "@/lib/geo-actions";
+import { assignAdsAssistant, assignAssistant, cancelGeoClient, closePilot, setGeoStatus } from "@/lib/geo-actions";
 import { LINE_STATUSES, GEO_STATUS_LABEL, DELIVERY_ROLE_LABEL, DELIVERY_LINE_ROLE } from "@/lib/geo-labels";
 
 export default function AdminControls({
@@ -11,12 +11,18 @@ export default function AdminControls({
   status,
   assistantId,
   assistants,
+  hasLeadEngine = false,
+  adsAssistantId = null,
+  adsAssistants = [],
 }: {
   clientId: string;
   line: string;
   status: string;
   assistantId: string | null;
   assistants: { id: string; name: string }[];
+  hasLeadEngine?: boolean;
+  adsAssistantId?: string | null;
+  adsAssistants?: { id: string; name: string }[];
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -48,6 +54,24 @@ export default function AdminControls({
           ))}
         </select>
       </label>
+      {hasLeadEngine && (
+        <label className="block">
+          <span className="label">Ads asistent (Lead Engine)</span>
+          <select
+            className="input py-1.5"
+            value={adsAssistantId || ""}
+            disabled={busy || status === "DRAFT"}
+            onChange={(e) => e.target.value && run(() => assignAdsAssistant(clientId, e.target.value))}
+          >
+            <option value="">{status === "DRAFT" ? "predaja še ni oddana" : "Dodeli …"}</option>
+            {adsAssistants.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <label className="block">
         <span className="label">Status (ročno)</span>
         <select

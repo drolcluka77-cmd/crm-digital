@@ -12,7 +12,7 @@ const ic = "h-[18px] w-[18px]";
 export default async function IzvedbaLayout({ children }: { children: React.ReactNode }) {
   const user = await requireGeoArea();
   const [settings, unread] = await Promise.all([getSettings(), unreadCount(user.id)]);
-  const staff = !["GEO", "FDE", "IMPORT"].includes(user.role);
+  const staff = !["GEO", "FDE", "IMPORT", "ADS"].includes(user.role);
   const sections: NavSection[] = [
     {
       items: [

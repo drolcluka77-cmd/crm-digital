@@ -200,6 +200,81 @@ export const DEFAULT_SOCIAL_TEMPLATES: Tpl[] = [
   { packages: SOC, title: "Rezultati omrežij v mesečno poročilo (doseg, sledilci, klik na profil)", phase: "MONTHLY", recurrence: "MONTHLY", dueDay: 30 },
 ];
 
+/** Lead Engine add-on (Google Ads + landing page + lead magnet + e-mail sequence), worked by the ads assistant.
+ *  Days count from the day the Lead Engine starts (details.leadEngineStart), not the package start. */
+const LE = ["ADDON_LEAD_ENGINE"];
+export const DEFAULT_LEAD_TEMPLATES: Tpl[] = [
+  {
+    packages: LE,
+    title: "Google Ads račun stranke pod našim upraviteljskim računom (MCC)",
+    description: "Stranka ustvari ali odpre svoj Google Ads račun in sprejme povabilo našega MCC.\nPlačilno sredstvo v računu je stranke: oglaševalski proračun plača neposredno Googlu (priporočeno od 300 €/mesec).\nZapiši dogovorjeni mesečni proračun in ciljne storitve.",
+    phase: "START",
+    dueDay: 5,
+  },
+  {
+    packages: LE,
+    title: "Sledenje konverzijam: oddano povpraševanje, klic, prijava na lead magnet",
+    description: "Google tag / GA4 na pristajalni strani, konverzije uvožene v Google Ads.\nTestno povpraševanje mora biti vidno v obeh orodjih.",
+    phase: "FIX",
+    dueDay: 12,
+    technical: true,
+  },
+  {
+    packages: LE,
+    title: "Pristajalna stran za konverzije (obrazec, klic, lead magnet)",
+    description: "Ena ponudba, jasen poziv k dejanju, obrazec in klik za klic.\nPodatki o podjetju enaki kot na kartici podjetja.",
+    phase: "FIX",
+    dueDay: 14,
+    needsApproval: true,
+    technical: true,
+  },
+  {
+    packages: LE,
+    title: "Lead magnet: brezplačen vodič, kontrolni seznam ali ponudba (stranka potrdi)",
+    phase: "FIX",
+    dueDay: 14,
+    needsApproval: true,
+  },
+  {
+    packages: LE,
+    title: "E-mail zaporedje 4–5 sporočil v Brevu (avtomatizacija ob prijavi na lead magnet)",
+    description: "Seznam in avtomatizacija v Brevu, pošiljatelj s preverjeno domeno.\nOdjava v vsakem sporočilu; soglasje zabeleženo ob prijavi.",
+    phase: "FIX",
+    dueDay: 18,
+    needsApproval: true,
+  },
+  {
+    packages: LE,
+    title: "Kampanje Google Ads: ključne besede, oglasi, lokacija, proračun; zagon po potrditvi stranke",
+    phase: "FIX",
+    dueDay: 21,
+    needsApproval: true,
+  },
+  { packages: LE, title: "Tedenski pregled oglasov: iskalni izrazi, negativne ključne besede, proračun, povpraševanja (1. teden)", phase: "MONTHLY", recurrence: "MONTHLY", dueDay: 7 },
+  { packages: LE, title: "Tedenski pregled oglasov (2. teden)", phase: "MONTHLY", recurrence: "MONTHLY", dueDay: 14 },
+  { packages: LE, title: "Tedenski pregled oglasov (3. teden)", phase: "MONTHLY", recurrence: "MONTHLY", dueDay: 21 },
+  { packages: LE, title: "Tedenski pregled oglasov (4. teden)", phase: "MONTHLY", recurrence: "MONTHLY", dueDay: 28 },
+  {
+    packages: LE,
+    title: "Mesečno poročilo Lead Engine: povpraševanja, cena na povpraševanje, rezultati",
+    description: "Brez obljub o številu povpraševanj: poročaj izmerjeno (klike, povpraševanja, ceno na povpraševanje, porabo) in naslednje korake.",
+    phase: "MONTHLY",
+    recurrence: "MONTHLY",
+    dueDay: 30,
+    needsApproval: true,
+  },
+];
+/** Lead Engine templates are worked by the ads assistant (falls back to the GEO assistant until one is assigned). */
+export function isLeadEngineTemplate(t: { packages: unknown }) {
+  const p = asStrings(t.packages);
+  return p.length > 0 && p.every((g) => g === "ADDON_LEAD_ENGINE");
+}
+export function leadEngineStart(c: { startDate: Date | null; details?: unknown }): Date | null {
+  const raw = (c.details as { leadEngineStart?: string } | null)?.leadEngineStart;
+  const d = raw ? new Date(raw) : null;
+  return d && !isNaN(d.getTime()) ? d : c.startDate;
+}
+
 const U = ["UNBUSYNESS_PILOT"];
 /** Unbusyness pilot (forward deployment engineer). Days count from the pilot start date. */
 export const DEFAULT_UNB_TEMPLATES: Tpl[] = [
@@ -341,6 +416,9 @@ export async function ensureGeoTemplates() {
   if (all.length > 0 && !all.some((t) => asStrings(t.packages).includes("ADDON_SOCIAL"))) {
     await prisma.geoTaskTemplate.createMany({ data: DEFAULT_SOCIAL_TEMPLATES.map((t, i) => tplRow(t, 400 + i)) });
   }
+  if (all.length > 0 && !all.some((t) => asStrings(t.packages).includes("ADDON_LEAD_ENGINE"))) {
+    await prisma.geoTaskTemplate.createMany({ data: DEFAULT_LEAD_TEMPLATES.map((t, i) => tplRow(t, 450 + i)) });
+  }
   if (all.length > 0) return;
   await prisma.geoTaskTemplate.createMany({
     data: DEFAULT_GEO_TEMPLATES.map((t, i) => ({
@@ -357,6 +435,7 @@ export async function ensureGeoTemplates() {
     })),
   });
   await prisma.geoTaskTemplate.createMany({ data: DEFAULT_SOCIAL_TEMPLATES.map((t, i) => tplRow(t, 400 + i)) });
+  await prisma.geoTaskTemplate.createMany({ data: DEFAULT_LEAD_TEMPLATES.map((t, i) => tplRow(t, 450 + i)) });
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -411,6 +490,8 @@ export async function createOnceTasks(clientId: string) {
     if (!asStrings(t.packages).some((g) => groups.includes(g))) continue;
     const exists = await prisma.geoTask.findFirst({ where: { clientId, templateId: t.id }, select: { id: true } });
     if (exists) continue;
+    const lead = isLeadEngineTemplate(t);
+    const base = lead ? leadEngineStart(c) ?? c.startDate : c.startDate;
     await prisma.geoTask.create({
       data: {
         clientId,
@@ -419,8 +500,8 @@ export async function createOnceTasks(clientId: string) {
         title: t.title,
         description: t.description,
         phase: t.phase,
-        dueDate: new Date(c.startDate.getTime() + (t.dueDay + shiftFor(t.phase)) * DAY),
-        assigneeId: c.assistantId,
+        dueDate: new Date(base.getTime() + (t.dueDay + shiftFor(t.phase)) * DAY),
+        assigneeId: lead ? c.adsAssistantId ?? c.assistantId : c.assistantId,
         needsApproval: t.needsApproval,
         technical: t.technical,
         note: t.key === "website-code" && card.sitePlatform === "NONE" ? "Stranka nima spletne strani." : null,
@@ -457,6 +538,9 @@ export async function createRecurringTasks(clientId: string, now = new Date()) {
       // The first month only gets what's still ahead of the handover (no tasks born overdue).
       if (due < start || (k === 0 && c.approvedAt && due < new Date(c.approvedAt.getTime() - DAY))) continue;
       if (c.endsAt && due > c.endsAt) continue; // cancelled: nothing after the notice period
+      const lead = isLeadEngineTemplate(t);
+      const leadStart = lead ? leadEngineStart(c) : null;
+      if (leadStart && due < leadStart) continue; // Lead Engine added later: nothing before its start
       const exists = await prisma.geoTask.findFirst({ where: { clientId, templateId: t.id, period }, select: { id: true } });
       if (exists) continue;
       await prisma.geoTask.create({
@@ -469,7 +553,7 @@ export async function createRecurringTasks(clientId: string, now = new Date()) {
           description: t.description,
           phase: t.phase,
           dueDate: due,
-          assigneeId: c.assistantId,
+          assigneeId: lead ? c.adsAssistantId ?? c.assistantId : c.assistantId,
           needsApproval: t.needsApproval,
           technical: t.technical,
         },

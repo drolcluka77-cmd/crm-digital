@@ -6,8 +6,8 @@ export const DELIVERY_LINES = ["PICKED", "UNBUSYNESS", "IMPORT"] as const;
 export const DELIVERY_LINE_LABEL: Record<string, string> = { PICKED: "Mr. Picked", UNBUSYNESS: "Unbusyness pilot", IMPORT: "SimpleImport" };
 /** Roles that can be assigned to work a line (admins always can). */
 export const DELIVERY_LINE_ROLE: Record<string, string> = { PICKED: "GEO", UNBUSYNESS: "FDE", IMPORT: "IMPORT" };
-export const DELIVERY_ROLE_LABEL: Record<string, string> = { GEO: "GEO asistent", FDE: "Forward deployment engineer", IMPORT: "Koordinator uvoza" };
-export const DELIVERY_ROLES = ["GEO", "FDE", "IMPORT"];
+export const DELIVERY_ROLE_LABEL: Record<string, string> = { GEO: "GEO asistent", FDE: "Forward deployment engineer", IMPORT: "Koordinator uvoza", ADS: "Ads asistent" };
+export const DELIVERY_ROLES = ["GEO", "FDE", "IMPORT", "ADS"];
 /** Which product names belong to which line. */
 export function lineForProductName(name: string): string | null {
   if (/picked/i.test(name)) return "PICKED";
@@ -23,7 +23,7 @@ export const GEO_PACKAGE_LABEL: Record<string, string> = {
   CONCIERGE: "Concierge",
 };
 
-export const GEO_ADDONS = ["VIDEOS", "REVIEWS", "WHATSAPP", "WEBSITE", "SOCIAL", "SOCIAL_PLUS"] as const;
+export const GEO_ADDONS = ["VIDEOS", "REVIEWS", "WHATSAPP", "WEBSITE", "SOCIAL", "SOCIAL_PLUS", "LEAD_ENGINE"] as const;
 export const GEO_ADDON_LABEL: Record<string, string> = {
   VIDEOS: "AI videi (+3 na mesec)",
   REVIEWS: "Zbiranje ocen",
@@ -31,7 +31,24 @@ export const GEO_ADDON_LABEL: Record<string, string> = {
   WEBSITE: "Spletna stran za AI",
   SOCIAL: "Social Start (8 objav FB + IG, 4 Google objave)",
   SOCIAL_PLUS: "Social Plus (12–16 objav + zgodbe, odgovori na komentarje in sporočila)",
+  LEAD_ENGINE: "Lead Engine (Google Ads, pristajalna stran, lead magnet, e-mail zaporedje)",
 };
+
+/** Lead Engine add-on: Google Ads + landing page + lead magnet + e-mail sequence. Worked by the ads assistant. */
+export const LEAD_ENGINE = {
+  setupFee: 790,
+  monthlyPrice: 390,
+  minMonths: 3,
+  /** Only sold on top of these packages. */
+  packages: ["RECOMMENDED", "CONCIERGE"],
+} as const;
+/** Months the Lead Engine must still run (from its start) before it may end, or 0. */
+export function leadEngineMinEnd(start: Date | null): Date | null {
+  if (!start) return null;
+  const d = new Date(start);
+  d.setUTCMonth(d.getUTCMonth() + LEAD_ENGINE.minMonths);
+  return d;
+}
 
 export const GEO_INDUSTRIES = [
   "RESTAURANT",
@@ -204,6 +221,7 @@ export const GEO_TEMPLATE_GROUPS = [
   "ADDON_WEBSITE",
   "ADDON_SOCIAL",
   "ADDON_SOCIAL_PLUS",
+  "ADDON_LEAD_ENGINE",
   "UNBUSYNESS_PILOT",
   "SIMPLEIMPORT",
   "SIMPLEIMPORT_SAMPLES",
@@ -218,6 +236,7 @@ export const GEO_TEMPLATE_GROUP_LABEL: Record<string, string> = {
   ADDON_WEBSITE: "Add-on: website",
   ADDON_SOCIAL: "Add-on: Social Start",
   ADDON_SOCIAL_PLUS: "Add-on: Social Plus",
+  ADDON_LEAD_ENGINE: "Add-on: Lead Engine",
   UNBUSYNESS_PILOT: "Unbusyness pilot",
   SIMPLEIMPORT: "SimpleImport",
   SIMPLEIMPORT_SAMPLES: "SimpleImport: samples",

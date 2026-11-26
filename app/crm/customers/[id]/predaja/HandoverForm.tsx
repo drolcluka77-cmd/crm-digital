@@ -261,6 +261,10 @@ export default function HandoverForm({ customerId, line, values, fromQuote }: { 
                 </label>
               ))}
             </div>
+            <p className="text-xs text-black/45 mt-2">
+              Lead Engine: 790 € postavitev + 390 €/mesec, minimalno 3 mesece, samo s paketom Recommended ali Concierge. Oglaševalski
+              proračun stranka plača neposredno Googlu (priporočeno od 300 €/mesec).
+            </p>
           </div>
         </div>
       )}

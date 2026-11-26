@@ -40,7 +40,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 
 /** Where each role lands after login. */
 export function homeFor(role: Role): string {
-  return role === "SALES" ? "/crm" : role === "GEO" || role === "FDE" || role === "IMPORT" ? "/izvedba" : "/admin";
+  return role === "SALES" ? "/crm" : role === "GEO" || role === "FDE" || role === "IMPORT" || role === "ADS" ? "/izvedba" : "/admin";
 }
 
 /** Use at the top of any page/layout that requires a logged-in user. */
@@ -74,6 +74,6 @@ export async function requireSales(): Promise<CurrentUser> {
 /** GEO delivery area (/izvedba): GEO assistants, admins and managers. */
 export async function requireGeoArea(): Promise<CurrentUser> {
   const user = await requireUser();
-  if (!["GEO", "FDE", "IMPORT", "ADMIN", "MANAGER"].includes(user.role)) redirect(homeFor(user.role));
+  if (!["GEO", "FDE", "IMPORT", "ADS", "ADMIN", "MANAGER"].includes(user.role)) redirect(homeFor(user.role));
   return user;
 }

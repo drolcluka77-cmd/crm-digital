@@ -159,7 +159,10 @@ async function main() {
   // Mr. Picked social media add-on (Social Start / Social Plus). Created once, only when a
   // Mr. Picked product already exists; copies its family, lead group and commission.
   const picked = await prisma.product.findFirst({
-    where: { name: { contains: "Picked", mode: "insensitive" }, NOT: { name: { contains: "Social", mode: "insensitive" } } },
+    where: {
+      name: { contains: "Picked", mode: "insensitive" },
+      NOT: [{ name: { contains: "Social", mode: "insensitive" } }, { name: { contains: "Lead Engine", mode: "insensitive" } }],
+    },
     orderBy: { sortOrder: "asc" },
   });
   const pickedSocial = await prisma.product.findFirst({ where: { name: { contains: "Picked Social", mode: "insensitive" } } });
@@ -247,6 +250,56 @@ Lep pozdrav,
         ],
       });
     }
+  }
+
+  // Mr. Picked Lead Engine add-on (Google Ads + landing page + lead magnet + e-mail sequence). Created once,
+  // only when a Mr. Picked product exists; sold only on top of Recommended or Concierge (see lib/guardrails.ts).
+  const pickedLead = await prisma.product.findFirst({ where: { name: { contains: "Lead Engine", mode: "insensitive" } } });
+  if (picked && !pickedLead) {
+    await prisma.product.create({
+      data: {
+        name: "Mr. Picked Lead Engine",
+        family: picked.family,
+        leadGroup: picked.leadGroup,
+        tagline: "Vidnost spremenimo v povpraševanja: Google Ads, pristajalna stran, lead magnet in e-mail zaporedje.",
+        targetSegment: picked.targetSegment,
+        description:
+          "Dodatek k Mr. Picked (samo s paketom Recommended ali Concierge). Vključuje postavitev in upravljanje Google Ads oglasov, pristajalno stran, narejeno za konverzije, lead magnet (brezplačen vodič, kontrolni seznam ali ponudba), avtomatizirano zaporedje 4–5 e-mailov in mesečno poročilo: povpraševanja, cena na povpraševanje, rezultati. 790 € enkratna postavitev + 390 €/mesec, minimalno 3 mesece. Oglaševalski proračun stranka plača neposredno Googlu (priporočeno od 300 €/mesec).",
+        pitch:
+          "Mr. Picked poskrbi, da vas najdejo. Lead Engine poskrbi, da se tisti, ki vas najdejo, tudi oglasijo: oglasi, stran z jasno ponudbo in e-maili, ki povpraševanja ne pustijo ohladiti. Vsak mesec vidite, koliko povpraševanj je prišlo in koliko je stalo eno.",
+        keyBenefits:
+          "Google Ads, pristajalna stran, lead magnet in e-mail zaporedje iz ene roke\nMerljivo: povpraševanja, cena na povpraševanje in poraba v mesečnem poročilu\nOglaševalski proračun ostane pri stranki in ga plača neposredno Googlu\nPovezano z vsebino in podatki, ki jih že pripravljamo za Mr. Picked",
+        idealCustomer:
+          "Že ima Mr. Picked Recommended ali Concierge\nNova stranka mu prinese dovolj, da se proračun za oglase splača (npr. storitve, obrtniki, klinike, nastanitve)\nZmore sprejeti več povpraševanj\nVprašaj: Koliko vam je vredna nova stranka? Koliko povpraševanj na mesec zdaj dobite in od kod?",
+        objections:
+          "Oglase smo že poskusili, niso delovali — tokrat merimo vsak korak: klik, povpraševanje, ceno na povpraševanje, in tedensko popravljamo.\nKoliko povpraševanj dobim? — tega ne obljubljamo; dogovorimo cilj in vsak mesec pokažemo izmerjene rezultate.\nProračun je previsok — priporočamo od 300 €/mesec, plačate ga neposredno Googlu, in ga lahko prilagodimo.",
+        websiteUrl: picked.websiteUrl,
+        color: picked.color,
+        commissionRate: picked.commissionRate,
+        renewalCommissionRate: picked.renewalCommissionRate,
+        maxDiscount: picked.maxDiscount,
+        sortOrder: picked.sortOrder + 11,
+        plans: {
+          create: [
+            {
+              name: "Lead Engine — postavitev",
+              price: 790,
+              billing: "ONE_TIME",
+              description: "Google Ads račun pod našim MCC, sledenje konverzijam, pristajalna stran, lead magnet, e-mail zaporedje v Brevu",
+              sortOrder: 1,
+            },
+            {
+              name: "Lead Engine — mesečno upravljanje",
+              price: 390,
+              billing: "MONTHLY",
+              description: "Minimalno 3 mesece. Samo s paketom Recommended ali Concierge. Oglaševalski proračun plača stranka neposredno Googlu (priporočeno od 300 €/mesec).",
+              sortOrder: 2,
+            },
+          ],
+        },
+      },
+    });
+    console.log("Created product: Mr. Picked Lead Engine.");
   }
 
   if ((await prisma.emailTemplate.count()) === 0) {
