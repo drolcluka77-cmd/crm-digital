@@ -255,7 +255,7 @@ export function buildFooterHtml(card: GeoCard) {
 }
 
 /** E-mail text for the client's own web developer. */
-export function buildDeveloperEmail(card: GeoCard, industry: string | null | undefined, from: { name: string }) {
+export function buildDeveloperEmail(card: GeoCard, industry: string | null | undefined, from: { name: string }, extraHead = "") {
   const name = clean(card.legalName);
   return {
     subject: `${name}: podatki za spletno stran (schema.org, llms.txt, robots.txt)`,
@@ -266,7 +266,7 @@ za podjetje ${name} skrbimo za vidnost v Googlu in AI asistentih (ChatGPT, Gemin
 1) STRUKTURIRANI PODATKI (schema.org)
 V <head> vseh strani (ali vsaj domače) dodajte:
 
-${schemaScriptTag(card, industry)}
+${extraHead ? `${extraHead}\n` : ""}${schemaScriptTag(card, industry)}
 
 2) DATOTEKA llms.txt
 V koren strani (${siteUrl(card) || "https://…"}/llms.txt) naložite datoteko z vsebino:

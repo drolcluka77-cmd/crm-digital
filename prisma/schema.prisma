@@ -865,6 +865,7 @@ model GeoClient {
   cancelledAt    DateTime?
   endsAt         DateTime? // last day of the 60-day notice
   lastCheck      Json? // last website verification result
+  webmaster      Json? // Google Search Console + Bing Webmaster state (lib/webmaster.ts)
 
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt

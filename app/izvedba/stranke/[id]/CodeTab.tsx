@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { verifyClientSite } from "@/lib/geo-actions";
+import { prepareWebmaster, submitWebmaster, verifyClientSite } from "@/lib/geo-actions";
+import type { WebmasterState, EngineState } from "@/lib/webmaster";
 import { SITE_PLATFORM_LABEL } from "@/lib/geo-labels";
 
 type Check = { key: string; label: string; ok: boolean; detail: string };
@@ -57,6 +58,8 @@ export default function CodeTab(props: {
   devContact: string | null;
   website: string;
   lastCheck: { at: string; url: string; ok: boolean; checks: Check[] } | null;
+  webmaster: WebmasterState | null;
+  webmasterReady: { google: boolean; bing: boolean };
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -115,10 +118,17 @@ export default function CodeTab(props: {
         </div>
       )}
 
-      <Block title="1. Strukturirani podatki (schema.org)" hint="V <head> vseh strani." text={props.schema} file="schema.html" />
+      <Block
+        title="1. Koda za <head> (verifikacija + schema.org)"
+        hint={props.webmaster ? "V <head> vseh strani. Vsebuje verifikacijski kodi za Google in Bing." : "V <head> vseh strani. Verifikacijski kodi za Google in Bing dodaš spodaj pri točki 5."}
+        text={props.schema}
+        file="head.html"
+      />
       <Block title="2. llms.txt" hint="Datoteka v korenu strani: /llms.txt" text={props.llms} file="llms.txt" />
       <Block title="3. Vrstice za robots.txt" hint="Dodaj v obstoječi robots.txt." text={props.robots} file="robots-ai.txt" />
       <Block title="4. Noga strani (ime, naslov, telefon)" hint="Natančno tako kot v kartici." text={props.footer} />
+
+<WebmasterCard clientId={props.clientId} website={props.website} state={props.webmaster} ready={props.webmasterReady} />
 
       <div className="card p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -159,6 +169,66 @@ export default function CodeTab(props: {
           </ul>
         )}
       </div>
+    </div>
+  );
+}
+
+function engineLine(name: string, e: EngineState | undefined, ready: boolean) {
+  if (!ready) return { cls: "text-black/40", text: `${name}: ni povezan (manjka ključ na strežniku)` };
+  if (!e?.code) return { cls: "text-black/45", text: `${name}: koda še ni pripravljena` };
+  if (e.verified) return { cls: "text-emerald-700", text: `${name}: verificirano${e.sitemap ? ` · sitemap oddan` : " · sitemap ni najden"}` };
+  if (e.error) return { cls: "text-rose-600", text: `${name}: ${e.error}` };
+  return { cls: "text-amber-700", text: `${name}: koda pripravljena, čaka na stran` };
+}
+
+function WebmasterCard({
+  clientId,
+  website,
+  state,
+  ready,
+}: {
+  clientId: string;
+  website: string;
+  state: WebmasterState | null;
+  ready: { google: boolean; bing: boolean };
+}) {
+  const router = useRouter();
+  const [busy, setBusy] = useState<null | "prep" | "submit">(null);
+  const [msg, setMsg] = useState<{ error?: string; success?: string } | null>(null);
+  const run = async (kind: "prep" | "submit") => {
+    setBusy(kind);
+    setMsg(null);
+    const r = kind === "prep" ? await prepareWebmaster(clientId) : await submitWebmaster(clientId);
+    setBusy(null);
+    setMsg(r || null);
+    router.refresh();
+  };
+  const g = engineLine("Google Search Console", state?.google, ready.google);
+  const b = engineLine("Bing Webmaster Tools", state?.bing, ready.bing);
+  const at = [state?.google?.at, state?.bing?.at].filter(Boolean).sort().pop();
+  return (
+    <div className="card p-5">
+      <div className="font-semibold">5. Google Search Console in Bing</div>
+      <ol className="list-decimal pl-5 mt-2 space-y-1 text-sm text-black/70">
+        <li>Klikni »Pripravi verifikacijo« — kodi se dodata v kodo za &lt;head&gt; (točka 1) in v e-mail za programerja.</li>
+        <li>Ko je koda za &lt;head&gt; na strani, klikni »Preveri in oddaj sitemap«. CRM stran verificira, jo doda v Search Console in Bing ter odda sitemap.</li>
+      </ol>
+      {state?.siteUrl && <p className="text-xs text-black/45 mt-2">Naslov lastnosti: {state.siteUrl}</p>}
+      <ul className="mt-3 space-y-1 text-sm">
+        <li className={g.cls}>{g.text}</li>
+        <li className={b.cls}>{b.text}</li>
+        {at && <li className="text-xs text-black/40">Zadnji poskus: {new Date(at).toLocaleString("sl-SI")}</li>}
+      </ul>
+      <div className="flex flex-wrap gap-2 mt-4">
+        <button className="btn-secondary py-1.5" disabled={!!busy || !website || (!ready.google && !ready.bing)} onClick={() => run("prep")}>
+          {busy === "prep" ? "Pripravljam …" : state?.siteUrl ? "Pripravi znova" : "Pripravi verifikacijo"}
+        </button>
+        <button className="btn-primary py-1.5" disabled={!!busy || !state?.siteUrl} onClick={() => run("submit")}>
+          {busy === "submit" ? "Preverjam …" : "Preveri in oddaj sitemap"}
+        </button>
+      </div>
+      {msg?.error && <div className="error-box mt-3 text-sm">{msg.error}</div>}
+      {msg?.success && <div className="success-box mt-3 text-sm">{msg.success}</div>}
     </div>
   );
 }

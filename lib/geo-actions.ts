@@ -49,6 +49,17 @@ import {
   napChanged,
 } from "@/lib/geo";
 import { verifySite } from "@/lib/geo-verify";
+import {
+  bingConfigured,
+  bingSubmit,
+  bingVerificationCode,
+  canonicalSiteUrl,
+  findSitemap,
+  googleConfigured,
+  googleSubmit,
+  googleVerificationCode,
+  type WebmasterState,
+} from "@/lib/webmaster";
 
 export type GeoResult = { error?: string; success?: string; id?: string } | void;
 
@@ -728,4 +739,81 @@ export async function deleteImportOffer(offerId: string): Promise<GeoResult> {
   await geoLog(o.clientId, user, "OFFER", `Ponudba izbrisana: ${o.supplier}`);
   revalidateClient(o.clientId);
   return { success: "Izbrisano." };
+}
+
+// ─── Google Search Console + Bing Webmaster ──────────────────────────────
+
+/** Step 1: get the verification codes (added to the <head> code on the Koda tab). */
+export async function prepareWebmaster(clientId: string): Promise<GeoResult> {
+  const user = await requireUser();
+  const c = await clientForWork(user, clientId);
+  if (!c) return { error: "Ni dovoljeno." };
+  const card = asCard(c.card);
+  if (!card.website) return { error: "V kartici ni spletne strani." };
+  if (!googleConfigured() && !bingConfigured()) return { error: "Google in Bing še nista povezana (manjkata ključa na strežniku)." };
+  const siteUrl = await canonicalSiteUrl(card.website);
+  const prev = (c.webmaster as unknown as WebmasterState) || null;
+  const state: WebmasterState = { siteUrl, google: prev?.siteUrl === siteUrl ? prev.google : undefined, bing: prev?.siteUrl === siteUrl ? prev.bing : undefined };
+  const errors: string[] = [];
+  if (googleConfigured()) {
+    try {
+      state.google = { ...(state.google || {}), code: await googleVerificationCode(siteUrl), error: null };
+    } catch (e: any) {
+      state.google = { ...(state.google || {}), error: String(e?.message || e).slice(0, 300) };
+      errors.push(`Google: ${state.google.error}`);
+    }
+  }
+  if (bingConfigured()) {
+    try {
+      const b = await bingVerificationCode(siteUrl);
+      state.bing = { ...(state.bing || {}), code: b.code, added: true, verified: b.verified || state.bing?.verified, error: null };
+    } catch (e: any) {
+      state.bing = { ...(state.bing || {}), error: String(e?.message || e).slice(0, 300) };
+      errors.push(`Bing: ${state.bing.error}`);
+    }
+  }
+  await prisma.geoClient.update({ where: { id: clientId }, data: { webmaster: state as any } });
+  await geoLog(clientId, user, "WEBMASTER", `Verifikacijske kode pripravljene za ${siteUrl}${errors.length ? ` (${errors.join("; ")})` : ""}`);
+  revalidateClient(clientId);
+  return errors.length ? { error: errors.join(" · ") } : { success: "Kode so dodane v kodo za <head>. Ko je koda na strani, klikni »Preveri in oddaj sitemap«." };
+}
+
+/** Step 2: verify on Google and Bing, add the site, submit the sitemap. */
+export async function submitWebmaster(clientId: string): Promise<GeoResult> {
+  const user = await requireUser();
+  const c = await clientForWork(user, clientId);
+  if (!c) return { error: "Ni dovoljeno." };
+  const state = (c.webmaster as unknown as WebmasterState) || null;
+  if (!state?.siteUrl) return { error: "Najprej klikni »Pripravi verifikacijo«." };
+  const sitemap = await findSitemap(state.siteUrl);
+  const errors: string[] = [];
+  if (googleConfigured() && state.google?.code) {
+    try {
+      state.google = { ...state.google, ...(await googleSubmit(state.siteUrl, sitemap)) };
+    } catch (e: any) {
+      const m = String(e?.message || e);
+      state.google = { ...state.google, error: /verification|verify|token/i.test(m) ? "Google še ne najde kode na strani." : m.slice(0, 300), at: new Date().toISOString() };
+      errors.push(`Google: ${state.google.error}`);
+    }
+  }
+  if (bingConfigured() && state.bing?.code) {
+    try {
+      state.bing = { ...state.bing, ...(await bingSubmit(state.siteUrl, sitemap)) };
+      if (state.bing.error) errors.push(`Bing: ${state.bing.error}`);
+    } catch (e: any) {
+      state.bing = { ...state.bing, error: String(e?.message || e).slice(0, 300), at: new Date().toISOString() };
+      errors.push(`Bing: ${state.bing.error}`);
+    }
+  }
+  await prisma.geoClient.update({ where: { id: clientId }, data: { webmaster: state as any } });
+  const done = [state.google?.verified ? "Google" : null, state.bing?.verified ? "Bing" : null].filter(Boolean).join(" in ");
+  await geoLog(
+    clientId,
+    user,
+    "WEBMASTER",
+    `${done ? `Verificirano: ${done}. ` : ""}${sitemap ? `Sitemap: ${sitemap}` : "Sitemap ni najden."}${errors.length ? ` Težave: ${errors.join("; ")}` : ""}`
+  );
+  revalidateClient(clientId);
+  if (errors.length) return { error: errors.join(" · ") };
+  return { success: sitemap ? `Stran je v Google Search Console in Bing Webmaster Tools, sitemap oddan (${sitemap}).` : "Stran je verificirana, sitemapa pa nismo našli — dodaj ga na stran in klikni znova." };
 }

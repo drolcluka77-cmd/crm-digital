@@ -37,6 +37,7 @@ import OffersTab from "./OffersTab";
 import MirrorForm from "@/components/MirrorForm";
 import { mirrorBudget, mirrorEngines } from "@/lib/ai-mirror";
 import CodeTab from "./CodeTab";
+import { bingConfigured, googleConfigured, verificationMetaTags, type WebmasterState } from "@/lib/webmaster";
 import AdminControls from "./AdminControls";
 import AddTask from "./AddTask";
 
@@ -357,11 +358,13 @@ export default async function GeoClientPage({ params, searchParams }: { params: 
           platform={card.sitePlatform || ""}
           steps={PLATFORM_STEPS[card.sitePlatform || ""] || []}
           schemaType={schemaTypeFor(c.industry, card)}
-          schema={schemaScriptTag(card, c.industry)}
+          schema={[verificationMetaTags(c.webmaster as unknown as WebmasterState), schemaScriptTag(card, c.industry)].filter(Boolean).join("\n")}
           llms={buildLlmsTxt(card, c.industry)}
           robots={buildRobotsLines(card)}
           footer={buildFooterHtml(card)}
-          email={buildDeveloperEmail(card, c.industry, { name: user.name })}
+          email={buildDeveloperEmail(card, c.industry, { name: user.name }, verificationMetaTags(c.webmaster as unknown as WebmasterState))}
+          webmaster={(c.webmaster as unknown as WebmasterState) || null}
+          webmasterReady={{ google: googleConfigured(), bing: bingConfigured() }}
           devContact={c.webManager}
           website={card.website || ""}
           lastCheck={(c.lastCheck as any) || null}
