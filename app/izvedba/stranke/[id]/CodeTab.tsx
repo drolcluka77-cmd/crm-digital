@@ -176,7 +176,8 @@ export default function CodeTab(props: {
 function engineLine(name: string, e: EngineState | undefined, ready: boolean) {
   if (!ready) return { cls: "text-black/40", text: `${name}: ni povezan (manjka ključ na strežniku)` };
   if (!e?.code) return { cls: "text-black/45", text: `${name}: koda še ni pripravljena` };
-  if (e.verified) return { cls: "text-emerald-700", text: `${name}: verificirano${e.sitemap ? ` · sitemap oddan` : " · sitemap ni najden"}` };
+  if (e.verified && !e.at) return { cls: "text-emerald-700", text: `${name}: verificirano · sitemap še ni oddan` };
+  if (e.verified) return { cls: "text-emerald-700", text: `${name}: verificirano${e.sitemap ? ` · sitemap oddan` : " · sitemap ni najden na strani"}` };
   if (e.error) return { cls: "text-rose-600", text: `${name}: ${e.error}` };
   return { cls: "text-amber-700", text: `${name}: koda pripravljena, čaka na stran` };
 }
