@@ -55,6 +55,7 @@ import {
   bingVerificationCode,
   canonicalSiteUrl,
   findSitemap,
+  sitemapTried,
   googleConfigured,
   googleSubmit,
   googleVerificationCode,
@@ -792,7 +793,7 @@ export async function submitWebmaster(clientId: string): Promise<GeoResult> {
       state.google = { ...state.google, ...(await googleSubmit(state.siteUrl, sitemap)) };
     } catch (e: any) {
       const m = String(e?.message || e);
-      state.google = { ...state.google, error: /verification|verify|token/i.test(m) ? "Google še ne najde kode na strani." : m.slice(0, 300), at: new Date().toISOString() };
+      state.google = { ...state.google, error: /verification token could not be found|not verified|could not find/i.test(m) ? `Google še ne najde kode na strani (${m.slice(0, 120)})` : m.slice(0, 300), at: new Date().toISOString() };
       errors.push(`Google: ${state.google.error}`);
     }
   }
@@ -811,7 +812,7 @@ export async function submitWebmaster(clientId: string): Promise<GeoResult> {
     clientId,
     user,
     "WEBMASTER",
-    `${done ? `Verificirano: ${done}. ` : ""}${sitemap ? `Sitemap: ${sitemap}` : "Sitemap ni najden."}${errors.length ? ` Težave: ${errors.join("; ")}` : ""}`
+    `${done ? `Verificirano: ${done}. ` : ""}${sitemap ? `Sitemap: ${sitemap}` : `Sitemap ni najden (${sitemapTried.join("; ")}).`}${errors.length ? ` Težave: ${errors.join("; ")}` : ""}`
   );
   revalidateClient(clientId);
   if (errors.length) return { error: errors.join(" · ") };

@@ -48,7 +48,9 @@ export async function canonicalSiteUrl(website: string): Promise<string> {
 }
 
 /** robots.txt "Sitemap:" lines first, then the usual paths (Wix, WordPress core, Yoast/Rank Math). */
+export const sitemapTried: string[] = [];
 export async function findSitemap(siteUrl: string): Promise<string | null> {
+  sitemapTried.length = 0;
   const base = siteUrl.replace(/\/$/, "");
   const candidates: string[] = [];
   try {
@@ -60,12 +62,16 @@ export async function findSitemap(siteUrl: string): Promise<string | null> {
   candidates.push(`${base}/sitemap.xml`, `${base}/sitemap_index.xml`, `${base}/wp-sitemap.xml`, `${base}/sitemap-index.xml`);
   for (const url of Array.from(new Set(candidates))) {
     try {
-      const r = await fetchT(url, { headers: { "user-agent": UA } }, 10_000);
-      if (!r.ok) continue;
+      const r = await fetchT(url, { headers: { "user-agent": UA, accept: "application/xml,text/xml,*/*" } }, 10_000);
+      if (!r.ok) {
+        sitemapTried.push(`${url} → ${r.status}`);
+        continue;
+      }
       const head = (await r.text()).slice(0, 2000);
       if (/<urlset|<sitemapindex/i.test(head)) return url;
-    } catch {
-      /* try next */
+      sitemapTried.push(`${url} → ni sitemap`);
+    } catch (e: any) {
+      sitemapTried.push(`${url} → ${String(e?.message || e).slice(0, 60)}`);
     }
   }
   return null;
@@ -169,7 +175,7 @@ async function bing(method: string, body?: unknown) {
   } catch {
     j = { raw: text };
   }
-  if (!r.ok) throw new Error(`Bing: ${j?.Message || j?.ErrorCode || r.status}`);
+  if (!r.ok) throw new Error(`Bing ${method}: ${j?.Message || j?.ErrorCode || r.status}`);
   return j?.d;
 }
 
